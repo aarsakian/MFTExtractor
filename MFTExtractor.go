@@ -350,7 +350,7 @@ func (winTime * WindowsTime) convertToIsoTime() string {//receiver winTime struc
     if (winTime.Stamp != 0) {
        // t:=math.Pow((uint64(winTime.high)*2),32) + uint64(winTime.low)
 	x:=winTime.Stamp/10000000 - 116444736*1e2
-	unixtime:=time.Unix(int64(x),0)
+	unixtime:= time.Unix(int64(x),0).UTC()
 	localTime=unixtime.Format("02-01-2006 15:04:05")
        // fmt.Println("time",unixtime.Format("02-01-2006 15:04:05"))
       
