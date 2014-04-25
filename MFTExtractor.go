@@ -500,7 +500,7 @@ func main() {
     0:"File Unallocted",1:"File Allocated",2:"Folder Unalloc",3:"Folder Allocated",
   }
   fmt.Println(*inputfile,os.Args[1])
-  file, err := os.Open(*inputfile)//,"F:\\3022_21_2524\\Registry\\$MFT"
+  file, err := os.Open(*inputfile)//
 
   if err != nil {
     // handle the error here
@@ -515,7 +515,7 @@ func main() {
   if err != nil {
     return
   }
-  // read the file     C:\\DEELAB\\GoProgs\\MFToutput.txt
+  // read the file    
   file1, err:= os.OpenFile("MFToutput.txt",os.O_RDWR|os.O_CREATE,0666)
 
   if err != nil {
