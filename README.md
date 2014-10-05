@@ -18,7 +18,7 @@ OUTPUT  (txt) is saved at the current directory as MFToutput.txt if -db argument
 
 MFT Entry number;Sequence Number;MFT flag;Standard Information;offset;Created Time;Accessed Time;Modified Time;MFT modified Time;File Name;offset;Access Time;Created Time;Modified Time;Filename;Parent MFT entry;Parent sequence number;Filename Flag;
 
-Rest MFT attributes appear randomly: Some of them are described below (experimental)
+Rest MFT attributes: Some of them are described below (experimental)
 
 Data Attr;True->Resident;
 
