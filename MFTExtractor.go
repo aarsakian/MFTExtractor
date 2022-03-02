@@ -6,7 +6,6 @@ import (
 	"errors"
 	"reflect"
 	"strconv"
-	"unsafe"
 
 	//"database/sql"
 	"encoding/binary"
@@ -352,33 +351,65 @@ func readEndianString(barray []byte) (val []byte) {
 	return val
 }
 
-func ProcessRunList(val byte) (string, uint64, uint64) {
-	var (
-		ClusterLen  string
-		ClusterOffs string
-		clusteroffs uint64
-		clusterlen  uint64
-	)
+func (atrRecordNoNResident ATRrecordNoNResIDent) ProcessRunList(runlist []byte) {
+	clusterPtr := uint64(0)
 
-	//fmt.Println("BARRAY ",barray)
+	// fmt.Printf("LEN %d RUNLIST %x\n" ,len(runlist),runlist)
+	for clusterPtr < uint64(len(runlist)) { // length of bytes of runlist
+		ClusterOffsB, ClusterLenB := determineClusterOffsetLength(runlist[clusterPtr])
+
+		if ClusterLenB != 0 && ClusterOffsB != 0 {
+			//   fmt.Println("reading from",uint64(ReadPtr)+uint64(atrRecordResident.RunOff)+uint64(index),"ews ",
+			//     uint64(ReadPtr)+uint64(atrRecordResident.RunOff)+uint64(index)+ClusterLen+ClusterOffs,
+			//    "atrRecordResident star                     ts at",ReadPtr+atrRecordResident.RunOff,"atrRecordResident LEN",uint16(atrRecordResident.Len),"reading at",uint64(ReadPtr)+uint64(atrRecordResident.RunOff)+uint64(index)+ClusterLen+ClusterOffs)
+
+			ClustersLen := readEndianInt(runlist[clusterPtr+1 : clusterPtr+ClusterLenB+1])
+
+			ClustersOff := readEndianInt(runlist[clusterPtr+1+ClusterLenB : clusterPtr+ClusterLenB+ClusterOffsB+1])
+			fmt.Printf("len of %d clusterlen %d and clust %d clustoff %d came from %x \n", ClusterLenB, ClustersLen, ClusterOffsB, ClustersOff, runlist[clusterPtr])
+			//readEndianInt(bs[uint64(ReadPtr)+uint64(atrRecordResident.RunOff)+1:uint64(ReadPtr)+uint64(atrRecordResident.RunOff)+ClusterLen+1]))
+			/*s := []string{fmt.Sprintf(";%d;%d", ClustersOff, ClustersLen)}
+			_, err := file1.WriteString(strings.Join(s, " "))
+			if err != nil {
+				// handle the error here
+				fmt.Printf("err %s\n", err)
+				return
+			}*/
+
+			//fmt.Println("lenght of runlist",len(runlist),"cluster len" ,ClusterLen+ClusterOffs,"runlist",runlist)
+
+			clusterPtr += ClusterLenB + ClusterOffsB
+
+		} else {
+			break
+		}
+	}
+}
+
+func determineClusterOffsetLength(val byte) (uint64, uint64) {
+
+	var err error
+
+	clusterOffs := uint64(0)
+	clusterLen := uint64(0)
 
 	val1 := (fmt.Sprintf("%x", val))
-	//  fmt.Printf("Val %s",val1)
-	if len(val1) == 2 { //little Endian onrder on strigns damn type
 
-		ClusterOffs = val1[0:1]
-		ClusterLen = val1[1:2]
+	if len(val1) == 2 { //requires non zero hex
 
-		clusterlen, _ = strconv.ParseUint(ClusterLen, 8, 8)
-		clusteroffs, _ = strconv.ParseUint(ClusterOffs, 8, 8)
+		clusterLen, err = strconv.ParseUint(val1[1:2], 8, 8)
+		if err != nil {
+			fmt.Printf("error finding cluster length %s", err)
+		}
 
-	} else {
-		ClusterOffs = "0"
-		ClusterLen = "0"
+		clusterOffs, err = strconv.ParseUint(val1[0:1], 8, 8)
+		if err != nil {
+			fmt.Printf("error finding cluster offset %s", err)
+		}
+
 	}
-
 	//  fmt.Printf("Cluster located at %s and lenght %s\n",ClusterOffs, ClusterLen)
-	return val1, clusteroffs, clusterlen
+	return clusterOffs, clusterLen
 
 }
 
@@ -430,8 +461,8 @@ func Unmarshal(data []byte, v interface{}) error {
 		case reflect.Struct:
 			var windowsTime WindowsTime
 			Unmarshal(data[idx:idx+8], &windowsTime)
-			windowsTimePtr := &windowsTime
-			field.SetPointer(unsafe.Pointer(&windowsTimePtr))
+			//	windowsTimePtr := &windowsTime
+			field.Set(reflect.ValueOf(windowsTime))
 			idx += 8
 		case reflect.Uint16:
 			var temp uint16
@@ -583,24 +614,12 @@ func main() {
 							break
 
 						} else if atrRecordResident.Type == "00000030" { // File name
-							var fnAttribute FNAttribute
-							Unmarshal(bs[ReadPtr+atrRecordResident.Soff:ReadPtr+atrRecordResident.Soff+66], &fnAttribute)
-							Crtime := WindowsTime{readEndian(bs[ReadPtr+atrRecordResident.Soff+8 : ReadPtr+atrRecordResident.Soff+16]).(uint64)}
-							Mtime := WindowsTime{readEndian(bs[ReadPtr+atrRecordResident.Soff+16 : ReadPtr+atrRecordResident.Soff+24]).(uint64)}
-							MFTTime := WindowsTime{readEndian(bs[ReadPtr+atrRecordResident.Soff+24 : ReadPtr+atrRecordResident.Soff+32]).(uint64)}
-							Atime := WindowsTime{readEndian(bs[ReadPtr+atrRecordResident.Soff+32 : ReadPtr+atrRecordResident.Soff+40]).(uint64)}
-							fnattr := FNAttribute{readEndian(bs[ReadPtr+atrRecordResident.Soff : ReadPtr+atrRecordResident.Soff+6]).(uint64),
-								readEndian(bs[ReadPtr+atrRecordResident.Soff+6 : ReadPtr+atrRecordResident.Soff+8]).(uint16),
-								Crtime,
-								Mtime,
-								MFTTime,
-								Atime,
-								readEndian(bs[ReadPtr+atrRecordResident.Soff+40 : ReadPtr+atrRecordResident.Soff+48]).(uint64), readEndian(bs[ReadPtr+atrRecordResident.Soff+48 : ReadPtr+atrRecordResident.Soff+56]).(uint64),
-								readEndian(bs[ReadPtr+atrRecordResident.Soff+56 : ReadPtr+atrRecordResident.Soff+60]).(uint32), readEndian(bs[ReadPtr+atrRecordResident.Soff+60 : ReadPtr+atrRecordResident.Soff+64]).(uint32),
-								readEndian(bs[ReadPtr+atrRecordResident.Soff+64 : ReadPtr+atrRecordResident.Soff+65]).(uint8),
-								readEndian(bs[ReadPtr+atrRecordResident.Soff+65 : ReadPtr+atrRecordResident.Soff+66]).(uint8),
-								DecodeUTF16(bs[ReadPtr+atrRecordResident.Soff+66 : ReadPtr+atrRecordResident.Soff+66+2*uint16(readEndian(bs[ReadPtr+atrRecordResident.Soff+64:ReadPtr+atrRecordResident.Soff+65]).(uint8))]),
-								false, false, record.Entry, 0}
+							var fnattr FNAttribute
+							Unmarshal(bs[ReadPtr+atrRecordResident.Soff:ReadPtr+atrRecordResident.Soff+66], &fnattr)
+
+							fnattr.Fname =
+								DecodeUTF16(bs[ReadPtr+atrRecordResident.Soff+66 : ReadPtr+atrRecordResident.Soff+66+2*uint16(readEndian(bs[ReadPtr+atrRecordResident.Soff+64:ReadPtr+atrRecordResident.Soff+65]).(uint8))])
+							//	false, false, record.Entry, 0}
 							//  fmt.Println("\nFNA ",bs[ReadPtr+atrRecordResident.Soff:ReadPtr+atrRecordResident.Soff+65],bs[ReadPtr+atrRecordResident.Soff:ReadPtr+atrRecordResident.Soff+6],readEndian(bs[ReadPtr+atrRecordResident.Soff:ReadPtr+atrRecordResident.Soff+6]).(uint64),
 							//	"PAREF",fnattr.ParRef,"SQ",fnattr.fname,"FLAG",fnattr.flags)
 							//   fmt.Printf("time Mod %s time Accessed %s time Created %s Filename %s\n ", fnattr.atime.convertToIsoTime(),fnattr.crtime.convertToIsoTime(),fnattr.mtime.convertToIsoTime(),fnattr.fname )
@@ -732,16 +751,11 @@ func main() {
 								fmt.Printf("err %s\n", err)
 								return
 							}
-						} else if atrRecordResident.Type == "00000010" {
+						} else if atrRecordResident.Type == "00000010" { //Standard Information
 							startpoint := ReadPtr + atrRecordResident.Soff
-							siattr := SIAttribute{WindowsTime{readEndian(bs[ReadPtr+atrRecordResident.Soff : ReadPtr+atrRecordResident.Soff+8]).(uint64)},
-								WindowsTime{readEndian(bs[ReadPtr+atrRecordResident.Soff+8 : ReadPtr+atrRecordResident.Soff+16]).(uint64)},
-								WindowsTime{readEndian(bs[ReadPtr+atrRecordResident.Soff+16 : ReadPtr+atrRecordResident.Soff+24]).(uint64)},
-								WindowsTime{readEndian(bs[ReadPtr+atrRecordResident.Soff+24 : ReadPtr+atrRecordResident.Soff+32]).(uint64)},
-								readEndian(bs[startpoint+32 : startpoint+36]).(uint32),
-								readEndian(bs[startpoint+36 : startpoint+40]).(uint32), readEndian(bs[startpoint+40 : startpoint+44]).(uint32), readEndian(bs[startpoint+44 : startpoint+48]).(uint32),
-								readEndian(bs[startpoint+48 : startpoint+52]).(uint32), readEndian(bs[startpoint+52 : startpoint+56]).(uint32), readEndian(bs[startpoint+56 : startpoint+64]).(uint64),
-								readEndian(bs[startpoint+64 : startpoint+72]).(uint64), record.Entry, 0}
+							var siattr SIAttribute
+							Unmarshal(bs[startpoint:startpoint+72], &siattr)
+
 							/*	if *save2DB {
 								dbmap.Insert(&siattr)
 								checkErr(err, "Insert failed")
@@ -757,12 +771,11 @@ func main() {
 
 						}
 
-						if atrRecordResident.Len > 0 {
-							ReadPtr = ReadPtr + uint16(atrRecordResident.Len)
-						}
+						ReadPtr = ReadPtr + uint16(atrRecordResident.Len)
+
 					} else { //NoN ResIDent Attribute
-						var atrRecordResident ATRrecordNoNResIDent
-						Unmarshal(bs[ReadPtr:ReadPtr+64], &atrRecordResident)
+						var atrNoNRecordResident ATRrecordNoNResIDent
+						Unmarshal(bs[ReadPtr:ReadPtr+64], &atrNoNRecordResident)
 
 						//        fmt.Println("NON ResIDent type ",atrRecordResident.Type,atrRecordResident.Len,ReadPtr)
 						//  buffer:=[] byte{}// a slice
@@ -771,65 +784,32 @@ func main() {
 								checkErr(err, "Insert failed")
 							}*/
 
-						s := []string{";", AttrTypes[atrRecordResident.Type], fmt.Sprintf(";%d", ReadPtr), ";false", fmt.Sprintf(";%d;%d", atrRecordResident.StartVcn, atrRecordResident.LastVcn)}
+						s := []string{";", AttrTypes[atrNoNRecordResident.Type], fmt.Sprintf(";%d", ReadPtr), ";false", fmt.Sprintf(";%d;%d", atrNoNRecordResident.StartVcn, atrNoNRecordResident.LastVcn)}
 						_, err := file1.WriteString(strings.Join(s, ""))
 						if err != nil {
 							// handle the error here
 							fmt.Printf("err %s\n", err)
 							return
 						}
-						if atrRecordResident.Type == "ffffffff" { // End of attributes
+						if atrNoNRecordResident.Type == "ffffffff" { // End of attributes
 							break
 
-						} else if atrRecordResident.Type == "00000080" {
+						} else if atrNoNRecordResident.Type == "00000080" {
 							record.Data = true
-							if uint32(ReadPtr)+atrRecordResident.Len <= 1024 {
-								runlist := bs[ReadPtr+atrRecordResident.RunOff : uint32(ReadPtr)+atrRecordResident.Len]
-								var Clusters uint64
-								Clusters = 0
-								// fmt.Printf("LEN %d RUNLIST %x\n" ,len(runlist),runlist)
-								for index, val := range runlist {
-									_, ClusterOffs, ClusterLen := ProcessRunList(val)
 
-									if ClusterLen != 0 && ClusterOffs != 0 {
-										//   fmt.Println("reading from",uint64(ReadPtr)+uint64(atrRecordResident.RunOff)+uint64(index),"ews ",
-										//     uint64(ReadPtr)+uint64(atrRecordResident.RunOff)+uint64(index)+ClusterLen+ClusterOffs,
-										//    "atrRecordResident starts at",ReadPtr+atrRecordResident.RunOff,"atrRecordResident LEN",uint16(atrRecordResident.Len),"reading at",uint64(ReadPtr)+uint64(atrRecordResident.RunOff)+uint64(index)+ClusterLen+ClusterOffs)
+							if uint32(ReadPtr)+atrNoNRecordResident.Len <= 1024 {
+								atrNoNRecordResident.ProcessRunList(bs[ReadPtr+atrNoNRecordResident.RunOff : uint32(ReadPtr)+atrNoNRecordResident.Len])
 
-										ClustersLen := readEndianInt(bs[uint64(ReadPtr)+uint64(atrRecordResident.RunOff)+1 : uint64(ReadPtr)+uint64(atrRecordResident.RunOff)+ClusterLen+1])
-
-										ClustersOff := readEndianInt(bs[uint64(ReadPtr)+uint64(atrRecordResident.RunOff)+ClusterLen+1 : uint64(ReadPtr)+uint64(atrRecordResident.RunOff)+ClusterLen+ClusterOffs+1])
-										//  fmt.Printf("len of %d clusterlen %d and clust %d clustoff %d came from %x \n",ClusterLen,ClustersLen,ClusterOffs,ClustersOff,val)
-										//readEndianInt(bs[uint64(ReadPtr)+uint64(atrRecordResident.RunOff)+1:uint64(ReadPtr)+uint64(atrRecordResident.RunOff)+ClusterLen+1]))
-										s := []string{fmt.Sprintf(";%d;%d", ClustersOff, ClustersLen)}
-										_, err := file1.WriteString(strings.Join(s, " "))
-										if err != nil {
-											// handle the error here
-											fmt.Printf("err %s\n", err)
-											return
-										}
-
-										//fmt.Println("lenght of runlist",len(runlist),"cluster len" ,ClusterLen+ClusterOffs,"runlist",runlist)
-										if ClusterLen+ClusterOffs < uint64(len(runlist)) {
-											runlist = bs[uint64(ReadPtr)+uint64(atrRecordResident.RunOff)+uint64(index)+Clusters+ClusterLen+ClusterOffs : uint32(ReadPtr)+atrRecordResident.Len]
-											Clusters += ClusterLen + ClusterOffs
-										} else {
-											break
-										}
-									} else {
-										break
-									}
-								}
 							}
-
-							//s := [] string {fmt.Sprintf("Start VCN %d END VCN %d",atrRecordResident.StartVcn,atrRecordResident.LastVcn ), string(10)}
-							// _,err:=file1.WriteString(strings.Join(s," "))
-							//  if err != nil {
-							// handle the error here
-							//   fmt.Printf("err %s\n",err)
-							//     return
-							//  }
 						}
+
+						//s := [] string {fmt.Sprintf("Start VCN %d END VCN %d",atrRecordResident.StartVcn,atrRecordResident.LastVcn ), string(10)}
+						// _,err:=file1.WriteString(strings.Join(s," "))
+						//  if err != nil {
+						// handle the error here
+						//   fmt.Printf("err %s\n",err)
+						//     return
+						//  }
 
 						/*else if  atrRecordResident.Type == "000000a0" {//Index Allcation
 							     nodeheader := NodeHeader {readEndian(bs[ReadPtr+atrRecordResident.Soff+16:ReadPtr+atrRecordResident.Soff+20]).(uint32),readEndian(bs[ReadPtr+atrRecordResident.Soff+20:ReadPtr+atrRecordResident.Soff+24]).(uint32),
@@ -847,8 +827,8 @@ func main() {
 							    }
 
 						   }*/
-						if atrRecordResident.Len > 0 {
-							ReadPtr = ReadPtr + uint16(atrRecordResident.Len)
+						if atrNoNRecordResident.Len > 0 {
+							ReadPtr = ReadPtr + uint16(atrNoNRecordResident.Len)
 						}
 
 					} //ends non resIDent
