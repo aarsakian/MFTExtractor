@@ -24,6 +24,27 @@ import (
 	// "math"
 )
 
+var IndexEntryFlags = map[string]string{
+	"00000001": "Child Node exists",
+	"00000002": "Last Entry in list",
+}
+
+var AttrTypes = map[string]string{
+	"00000010": "Standard Information", "00000020": "Attribute List", "00000030": "File Name", "00000040": "Object ID",
+	"00000050": "Security Descriptor", "00000060": "Volume Name", "00000070": "Volume Information", "00000080": "Data",
+	"00000090": "Index Root", "000000A0": "Index Allocation", "000000B0": "BitMap", "000000C0": "Reparse Point",
+}
+
+var Flags = map[uint32]string{
+	1: "Read Only", 2: "Hidden", 4: "System", 32: "Archive", 64: "Device", 128: "Normal",
+	256: "Temporary", 512: "Sparse", 1024: "Reparse Point", 2048: "Compressed", 4096: "Offline",
+	8192: "Not Indexed", 16384: "Encrypted",
+}
+
+var MFTflags = map[uint16]string{
+	0: "File Unallocted", 1: "File Allocated", 2: "Folder Unalloc", 3: "Folder Allocated",
+}
+
 type MFTrecord struct {
 	Signature          string //0-3
 	UpdateSeqArrOffset uint16 //4-5      offset values are relative to the start of the entry.
@@ -533,26 +554,7 @@ func main() {
 
 	//err := dbmap.TruncateTables()
 	//checkErr(err, "TruncateTables failed")
-	IndexEntryFlags := map[string]string{
-		"00000001": "Child Node exists",
-		"00000002": "Last Entry in list",
-	}
 
-	AttrTypes := map[string]string{
-		"00000010": "Standard Information", "00000020": "Attribute List", "00000030": "File Name", "00000040": "Object ID",
-		"00000050": "Security Descriptor", "00000060": "Volume Name", "00000070": "Volume Information", "00000080": "Data",
-		"00000090": "Index Root", "000000A0": "Index Allocation", "000000B0": "BitMap", "000000C0": "Reparse Point",
-	}
-
-	Flags := map[uint32]string{
-		1: "Read Only", 2: "Hidden", 4: "System", 32: "Archive", 64: "Device", 128: "Normal",
-		256: "Temporary", 512: "Sparse", 1024: "Reparse Point", 2048: "Compressed", 4096: "Offline",
-		8192: "Not Indexed", 16384: "Encrypted",
-	}
-
-	MFTflags := map[uint16]string{
-		0: "File Unallocted", 1: "File Allocated", 2: "Folder Unalloc", 3: "Folder Allocated",
-	}
 	//	fmt.Println(*inputfile, os.Args[1])
 	file, err := os.Open(*inputfile) //
 
@@ -793,6 +795,9 @@ func main() {
 								uint16(nodeheader.OffsetEntryList)+16:ReadPtr+atrRecordResident.OffsetContent+16+
 								uint16(nodeheader.OffsetEntryList)+16+idxEntry.FilenameLen],
 								&fnattrIDXEntry)
+
+							s1 := []string{"Filename idx Entry", fnattrIDXEntry.Fname}
+							file1.WriteString(strings.Join(s1, " "))
 						}
 
 						_, err := file1.WriteString(strings.Join(s, " "))
