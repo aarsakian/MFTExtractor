@@ -46,36 +46,44 @@ var MFTflags = map[uint16]string{
 }
 
 type MFTrecord struct {
-	Signature          string //0-3
-	UpdateSeqArrOffset uint16 //4-5      offset values are relative to the start of the entry.
-	UpdateSeqArrSize   uint16 //6-7
-	Lsn                uint64 //8-15       logical File Sequence Number
-	Seq                uint16 //16-17   is incremented when the entry is either allocated or unallocated, determined by the OS.
-	Linkcount          uint16 //18-19        how many directories have entries for this MFTentry
-	AttrOff            uint16 //20-21       //first attr location
-	Flags              uint16 //22-23  //tells whether entry is used or not
-	Size               uint32 //24-27
-	AllocSize          uint32 //28-31
-	BaseRef            uint64 //32-39
-	NextAttrID         uint16 //40-41 e.g. if it is 6 then there are attributes with 1 to 5
-	F1                 uint16 //42-43
-	Entry              uint32 //44-48                  ??
-	Fncnt              bool
-	Data               *DATAResident
-	FullName           *FNAttribute
-	Bitmap             bool
+	Signature           string //0-3
+	UpdateSeqArrOffset  uint16 //4-5      offset values are relative to the start of the entry.
+	UpdateSeqArrSize    uint16 //6-7
+	Lsn                 uint64 //8-15       logical File Sequence Number
+	Seq                 uint16 //16-17   is incremented when the entry is either allocated or unallocated, determined by the OS.
+	Linkcount           uint16 //18-19        how many directories have entries for this MFTentry
+	AttrOff             uint16 //20-21       //first attr location
+	Flags               uint16 //22-23  //tells whether entry is used or not
+	Size                uint32 //24-27
+	AllocSize           uint32 //28-31
+	BaseRef             uint64 //32-39
+	NextAttrID          uint16 //40-41 e.g. if it is 6 then there are attributes with 1 to 5
+	F1                  uint16 //42-43
+	Entry               uint32 //44-48                  ??
+	Fncnt               bool
+	Data                *DATAResident
+	FullName            *FNAttribute
+	StandardInformation *SIAttribute
+	VolumeInfo          *VolumeInfo
+	VolumeName          *VolumeName
+	Bitmap              bool
 	// fixupArray add the        UpdateSeqArrOffset to find is location
 
 }
 
+type AttributeHeader struct {
+	Type              string //        0-3                              type of attribute e.g. $DATA
+	AttrLen           uint32 //4-8             length of attribute
+	NoNResident       string //8
+	Nlen              string
+	NameOff           uint16 //name offset 10-12          relative to the start of attribute
+	Flags             uint16 //12-14           //compressed,
+	ID                uint16 //14-16 type of attribute
+	ATRrecordResident *ATRrecordResident
+	ATRrecordNoNResID *ATRrecordNoNResIDent
+}
+
 type ATRrecordResident struct {
-	Type          string //        0-3                              type of attribute e.g. $DATA
-	Len           uint32 //4-8             length of attribute
-	Res           string //8
-	Nlen          string
-	NameOff       uint16 //name offset 10-12          relative to the start of attribute
-	Flags         uint16 //12-14           //compressed,
-	ID            uint16 //14-16 type of attribute
 	ContentSize   uint32 //16-20 size of resIDent attribute
 	OffsetContent uint16 //20-22 offset to content            soff+ssize=len
 	IDxflag       uint16 //22-24
@@ -90,13 +98,6 @@ type DATAResident struct {
 }
 
 type ATRrecordNoNResIDent struct {
-	Type       string //        0-3                              type of attribute e.g. $DATA
-	Len        uint32 //4-8             length of attribute
-	Res        string //8 bool in original
-	Nlen       string
-	NameOff    uint16 //name offset 10-12          relative to the start of attribute
-	Flags      uint16 //12-14           //compressed,
-	ID         uint16 //14-16
 	StartVcn   uint64 //16-24
 	LastVcn    uint64 //24-32
 	RunOff     uint16 //32-24     offset to the start of the attribute
@@ -234,6 +235,15 @@ func Bytereverse(barray []byte) []byte { //work with indexes
 
 }
 
+func writeToCSV(file *os.File, data string) {
+	_, err := file.WriteString("S")
+	if err != nil {
+		// handle the error here
+		fmt.Printf("err %s\n", err)
+		return
+	}
+}
+
 func checkErr(err error, msg string) {
 	if err != nil {
 		log.Fatalln(msg, err)
@@ -357,7 +367,6 @@ func readEndianFloat(barray []byte) (val uint64) {
 }
 
 func readEndianInt(barray []byte) uint64 {
-
 	//fmt.Println("------",barray,barray[len(barray)-1])
 	var sum uint64
 	sum = 0
@@ -469,6 +478,7 @@ func DecodeUTF16(b []byte) string {
 	return string(utf16.Decode(utf))
 
 }
+
 func (str *NoNull) PrintNulls() string {
 	var newstr []string
 	for _, v := range *str {
@@ -479,6 +489,51 @@ func (str *NoNull) PrintNulls() string {
 		}
 	}
 	return strings.Join(newstr, "")
+}
+
+func (attrHeader AttributeHeader) isNoNResident() bool {
+	return attrHeader.NoNResident == "1"
+
+}
+
+func (attrHeader AttributeHeader) isLast() bool {
+	return attrHeader.Type == "ffffffff"
+}
+
+func (attrHeader AttributeHeader) isFileName() bool {
+	return attrHeader.Type == "00000030"
+}
+
+func (attrHeader AttributeHeader) isData() bool {
+	return attrHeader.Type == "00000080"
+}
+
+func (attrHeader AttributeHeader) isObject() bool {
+	return attrHeader.Type == "00000040"
+}
+
+func (attrHeader AttributeHeader) isAttrList() bool {
+	return attrHeader.Type == "00000020"
+}
+
+func (attrHeader AttributeHeader) isBitmap() bool {
+	return attrHeader.Type == "000000b0"
+}
+
+func (attrHeader AttributeHeader) isVolumeName() bool {
+	return attrHeader.Type == "00000060"
+}
+
+func (attrHeader AttributeHeader) isVolumeInfo() bool {
+	return attrHeader.Type == "00000070"
+}
+
+func (attrHeader AttributeHeader) isIndexRoot() bool {
+	return attrHeader.Type == "00000090"
+}
+
+func (attrHeader AttributeHeader) isStdInfo() bool {
+	return attrHeader.Type == "00000010"
 }
 
 func Unmarshal(data []byte, v interface{}) error {
@@ -543,13 +598,282 @@ func Unmarshal(data []byte, v interface{}) error {
 	return nil
 }
 
+func (record *MFTrecord) process(bs []byte) {
+
+	Unmarshal(bs, record)
+
+	if record.Signature == "BAAD" { //skip bad entry
+		return
+	}
+
+	ReadPtr := record.AttrOff //offset to first attribute
+
+	for ReadPtr < 1024 {
+
+		if Hexify(bs[ReadPtr:ReadPtr+4]) == "ffffffff" { //End of attributes
+			break
+		}
+
+		var attrHeader AttributeHeader
+		Unmarshal(bs[ReadPtr:ReadPtr+16], &attrHeader)
+
+		if attrHeader.isLast() { // End of attributes
+			break
+		}
+
+		if !attrHeader.isNoNResident() { //ResIDent Attribute
+			var atrRecordResident ATRrecordResident
+			Unmarshal(bs[ReadPtr+16:ReadPtr+24], &atrRecordResident)
+
+			if attrHeader.isFileName() { // File name
+				var fnattr FNAttribute
+				Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+
+					atrRecordResident.OffsetContent+66], &fnattr)
+
+				fnattr.Fname =
+					DecodeUTF16(bs[ReadPtr+atrRecordResident.OffsetContent+66 : ReadPtr+
+						atrRecordResident.OffsetContent+66+2*uint16(readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+64:ReadPtr+atrRecordResident.OffsetContent+65]).(uint8))])
+				record.FullName = &fnattr
+
+			} else if attrHeader.isData() {
+				record.Data = &DATAResident{&atrRecordResident,
+					bs[ReadPtr+atrRecordResident.OffsetContent : ReadPtr+
+						atrRecordResident.OffsetContent+uint16(atrRecordResident.ContentSize)]}
+
+			} else if attrHeader.isObject() {
+				var objectattr ObjectID
+				Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+
+					atrRecordResident.OffsetContent+64], &objectattr)
+
+			} else if attrHeader.isAttrList() { //Attribute List
+				//  runlist:=bs[ReadPtr+atrRecordResident.OffsetContent:uint32(ReadPtr)+atrRecordResident.Len]
+
+				attrLen := uint16(0)
+				for atrRecordResident.OffsetContent+24+attrLen < uint16(attrHeader.AttrLen) {
+					//fmt.Println("TEST",len(runlist),26+attrLen+atrRecordResident.OffsetContent, uint16(atrRecordResident.Len))
+					var attrList AttributeList
+					Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent+attrLen:ReadPtr+
+						atrRecordResident.OffsetContent+attrLen+24], &attrList)
+
+					attrList.name = NoNull(bs[ReadPtr+atrRecordResident.OffsetContent+attrLen+
+						uint16(attrList.Nameoffset) : ReadPtr+atrRecordResident.OffsetContent+
+						attrLen+uint16(attrList.Nameoffset)+uint16(attrList.Namelen)])
+					//     fmt.Println("START VCN",attrList.StartVcn)
+
+					//   runlist=bs[ReadPtr+atrRecordResident.OffsetContent+attrList.len:uint32(ReadPtr)+atrRecordResident.Len]
+					attrLen += attrList.Len
+
+				}
+			} else if attrHeader.isBitmap() { //BITMAP
+				record.Bitmap = true
+
+			} else if attrHeader.isVolumeName() { //Volume Name
+				record.VolumeName = &VolumeName{NoNull(bs[ReadPtr+atrRecordResident.OffsetContent : ReadPtr+atrRecordResident.OffsetContent+16]), record.Entry, 0}
+
+			} else if attrHeader.isVolumeInfo() { //Volume Info
+				record.VolumeInfo = &VolumeInfo{readEndian(bs[ReadPtr+atrRecordResident.OffsetContent : ReadPtr+atrRecordResident.OffsetContent+8]).(uint64),
+					Hexify(Bytereverse(bs[ReadPtr+atrRecordResident.OffsetContent+8 : ReadPtr+atrRecordResident.OffsetContent+9])),
+					Hexify(Bytereverse(bs[ReadPtr+atrRecordResident.OffsetContent+9 : ReadPtr+atrRecordResident.OffsetContent+10])),
+					Hexify(Bytereverse(bs[ReadPtr+atrRecordResident.OffsetContent+10 : ReadPtr+atrRecordResident.OffsetContent+12])),
+					readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+12 : ReadPtr+atrRecordResident.OffsetContent+16]).(uint32),
+					record.Entry, 0}
+
+			} else if attrHeader.isIndexRoot() { //Index Root
+				var idxRoot IndexRoot
+				Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+
+					atrRecordResident.OffsetContent+12], &idxRoot)
+
+				var nodeheader NodeHeader
+				Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent+
+					16:ReadPtr+atrRecordResident.OffsetContent+32], &nodeheader)
+				idxRoot.nodeheader = &nodeheader
+
+				var idxEntry IndexEntry
+				Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent+16+
+					uint16(nodeheader.OffsetEntryList):ReadPtr+atrRecordResident.OffsetContent+
+					16+uint16(nodeheader.OffsetEndUsedEntryList)], &idxEntry)
+				//
+
+				if idxEntry.FilenameLen > 0 {
+					var fnattrIDXEntry FNAttribute
+					Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent+16+
+						uint16(nodeheader.OffsetEntryList)+16:ReadPtr+atrRecordResident.OffsetContent+16+
+						uint16(nodeheader.OffsetEntryList)+16+idxEntry.FilenameLen],
+						&fnattrIDXEntry)
+
+				}
+			} else if attrHeader.isStdInfo() { //Standard Information
+				startpoint := ReadPtr + atrRecordResident.OffsetContent
+				var siattr SIAttribute
+				Unmarshal(bs[startpoint:startpoint+72], &siattr)
+
+			}
+
+			ReadPtr = ReadPtr + uint16(attrHeader.AttrLen)
+
+		} else { //NoN ResIDent Attribute
+			var atrNoNRecordResident ATRrecordNoNResIDent
+			Unmarshal(bs[ReadPtr+16:ReadPtr+64], &atrNoNRecordResident)
+
+			if attrHeader.isData() {
+
+				if uint32(ReadPtr)+attrHeader.AttrLen <= 1024 {
+					atrNoNRecordResident.ProcessRunList(bs[ReadPtr+
+						atrNoNRecordResident.RunOff : uint32(ReadPtr)+attrHeader.AttrLen])
+
+				}
+			}
+
+			/*else if  atrRecordResident.Type == "000000a0" {//Index Allcation
+					 nodeheader := NodeHeader {readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+16:ReadPtr+atrRecordResident.OffsetContent+20]).(uint32),readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+20:ReadPtr+atrRecordResident.OffsetContent+24]).(uint32),
+					readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+24:ReadPtr+atrRecordResident.OffsetContent+28]).(uint32)}
+					IDxall := IndexAllocation{string(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+atrRecordResident.OffsetContent+4]),readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+4:ReadPtr+atrRecordResident.OffsetContent+6]).(uint16),readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+6:ReadPtr+atrRecordResident.OffsetContent+8]).(uint16),
+					readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+16:ReadPtr+atrRecordResident.OffsetContent+24]).(uint64), nodeheader}
+
+				 s := [] string  {"Index Allocation Type ",IDxall.Type,fmt.Sprintf("VCN %d  ",IDxall.VCN),"Index entry start",fmt.Sprintf("%d",IDxall.nodeheader.OffsetEntryList),
+						fmt.Sprintf(" used portion ends at %d",IDxall.nodeheader.OffsetEndUsedEntryList),fmt.Sprintf("allocated ends at %d",IDxall.nodeheader.OffsetEndEntryListBuffer)  ,string(10)}
+				  _,err:=file1.WriteString(strings.Join(s," "))
+				  if err != nil {
+					// handle the error here
+					fmt.Printf("err %s\n",err)
+					  return
+					}
+
+			   }*/
+
+			ReadPtr = ReadPtr + uint16(attrHeader.AttrLen)
+
+		} //ends non resIDent
+
+	} //ends while
+
+}
+
+/*func getBasicInfoFromRecord(record MFTrecord) {
+	fmt.Sprintf("%d;%d;%s", record.Entry, record.Seq,
+		MFTflags[record.UpdateSeqArrSize])
+
+	strings.Join([]string{fmt.Sprintf(";%d", ReadPtr+atrRecordResident.OffsetContent), ";",
+		fnattr.Atime.convertToIsoTime(), ";", fnattr.Crtime.convertToIsoTime(),
+		";", fnattr.Mtime.convertToIsoTime(), ";", fnattr.Fname, fmt.Sprintf(";Par ref %d; Seq %d;  %s", fnattr.ParRef, fnattr.ParSeq, Flags[fnattr.Flags])}, "")
+
+	writeToCSV(file1, s)
+
+	if *exportResidentFiles {
+		writtenBytes := createFileFromEntry(record)
+		if writtenBytes > 0 {
+			fmt.Printf("wrote file %s total %d bytes \n", record.FullName.Fname,
+				writtenBytes)
+
+		}
+	}
+				//	false, false, record.Entry, 0}
+				//  fmt.Println("\nFNA ",bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+atrRecordResident.OffsetContent+65],bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+atrRecordResident.OffsetContent+6],readEndian(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+atrRecordResident.OffsetContent+6]).(uint64),
+				//	"PAREF",fnattr.ParRef,"SQ",fnattr.fname,"FLAG",fnattr.flags)
+				//   fmt.Printf("time Mod %s time Accessed %s time Created %s Filename %s\n ", fnattr.atime.convertToIsoTime(),fnattr.crtime.convertToIsoTime(),fnattr.mtime.convertToIsoTime(),fnattr.fname )
+				//    fmt.Println(strings.TrimSpace(string(bs[ReadPtr+atrRecordResident.OffsetContent+66:ReadPtr+atrRecordResident.OffsetContent+66+2*uint16(readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+64:ReadPtr+atrRecordResident.OffsetContent+65]).(uint8))])))
+				/*if *save2DB {
+					dbmap.Insert(&fnattr)
+					checkErr(err, "Insert failed")
+				}
+
+
+
+				// fmt.Println("file unique ID ",objectattr.objID)
+					if *save2DB {
+						dbmap.Insert(&objectattr)
+						checkErr(err, "Insert failed")
+					}
+					s := []string{";", objectattr.ObjID}
+					_, err := file1.WriteString(strings.Join(s, " "))
+					if err != nil {
+						// handle the error here
+						fmt.Printf("err %s\n", err)
+						return
+					}
+
+
+	s := []string{"Type of Attr in Run list", fmt.Sprintf("Attribute starts at %d", ReadPtr),
+		AttrTypes[attrList.Type], fmt.Sprintf("length %d ", attrList.Len), fmt.Sprintf("start VCN %d ", attrList.StartVcn),
+		"MFT Record Number", fmt.Sprintf("%d Name %s", attrList.FileRef, attrList.name),
+		"Attribute ID ", fmt.Sprintf("%d ", attrList.ID), string(10)}
+	_, err := file1.WriteString(strings.Join(s, " "))
+	if err != nil {
+		// handle the error here
+		fmt.Printf("err %s\n", err)
+		return
+	}
+
+	s := []string{";", volname.Name.PrintNulls()}
+	_, err := file1.WriteString(strings.Join(s, "s"))
+	if err != nil {
+		// handle the error here
+		fmt.Printf("err %s\n", err)
+		return
+	}
+
+	s := []string{"Vol Info flags", volinfo.Flags, string(10)}
+	_, err := file1.WriteString(strings.Join(s, " "))
+	if err != nil {
+		// handle the error here
+		fmt.Printf("err %s\n", err)
+		return
+	}
+
+	s := []string{idxRoot.Type, ";", fmt.Sprintf(";%d", idxRoot.Sizeclusters), ";", fmt.Sprintf("%d;", 16+idxRoot.nodeheader.OffsetEntryList),
+	fmt.Sprintf(";%d", 16+idxRoot.nodeheader.OffsetEndUsedEntryList), fmt.Sprintf("allocated ends at %d", 16+idxRoot.nodeheader.OffsetEndEntryListBuffer),
+	fmt.Sprintf("MFT entry%d ", idxEntry.MFTfileref), "FLags", IndexEntryFlags[idxEntry.Flags]}
+//fmt.Sprintf("%x",bs[uint32(ReadPtr)+uint32(atrRecordResident.OffsetContent)+32:uint32(ReadPtr)+uint32(atrRecordResident.OffsetContent)+16+IDxroot.nodeheader.OffsetEndEntryListBuffer]
+s1 := []string{"Filename idx Entry", fnattrIDXEntry.Fname}
+file1.WriteString(strings.Join(s1, " "))
+}
+
+_, err := file1.WriteString(strings.Join(s, " "))
+if err != nil {
+// handle the error here
+fmt.Printf("err %s\n", err)
+return
+s1 := []string{"Filename idx Entry", fnattrIDXEntry.Fname}
+file1.WriteString(strings.Join(s1, " "))
+}
+
+_, err := file1.WriteString(strings.Join(s, " "))
+if err != nil {
+// handle the error here
+fmt.Printf("err %s\n", err)
+return
+
+s := []string{fmt.Sprintf(";%d", startpoint), ";", siattr.Crtime.convertToIsoTime(),
+";", siattr.Atime.convertToIsoTime(), ";", siattr.Mtime.convertToIsoTime(), ";",
+siattr.MFTmtime.convertToIsoTime()}
+writeToCSV(file1, strings.Join(s, ""))
+
+s := []string{";", AttrTypes[atrNoNRecordResident.Type], fmt.Sprintf(";%d", ReadPtr), ";false", fmt.Sprintf(";%d;%d", atrNoNRecordResident.StartVcn, atrNoNRecordResident.LastVcn)}
+_, err := file1.WriteString(strings.Join(s, ""))
+if err != nil {
+	// handle the error here
+	fmt.Printf("err %s\n", err)
+	return
+}
+
+			//s := [] string {fmt.Sprintf("Start VCN %d END VCN %d",atrRecordResident.StartVcn,atrRecordResident.LastVcn ), string(10)}
+			// _,err:=file1.WriteString(strings.Join(s," "))
+			//  if err != nil {
+			// handle the error here
+			//   fmt.Printf("err %s\n",err)
+			//     return
+			//  }
+
+
+}*/
+
 func main() {
 	//dbmap := initDb()
 	//defer dbmap.Db.Close()
 
 	//	save2DB := flag.Bool("db", false, "bool if set an sqlite file will be created, each table will corresponed to an MFT attribute")
 	inputfile := flag.String("MFT", "MFT file", "absolute path to the MFT file")
-	exportResidentFiles := flag.Bool("Export", false, "export resident files")
+	//	exportResidentFiles := flag.Bool("Export", false, "export resident files")
 	flag.Parse() //ready to parse
 
 	//err := dbmap.TruncateTables()
@@ -570,7 +894,7 @@ func main() {
 		return
 	}
 	// read the file
-	file1, err := os.OpenFile("MFToutput.txt", os.O_RDWR|os.O_CREATE, 0666)
+	file1, err := os.OpenFile("MFToutput.csv", os.O_RDWR|os.O_CREATE, 0666)
 
 	if err != nil {
 		// handle the error here
@@ -580,14 +904,7 @@ func main() {
 	defer file.Close()
 	defer file1.Close()
 
-	var k = 0
-	_, err1 := file1.WriteString("FILE SIZE------------------------------------------------------------" + fmt.Sprintf("%d", fsize.Size()) + string(10))
-	if err1 != nil {
-		// handle the error here
-		fmt.Printf("err %s\n", err)
-		return
-	}
-	bs := make([]byte, 1024) //new byte array of length MFT entry
+	bs := make([]byte, 1024) //byte array to hold MFT entries
 
 	for i := 0; i <= int(fsize.Size()); i += 1024 {
 		fmt.Printf("Processing $MFT entry %d \n", i/1024)
@@ -599,297 +916,10 @@ func main() {
 		}
 
 		if string(bs[:4]) == "FILE" {
-
 			var record MFTrecord
-			Unmarshal(bs, &record)
+			record.process(bs)
 
-			/*		if *save2DB {
-					dbmap.Insert(&r)
-					checkErr(err, "Insert failed")
-				}*/
+		}
 
-			_, err1 := file1.WriteString(fmt.Sprintf("\n%d;%d;%s", record.Entry, record.Seq,
-				MFTflags[record.UpdateSeqArrSize]))
-			if err1 != nil {
-				// handle the error here
-				// fmt.Printf("err %s\n",err)
-				return
-			}
-
-			// err = dbmap.Insert(&r)
-			// checkErr(err, "Insert failed")
-
-			if record.Signature == "BAAD" { //skip bad entry
-				continue
-			}
-
-			ReadPtr := record.AttrOff //offset to first attribute
-			//  fmt.Println("ResIDent? ",Bytereverse(bs[ReadPtr+8:ReadPtr+9]))
-			for ReadPtr < 1024 {
-
-				if hex.EncodeToString(bs[ReadPtr:ReadPtr+4]) == "ffffffff" { //End of attributes
-					break
-				}
-
-				// fmt.Printf("Type %s ResIDnet  Attr %b Endian \n",hex.EncodeToString(bs[ReadPtr:ReadPtr+4]),readEndianString(bs[ReadPtr:ReadPtr+4]))
-				if Hexify(bs[ReadPtr+8:ReadPtr+9]) == "00" { //ResIDent Attribute
-					var atrRecordResident ATRrecordResident
-					Unmarshal(bs[ReadPtr:ReadPtr+24], &atrRecordResident)
-
-					/*	if *save2DB {
-						dbmap.Insert(&atrRecordResident)
-						checkErr(err, "Insert failed")
-					}*/
-					//   fmt.Printf("ResIDent type %s where data length %d and starts at %d ,Attribute length %d  equal>%b \n",atrRecordResident.Type,atrRecordResident.ssize,atrRecordResident.OffsetContent,atrRecordResident.Len,uint32(atrRecordResident.OffsetContent)+atrRecordResident.ssize==atrRecordResident.Len)
-					s := strings.Join([]string{";", AttrTypes[atrRecordResident.Type]}, "")
-					_, err := file1.WriteString(s)
-					if err != nil {
-						// handle the error here
-						fmt.Printf("err %s\n", err)
-						return
-					}
-					if atrRecordResident.Type == "ffffffff" { // End of attributes
-						break
-
-					} else if atrRecordResident.Type == "00000030" { // File name
-						var fnattr FNAttribute
-						Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+atrRecordResident.OffsetContent+66], &fnattr)
-
-						fnattr.Fname =
-							DecodeUTF16(bs[ReadPtr+atrRecordResident.OffsetContent+66 : ReadPtr+atrRecordResident.OffsetContent+66+2*uint16(readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+64:ReadPtr+atrRecordResident.OffsetContent+65]).(uint8))])
-						record.FullName = &fnattr
-						//	false, false, record.Entry, 0}
-						//  fmt.Println("\nFNA ",bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+atrRecordResident.OffsetContent+65],bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+atrRecordResident.OffsetContent+6],readEndian(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+atrRecordResident.OffsetContent+6]).(uint64),
-						//	"PAREF",fnattr.ParRef,"SQ",fnattr.fname,"FLAG",fnattr.flags)
-						//   fmt.Printf("time Mod %s time Accessed %s time Created %s Filename %s\n ", fnattr.atime.convertToIsoTime(),fnattr.crtime.convertToIsoTime(),fnattr.mtime.convertToIsoTime(),fnattr.fname )
-						//    fmt.Println(strings.TrimSpace(string(bs[ReadPtr+atrRecordResident.OffsetContent+66:ReadPtr+atrRecordResident.OffsetContent+66+2*uint16(readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+64:ReadPtr+atrRecordResident.OffsetContent+65]).(uint8))])))
-						/*if *save2DB {
-							dbmap.Insert(&fnattr)
-							checkErr(err, "Insert failed")
-						}*/
-						s := strings.Join([]string{fmt.Sprintf(";%d", ReadPtr+atrRecordResident.OffsetContent), ";",
-							fnattr.Atime.convertToIsoTime(), ";", fnattr.Crtime.convertToIsoTime(),
-							";", fnattr.Mtime.convertToIsoTime(), ";", fnattr.Fname, fmt.Sprintf(";Par ref %d; Seq %d;  %s", fnattr.ParRef, fnattr.ParSeq, Flags[fnattr.Flags])}, "")
-
-						_, err := file1.WriteString(s) //(string(10)) breaks line
-						if err != nil {
-							// handle the error here
-							fmt.Printf("err %s\n", err)
-							return
-						}
-
-					} else if atrRecordResident.Type == "00000080" {
-						record.Data = &DATAResident{&atrRecordResident,
-							bs[ReadPtr+atrRecordResident.OffsetContent : ReadPtr+atrRecordResident.OffsetContent+uint16(atrRecordResident.ContentSize)]}
-
-						if *exportResidentFiles {
-							writtenBytes := createFileFromEntry(record)
-							if writtenBytes > 0 {
-								fmt.Printf("wrote file %s total %d bytes \n", record.FullName.Fname,
-									writtenBytes)
-
-							}
-						}
-
-					} else if atrRecordResident.Type == "00000040" {
-						var objectattr ObjectID
-						Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+atrRecordResident.OffsetContent+64], &objectattr)
-
-						// fmt.Println("file unique ID ",objectattr.objID)
-						/*	if *save2DB {
-							dbmap.Insert(&objectattr)
-							checkErr(err, "Insert failed")
-						}*/
-						s := []string{";", objectattr.ObjID}
-						_, err := file1.WriteString(strings.Join(s, " "))
-						if err != nil {
-							// handle the error here
-							fmt.Printf("err %s\n", err)
-							return
-						}
-					} else if atrRecordResident.Type == "00000020" { //Attribute List
-						//  runlist:=bs[ReadPtr+atrRecordResident.OffsetContent:uint32(ReadPtr)+atrRecordResident.Len]
-
-						attrLen := uint16(0)
-						for atrRecordResident.OffsetContent+24+attrLen < uint16(atrRecordResident.Len) {
-							//fmt.Println("TEST",len(runlist),26+attrLen+atrRecordResident.OffsetContent, uint16(atrRecordResident.Len))
-							var attrList AttributeList
-							Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent+attrLen:ReadPtr+atrRecordResident.OffsetContent+attrLen+24], &attrList)
-							attrList.name = NoNull(bs[ReadPtr+atrRecordResident.OffsetContent+attrLen+uint16(attrList.Nameoffset) : ReadPtr+atrRecordResident.OffsetContent+attrLen+uint16(attrList.Nameoffset)+uint16(attrList.Namelen)])
-							//     fmt.Println("START VCN",attrList.StartVcn)
-
-							s := []string{"Type of Attr in Run list", fmt.Sprintf("Attribute starts at %d", ReadPtr),
-								AttrTypes[attrList.Type], fmt.Sprintf("length %d ", attrList.Len), fmt.Sprintf("start VCN %d ", attrList.StartVcn),
-								"MFT Record Number", fmt.Sprintf("%d Name %s", attrList.FileRef, attrList.name),
-								"Attribute ID ", fmt.Sprintf("%d ", attrList.ID), string(10)}
-							_, err := file1.WriteString(strings.Join(s, " "))
-							if err != nil {
-								// handle the error here
-								fmt.Printf("err %s\n", err)
-								return
-							}
-
-							//   runlist=bs[ReadPtr+atrRecordResident.OffsetContent+attrList.len:uint32(ReadPtr)+atrRecordResident.Len]
-							attrLen += attrList.Len
-
-						}
-					} else if atrRecordResident.Type == "000000b0" { //BITMAP
-						record.Bitmap = true
-
-					} else if atrRecordResident.Type == "00000060" { //Volume Name
-						volname := VolumeName{NoNull(bs[ReadPtr+atrRecordResident.OffsetContent : ReadPtr+atrRecordResident.OffsetContent+16]), record.Entry, 0}
-						/*		if *save2DB {
-								dbmap.Insert(&volname)
-								checkErr(err, "Insert failed")
-							}*/
-
-						s := []string{";", volname.Name.PrintNulls()}
-						_, err := file1.WriteString(strings.Join(s, "s"))
-						if err != nil {
-							// handle the error here
-							fmt.Printf("err %s\n", err)
-							return
-						}
-					} else if atrRecordResident.Type == "00000070" { //Volume Info
-						volinfo := VolumeInfo{readEndian(bs[ReadPtr+atrRecordResident.OffsetContent : ReadPtr+atrRecordResident.OffsetContent+8]).(uint64),
-							Hexify(Bytereverse(bs[ReadPtr+atrRecordResident.OffsetContent+8 : ReadPtr+atrRecordResident.OffsetContent+9])),
-							Hexify(Bytereverse(bs[ReadPtr+atrRecordResident.OffsetContent+9 : ReadPtr+atrRecordResident.OffsetContent+10])),
-							Hexify(Bytereverse(bs[ReadPtr+atrRecordResident.OffsetContent+10 : ReadPtr+atrRecordResident.OffsetContent+12])),
-							readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+12 : ReadPtr+atrRecordResident.OffsetContent+16]).(uint32),
-							record.Entry, 0}
-						/*	if *save2DB {
-							dbmap.Insert(&volinfo)
-							checkErr(err, "Insert failed")
-						}*/
-
-						s := []string{"Vol Info flags", volinfo.Flags, string(10)}
-						_, err := file1.WriteString(strings.Join(s, " "))
-						if err != nil {
-							// handle the error here
-							fmt.Printf("err %s\n", err)
-							return
-						}
-					} else if atrRecordResident.Type == "00000090" { //Index Root
-						var idxRoot IndexRoot
-						Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+
-							atrRecordResident.OffsetContent+12], &idxRoot)
-
-						var nodeheader NodeHeader
-						Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent+
-							16:ReadPtr+atrRecordResident.OffsetContent+32], &nodeheader)
-						idxRoot.nodeheader = &nodeheader
-
-						var idxEntry IndexEntry
-						Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent+16+
-							uint16(nodeheader.OffsetEntryList):ReadPtr+atrRecordResident.OffsetContent+
-							16+uint16(nodeheader.OffsetEndUsedEntryList)], &idxEntry)
-						//
-						s := []string{idxRoot.Type, ";", fmt.Sprintf(";%d", idxRoot.Sizeclusters), ";", fmt.Sprintf("%d;", 16+idxRoot.nodeheader.OffsetEntryList),
-							fmt.Sprintf(";%d", 16+idxRoot.nodeheader.OffsetEndUsedEntryList), fmt.Sprintf("allocated ends at %d", 16+idxRoot.nodeheader.OffsetEndEntryListBuffer),
-							fmt.Sprintf("MFT entry%d ", idxEntry.MFTfileref), "FLags", IndexEntryFlags[idxEntry.Flags]}
-						//fmt.Sprintf("%x",bs[uint32(ReadPtr)+uint32(atrRecordResident.OffsetContent)+32:uint32(ReadPtr)+uint32(atrRecordResident.OffsetContent)+16+IDxroot.nodeheader.OffsetEndEntryListBuffer]
-
-						if idxEntry.FilenameLen > 0 {
-							var fnattrIDXEntry FNAttribute
-							Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent+16+
-								uint16(nodeheader.OffsetEntryList)+16:ReadPtr+atrRecordResident.OffsetContent+16+
-								uint16(nodeheader.OffsetEntryList)+16+idxEntry.FilenameLen],
-								&fnattrIDXEntry)
-
-							s1 := []string{"Filename idx Entry", fnattrIDXEntry.Fname}
-							file1.WriteString(strings.Join(s1, " "))
-						}
-
-						_, err := file1.WriteString(strings.Join(s, " "))
-						if err != nil {
-							// handle the error here
-							fmt.Printf("err %s\n", err)
-							return
-						}
-					} else if atrRecordResident.Type == "00000010" { //Standard Information
-						startpoint := ReadPtr + atrRecordResident.OffsetContent
-						var siattr SIAttribute
-						Unmarshal(bs[startpoint:startpoint+72], &siattr)
-
-						/*	if *save2DB {
-							dbmap.Insert(&siattr)
-							checkErr(err, "Insert failed")
-						}*/
-						s := []string{fmt.Sprintf(";%d", startpoint), ";", siattr.Crtime.convertToIsoTime(),
-							";", siattr.Atime.convertToIsoTime(), ";", siattr.Mtime.convertToIsoTime(), ";", siattr.MFTmtime.convertToIsoTime()}
-						_, err := file1.WriteString(strings.Join(s, ""))
-						if err != nil {
-							// handle the error here
-							fmt.Printf("err %s\n", err)
-							return
-						}
-
-					}
-
-					ReadPtr = ReadPtr + uint16(atrRecordResident.Len)
-
-				} else { //NoN ResIDent Attribute
-					var atrNoNRecordResident ATRrecordNoNResIDent
-					Unmarshal(bs[ReadPtr:ReadPtr+64], &atrNoNRecordResident)
-
-					//        fmt.Println("NON ResIDent type ",atrRecordResident.Type,atrRecordResident.Len,ReadPtr)
-					//  buffer:=[] byte{}// a slice
-					/*		if *save2DB {
-							dbmap.Insert(&atrRecordResident)
-							checkErr(err, "Insert failed")
-						}*/
-
-					s := []string{";", AttrTypes[atrNoNRecordResident.Type], fmt.Sprintf(";%d", ReadPtr), ";false", fmt.Sprintf(";%d;%d", atrNoNRecordResident.StartVcn, atrNoNRecordResident.LastVcn)}
-					_, err := file1.WriteString(strings.Join(s, ""))
-					if err != nil {
-						// handle the error here
-						fmt.Printf("err %s\n", err)
-						return
-					}
-					if atrNoNRecordResident.Type == "ffffffff" { // End of attributes
-						break
-
-					} else if atrNoNRecordResident.Type == "00000080" {
-
-						if uint32(ReadPtr)+atrNoNRecordResident.Len <= 1024 {
-							atrNoNRecordResident.ProcessRunList(bs[ReadPtr+atrNoNRecordResident.RunOff : uint32(ReadPtr)+atrNoNRecordResident.Len])
-
-						}
-					}
-
-					//s := [] string {fmt.Sprintf("Start VCN %d END VCN %d",atrRecordResident.StartVcn,atrRecordResident.LastVcn ), string(10)}
-					// _,err:=file1.WriteString(strings.Join(s," "))
-					//  if err != nil {
-					// handle the error here
-					//   fmt.Printf("err %s\n",err)
-					//     return
-					//  }
-
-					/*else if  atrRecordResident.Type == "000000a0" {//Index Allcation
-						     nodeheader := NodeHeader {readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+16:ReadPtr+atrRecordResident.OffsetContent+20]).(uint32),readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+20:ReadPtr+atrRecordResident.OffsetContent+24]).(uint32),
-						    readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+24:ReadPtr+atrRecordResident.OffsetContent+28]).(uint32)}
-					        IDxall := IndexAllocation{string(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+atrRecordResident.OffsetContent+4]),readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+4:ReadPtr+atrRecordResident.OffsetContent+6]).(uint16),readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+6:ReadPtr+atrRecordResident.OffsetContent+8]).(uint16),
-						    readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+16:ReadPtr+atrRecordResident.OffsetContent+24]).(uint64), nodeheader}
-
-						 s := [] string  {"Index Allocation Type ",IDxall.Type,fmt.Sprintf("VCN %d  ",IDxall.VCN),"Index entry start",fmt.Sprintf("%d",IDxall.nodeheader.OffsetEntryList),
-						        fmt.Sprintf(" used portion ends at %d",IDxall.nodeheader.OffsetEndUsedEntryList),fmt.Sprintf("allocated ends at %d",IDxall.nodeheader.OffsetEndEntryListBuffer)  ,string(10)}
-						  _,err:=file1.WriteString(strings.Join(s," "))
-						  if err != nil {
-						    // handle the error here
-						    fmt.Printf("err %s\n",err)
-						      return
-						    }
-
-					   }*/
-					if atrNoNRecordResident.Len > 0 {
-						ReadPtr = ReadPtr + uint16(atrNoNRecordResident.Len)
-					}
-
-				} //ends non resIDent
-
-			} //ends while
-
-		} //ends if
-		k++
 	}
 } //ends for
