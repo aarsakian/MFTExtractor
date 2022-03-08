@@ -61,7 +61,7 @@ type MFTrecord struct {
 	F1                  uint16 //42-43
 	Entry               uint32 //44-48                  ??
 	Fncnt               bool
-	Data                *DATAResident
+	Data                *DATA
 	FullName            *FNAttribute
 	StandardInformation *SIAttribute
 	VolumeInfo          *VolumeInfo
@@ -92,8 +92,8 @@ type ATRrecordResident struct {
 
 }
 
-type DATAResident struct {
-	Header  *ATRrecordResident
+type DATA struct {
+	Header  *AttributeHeader
 	Content []byte
 }
 
@@ -236,7 +236,7 @@ func Bytereverse(barray []byte) []byte { //work with indexes
 }
 
 func writeToCSV(file *os.File, data string) {
-	_, err := file.WriteString("S")
+	_, err := file.WriteString(data)
 	if err != nil {
 		// handle the error here
 		fmt.Printf("err %s\n", err)
@@ -344,18 +344,11 @@ func readEndian(barray []byte) (val interface{}) {
 }
 
 func (winTime *WindowsTime) convertToIsoTime() string { //receiver winTime struct
-	var localTime string
-	if winTime.Stamp != 0 {
-		// t:=math.Pow((uint64(winTime.high)*2),32) + uint64(winTime.low)
-		x := winTime.Stamp/10000000 - 116444736*1e2
-		unixtime := time.Unix(int64(x), 0).UTC()
-		localTime = unixtime.Format("02-01-2006 15:04:05")
-		// fmt.Println("time",unixtime.Format("02-01-2006 15:04:05"))
+	// t:=math.Pow((uint64(winTime.high)*2),32) + uint64(winTime.low)
+	x := winTime.Stamp/10000000 - 116444736*1e2
+	unixtime := time.Unix(int64(x), 0).UTC()
+	return unixtime.Format("02-01-2006 15:04:05")
 
-	} else {
-		localTime = "---"
-	}
-	return localTime
 }
 
 func readEndianFloat(barray []byte) (val uint64) {
@@ -450,21 +443,31 @@ func determineClusterOffsetLength(val byte) (uint64, uint64) {
 
 }
 
-func createFileFromEntry(record MFTrecord) int {
-	file, err := os.Create(record.FullName.Fname)
-	if err != nil {
-		// handle the error here
-		fmt.Printf("err %s opening the file \n", err)
-		return -1
+func (record MFTrecord) hasResidentDataAttr() bool {
+	return record.Data != nil && !record.Data.Header.isNoNResident()
+}
+
+func (record MFTrecord) createFileFromEntry() {
+	if record.hasResidentDataAttr() {
+		file, err := os.Create(record.FullName.Fname)
+		if err != nil {
+			// handle the error here
+			fmt.Printf("err %s opening the file \n", err)
+
+		}
+
+		bytesWritten, err := file.Write(record.Data.Content)
+		if err != nil {
+			fmt.Printf("err %s writing the file \n", err)
+
+		}
+
+		fmt.Printf("wrote file %s total %d bytes \n",
+			record.FullName.Fname, bytesWritten)
+	} else {
+		fmt.Printf("record has not DATA attribute")
 	}
 
-	bytesWritten, err := file.Write(record.Data.Content)
-	if err != nil {
-		fmt.Printf("err %s writing the file \n", err)
-		return -1
-	}
-
-	return bytesWritten
 }
 
 func DecodeUTF16(b []byte) string {
@@ -632,13 +635,15 @@ func (record *MFTrecord) process(bs []byte) {
 
 				fnattr.Fname =
 					DecodeUTF16(bs[ReadPtr+atrRecordResident.OffsetContent+66 : ReadPtr+
-						atrRecordResident.OffsetContent+66+2*uint16(readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+64:ReadPtr+atrRecordResident.OffsetContent+65]).(uint8))])
+						atrRecordResident.OffsetContent+66+2*uint16(readEndian(bs[ReadPtr+
+						atrRecordResident.OffsetContent+64:ReadPtr+
+						atrRecordResident.OffsetContent+65]).(uint8))])
 				record.FullName = &fnattr
 
 			} else if attrHeader.isData() {
-				record.Data = &DATAResident{&atrRecordResident,
-					bs[ReadPtr+atrRecordResident.OffsetContent : ReadPtr+
-						atrRecordResident.OffsetContent+uint16(atrRecordResident.ContentSize)]}
+				record.Data = &DATA{&attrHeader,
+					bs[ReadPtr+atrRecordResident.OffsetContent : ReadPtr +
+						+uint16(attrHeader.AttrLen)]}
 
 			} else if attrHeader.isObject() {
 				var objectattr ObjectID
@@ -749,123 +754,117 @@ func (record *MFTrecord) process(bs []byte) {
 
 }
 
-/*func getBasicInfoFromRecord(record MFTrecord) {
-	fmt.Sprintf("%d;%d;%s", record.Entry, record.Seq,
-		MFTflags[record.UpdateSeqArrSize])
+func (record MFTrecord) getBasicInfoFromRecord(file1 *os.File) {
 
-	strings.Join([]string{fmt.Sprintf(";%d", ReadPtr+atrRecordResident.OffsetContent), ";",
-		fnattr.Atime.convertToIsoTime(), ";", fnattr.Crtime.convertToIsoTime(),
-		";", fnattr.Mtime.convertToIsoTime(), ";", fnattr.Fname, fmt.Sprintf(";Par ref %d; Seq %d;  %s", fnattr.ParRef, fnattr.ParSeq, Flags[fnattr.Flags])}, "")
+	s := fmt.Sprintf("%d;%d;%s", record.Entry, record.Seq, MFTflags[record.UpdateSeqArrSize])
 
-	writeToCSV(file1, s)
+	s1 := strings.Join([]string{s, record.FullName.Atime.convertToIsoTime(),
+		record.FullName.Crtime.convertToIsoTime(),
+		record.FullName.Mtime.convertToIsoTime(), record.FullName.Fname,
+		fmt.Sprintf(";%d;%d;%s", record.FullName.ParRef, record.FullName.ParSeq,
+			Flags[record.FullName.Flags])}, ";")
 
-	if *exportResidentFiles {
-		writtenBytes := createFileFromEntry(record)
-		if writtenBytes > 0 {
-			fmt.Printf("wrote file %s total %d bytes \n", record.FullName.Fname,
-				writtenBytes)
+	writeToCSV(file1, s1)
 
-		}
-	}
-				//	false, false, record.Entry, 0}
-				//  fmt.Println("\nFNA ",bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+atrRecordResident.OffsetContent+65],bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+atrRecordResident.OffsetContent+6],readEndian(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+atrRecordResident.OffsetContent+6]).(uint64),
-				//	"PAREF",fnattr.ParRef,"SQ",fnattr.fname,"FLAG",fnattr.flags)
-				//   fmt.Printf("time Mod %s time Accessed %s time Created %s Filename %s\n ", fnattr.atime.convertToIsoTime(),fnattr.crtime.convertToIsoTime(),fnattr.mtime.convertToIsoTime(),fnattr.fname )
-				//    fmt.Println(strings.TrimSpace(string(bs[ReadPtr+atrRecordResident.OffsetContent+66:ReadPtr+atrRecordResident.OffsetContent+66+2*uint16(readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+64:ReadPtr+atrRecordResident.OffsetContent+65]).(uint8))])))
-				/*if *save2DB {
-					dbmap.Insert(&fnattr)
-					checkErr(err, "Insert failed")
-				}
-
-
-
-				// fmt.Println("file unique ID ",objectattr.objID)
-					if *save2DB {
-						dbmap.Insert(&objectattr)
+	//	false, false, record.Entry, 0}
+	//  fmt.Println("\nFNA ",bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+atrRecordResident.OffsetContent+65],bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+atrRecordResident.OffsetContent+6],readEndian(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+atrRecordResident.OffsetContent+6]).(uint64),
+	//	"PAREF",fnattr.ParRef,"SQ",fnattr.fname,"FLAG",fnattr.flags)
+	//   fmt.Printf("time Mod %s time Accessed %s time Created %s Filename %s\n ", fnattr.atime.convertToIsoTime(),fnattr.crtime.convertToIsoTime(),fnattr.mtime.convertToIsoTime(),fnattr.fname )
+	//    fmt.Println(strings.TrimSpace(string(bs[ReadPtr+atrRecordResident.OffsetContent+66:ReadPtr+atrRecordResident.OffsetContent+66+2*uint16(readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+64:ReadPtr+atrRecordResident.OffsetContent+65]).(uint8))])))
+	/*if *save2DB {
+						dbmap.Insert(&fnattr)
 						checkErr(err, "Insert failed")
 					}
-					s := []string{";", objectattr.ObjID}
-					_, err := file1.WriteString(strings.Join(s, " "))
-					if err != nil {
-						// handle the error here
-						fmt.Printf("err %s\n", err)
-						return
-					}
 
 
-	s := []string{"Type of Attr in Run list", fmt.Sprintf("Attribute starts at %d", ReadPtr),
-		AttrTypes[attrList.Type], fmt.Sprintf("length %d ", attrList.Len), fmt.Sprintf("start VCN %d ", attrList.StartVcn),
-		"MFT Record Number", fmt.Sprintf("%d Name %s", attrList.FileRef, attrList.name),
-		"Attribute ID ", fmt.Sprintf("%d ", attrList.ID), string(10)}
+
+					// fmt.Println("file unique ID ",objectattr.objID)
+						if *save2DB {
+							dbmap.Insert(&objectattr)
+							checkErr(err, "Insert failed")
+						}
+						s := []string{";", objectattr.ObjID}
+						_, err := file1.WriteString(strings.Join(s, " "))
+						if err != nil {
+							// handle the error here
+							fmt.Printf("err %s\n", err)
+							return
+						}
+
+
+		s := []string{"Type of Attr in Run list", fmt.Sprintf("Attribute starts at %d", ReadPtr),
+			AttrTypes[attrList.Type], fmt.Sprintf("length %d ", attrList.Len), fmt.Sprintf("start VCN %d ", attrList.StartVcn),
+			"MFT Record Number", fmt.Sprintf("%d Name %s", attrList.FileRef, attrList.name),
+			"Attribute ID ", fmt.Sprintf("%d ", attrList.ID), string(10)}
+		_, err := file1.WriteString(strings.Join(s, " "))
+		if err != nil {
+			// handle the error here
+			fmt.Printf("err %s\n", err)
+			return
+		}
+
+		s := []string{";", volname.Name.PrintNulls()}
+		_, err := file1.WriteString(strings.Join(s, "s"))
+		if err != nil {
+			// handle the error here
+			fmt.Printf("err %s\n", err)
+			return
+		}
+
+		s := []string{"Vol Info flags", volinfo.Flags, string(10)}
+		_, err := file1.WriteString(strings.Join(s, " "))
+		if err != nil {
+			// handle the error here
+			fmt.Printf("err %s\n", err)
+			return
+		}
+
+		s := []string{idxRoot.Type, ";", fmt.Sprintf(";%d", idxRoot.Sizeclusters), ";", fmt.Sprintf("%d;", 16+idxRoot.nodeheader.OffsetEntryList),
+		fmt.Sprintf(";%d", 16+idxRoot.nodeheader.OffsetEndUsedEntryList), fmt.Sprintf("allocated ends at %d", 16+idxRoot.nodeheader.OffsetEndEntryListBuffer),
+		fmt.Sprintf("MFT entry%d ", idxEntry.MFTfileref), "FLags", IndexEntryFlags[idxEntry.Flags]}
+	//fmt.Sprintf("%x",bs[uint32(ReadPtr)+uint32(atrRecordResident.OffsetContent)+32:uint32(ReadPtr)+uint32(atrRecordResident.OffsetContent)+16+IDxroot.nodeheader.OffsetEndEntryListBuffer]
+	s1 := []string{"Filename idx Entry", fnattrIDXEntry.Fname}
+	file1.WriteString(strings.Join(s1, " "))
+	}
+
 	_, err := file1.WriteString(strings.Join(s, " "))
 	if err != nil {
-		// handle the error here
-		fmt.Printf("err %s\n", err)
-		return
-	}
-
-	s := []string{";", volname.Name.PrintNulls()}
-	_, err := file1.WriteString(strings.Join(s, "s"))
-	if err != nil {
-		// handle the error here
-		fmt.Printf("err %s\n", err)
-		return
-	}
-
-	s := []string{"Vol Info flags", volinfo.Flags, string(10)}
-	_, err := file1.WriteString(strings.Join(s, " "))
-	if err != nil {
-		// handle the error here
-		fmt.Printf("err %s\n", err)
-		return
-	}
-
-	s := []string{idxRoot.Type, ";", fmt.Sprintf(";%d", idxRoot.Sizeclusters), ";", fmt.Sprintf("%d;", 16+idxRoot.nodeheader.OffsetEntryList),
-	fmt.Sprintf(";%d", 16+idxRoot.nodeheader.OffsetEndUsedEntryList), fmt.Sprintf("allocated ends at %d", 16+idxRoot.nodeheader.OffsetEndEntryListBuffer),
-	fmt.Sprintf("MFT entry%d ", idxEntry.MFTfileref), "FLags", IndexEntryFlags[idxEntry.Flags]}
-//fmt.Sprintf("%x",bs[uint32(ReadPtr)+uint32(atrRecordResident.OffsetContent)+32:uint32(ReadPtr)+uint32(atrRecordResident.OffsetContent)+16+IDxroot.nodeheader.OffsetEndEntryListBuffer]
-s1 := []string{"Filename idx Entry", fnattrIDXEntry.Fname}
-file1.WriteString(strings.Join(s1, " "))
-}
-
-_, err := file1.WriteString(strings.Join(s, " "))
-if err != nil {
-// handle the error here
-fmt.Printf("err %s\n", err)
-return
-s1 := []string{"Filename idx Entry", fnattrIDXEntry.Fname}
-file1.WriteString(strings.Join(s1, " "))
-}
-
-_, err := file1.WriteString(strings.Join(s, " "))
-if err != nil {
-// handle the error here
-fmt.Printf("err %s\n", err)
-return
-
-s := []string{fmt.Sprintf(";%d", startpoint), ";", siattr.Crtime.convertToIsoTime(),
-";", siattr.Atime.convertToIsoTime(), ";", siattr.Mtime.convertToIsoTime(), ";",
-siattr.MFTmtime.convertToIsoTime()}
-writeToCSV(file1, strings.Join(s, ""))
-
-s := []string{";", AttrTypes[atrNoNRecordResident.Type], fmt.Sprintf(";%d", ReadPtr), ";false", fmt.Sprintf(";%d;%d", atrNoNRecordResident.StartVcn, atrNoNRecordResident.LastVcn)}
-_, err := file1.WriteString(strings.Join(s, ""))
-if err != nil {
 	// handle the error here
 	fmt.Printf("err %s\n", err)
 	return
+	s1 := []string{"Filename idx Entry", fnattrIDXEntry.Fname}
+	file1.WriteString(strings.Join(s1, " "))
+	}
+
+	_, err := file1.WriteString(strings.Join(s, " "))
+	if err != nil {
+	// handle the error here
+	fmt.Printf("err %s\n", err)
+	return
+
+	s := []string{fmt.Sprintf(";%d", startpoint), ";", siattr.Crtime.convertToIsoTime(),
+	";", siattr.Atime.convertToIsoTime(), ";", siattr.Mtime.convertToIsoTime(), ";",
+	siattr.MFTmtime.convertToIsoTime()}
+	writeToCSV(file1, strings.Join(s, ""))
+
+	s := []string{";", AttrTypes[atrNoNRecordResident.Type], fmt.Sprintf(";%d", ReadPtr), ";false", fmt.Sprintf(";%d;%d", atrNoNRecordResident.StartVcn, atrNoNRecordResident.LastVcn)}
+	_, err := file1.WriteString(strings.Join(s, ""))
+	if err != nil {
+		// handle the error here
+		fmt.Printf("err %s\n", err)
+		return
+	}
+
+				//s := [] string {fmt.Sprintf("Start VCN %d END VCN %d",atrRecordResident.StartVcn,atrRecordResident.LastVcn ), string(10)}
+				// _,err:=file1.WriteString(strings.Join(s," "))
+				//  if err != nil {
+				// handle the error here
+				//   fmt.Printf("err %s\n",err)
+				//     return
+				//  }
+
+	*/
 }
-
-			//s := [] string {fmt.Sprintf("Start VCN %d END VCN %d",atrRecordResident.StartVcn,atrRecordResident.LastVcn ), string(10)}
-			// _,err:=file1.WriteString(strings.Join(s," "))
-			//  if err != nil {
-			// handle the error here
-			//   fmt.Printf("err %s\n",err)
-			//     return
-			//  }
-
-
-}*/
 
 func main() {
 	//dbmap := initDb()
@@ -873,7 +872,9 @@ func main() {
 
 	//	save2DB := flag.Bool("db", false, "bool if set an sqlite file will be created, each table will corresponed to an MFT attribute")
 	inputfile := flag.String("MFT", "MFT file", "absolute path to the MFT file")
-	//	exportResidentFiles := flag.Bool("Export", false, "export resident files")
+	exportResidentFiles := flag.Bool("Export", false, "export resident files")
+	//	MFTSelectedEntry := flag.Int("EntryNum", 0, "select a particular MFT entry")
+
 	flag.Parse() //ready to parse
 
 	//err := dbmap.TruncateTables()
@@ -918,6 +919,12 @@ func main() {
 		if string(bs[:4]) == "FILE" {
 			var record MFTrecord
 			record.process(bs)
+			record.getBasicInfoFromRecord(file1)
+
+			if *exportResidentFiles {
+				record.createFileFromEntry()
+
+			}
 
 		}
 
