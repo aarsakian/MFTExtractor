@@ -30,9 +30,13 @@ var IndexEntryFlags = map[string]string{
 }
 
 var AttrTypes = map[string]string{
-	"00000010": "Standard Information", "00000020": "Attribute List", "00000030": "File Name", "00000040": "Object ID",
-	"00000050": "Security Descriptor", "00000060": "Volume Name", "00000070": "Volume Information", "00000080": "Data",
-	"00000090": "Index Root", "000000A0": "Index Allocation", "000000B0": "BitMap", "000000C0": "Reparse Point",
+	"00000010": "Standard Information", "00000020": "Attribute List",
+	"00000030": "FileName", "00000040": "Object ID",
+	"00000050": "Security Descriptor", "00000060": "Volume Name",
+	"00000070": "Volume Information", "00000080": "Data",
+	"00000090": "Index Root", "000000A0": "Index Allocation",
+	"000000B0": "BitMap", "000000C0": "Reparse Point",
+	"ffffffff": "Last",
 }
 
 var Flags = map[uint32]string{
@@ -62,7 +66,7 @@ type MFTrecord struct {
 	Entry               uint32 //44-48                  ??
 	Fncnt               bool
 	Data                *DATA
-	FullName            *FNAttribute
+	FileName            *FNAttribute
 	StandardInformation *SIAttribute
 	VolumeInfo          *VolumeInfo
 	VolumeName          *VolumeName
@@ -145,16 +149,14 @@ type ObjectID struct { //unique guID
 }
 
 type VolumeName struct {
-	Name    NoNull
-	EntryID uint32 //foreing key
-	AttrID  uint16 //for DB use
+	Name NoNull
 }
 
 type IndexEntry struct {
 	MFTfileref  uint64 //0-7
 	Len         uint16 //8-9
 	FilenameLen uint16 //10-11
-	Flags       string //12-15
+	Flags       uint32 //12-15
 	Fnattr      *FNAttribute
 }
 
@@ -170,7 +172,7 @@ type NodeHeader struct {
 	OffsetEntryList          uint32 // 16-20 offset to start of the index entry
 	OffsetEndUsedEntryList   uint32 //20-24 where EntryList ends
 	OffsetEndEntryListBuffer uint32 //24-28
-	Flags                    string //0x01 no children
+	Flags                    uint32 //0x01 no children
 }
 
 type IndexAllocation struct {
@@ -195,9 +197,9 @@ type AttributeList struct { //more than one MFT entry to store a file/directory 
 
 type VolumeInfo struct {
 	F1      uint64 //unused
-	MajVer  string
-	MinVer  string
-	Flags   string //see table 13.22
+	MajVer  string // 8-8
+	MinVer  string // 9-9
+	Flags   uint16 //see table 13.22
 	F2      uint32
 	EntryID uint32 //foreing key
 	AttrID  uint16 //for DB use
@@ -449,7 +451,7 @@ func (record MFTrecord) hasResidentDataAttr() bool {
 
 func (record MFTrecord) createFileFromEntry() {
 	if record.hasResidentDataAttr() {
-		file, err := os.Create(record.FullName.Fname)
+		file, err := os.Create(record.FileName.Fname)
 		if err != nil {
 			// handle the error here
 			fmt.Printf("err %s opening the file \n", err)
@@ -463,7 +465,7 @@ func (record MFTrecord) createFileFromEntry() {
 		}
 
 		fmt.Printf("wrote file %s total %d bytes \n",
-			record.FullName.Fname, bytesWritten)
+			record.FileName.Fname, bytesWritten)
 	} else {
 		fmt.Printf("record has not DATA attribute")
 	}
@@ -494,49 +496,53 @@ func (str *NoNull) PrintNulls() string {
 	return strings.Join(newstr, "")
 }
 
+func (attrHeader AttributeHeader) getType() string {
+	return AttrTypes[attrHeader.Type]
+}
+
 func (attrHeader AttributeHeader) isNoNResident() bool {
 	return attrHeader.NoNResident == "1"
 
 }
 
 func (attrHeader AttributeHeader) isLast() bool {
-	return attrHeader.Type == "ffffffff"
+	return attrHeader.getType() == "Last"
 }
 
 func (attrHeader AttributeHeader) isFileName() bool {
-	return attrHeader.Type == "00000030"
+	return attrHeader.getType() == "FileName"
 }
 
 func (attrHeader AttributeHeader) isData() bool {
-	return attrHeader.Type == "00000080"
+	return attrHeader.getType() == "Data"
 }
 
 func (attrHeader AttributeHeader) isObject() bool {
-	return attrHeader.Type == "00000040"
+	return attrHeader.getType() == "Object ID"
 }
 
 func (attrHeader AttributeHeader) isAttrList() bool {
-	return attrHeader.Type == "00000020"
+	return attrHeader.getType() == "Attribute List"
 }
 
 func (attrHeader AttributeHeader) isBitmap() bool {
-	return attrHeader.Type == "000000b0"
+	return attrHeader.getType() == "Bitmap"
 }
 
 func (attrHeader AttributeHeader) isVolumeName() bool {
-	return attrHeader.Type == "00000060"
+	return attrHeader.getType() == "Volume Name"
 }
 
 func (attrHeader AttributeHeader) isVolumeInfo() bool {
-	return attrHeader.Type == "00000070"
+	return attrHeader.getType() == "Volume Info"
 }
 
 func (attrHeader AttributeHeader) isIndexRoot() bool {
-	return attrHeader.Type == "00000090"
+	return attrHeader.getType() == "Index Root"
 }
 
 func (attrHeader AttributeHeader) isStdInfo() bool {
-	return attrHeader.Type == "00000010"
+	return attrHeader.getType() == "Standard Information"
 }
 
 func Unmarshal(data []byte, v interface{}) error {
@@ -554,7 +560,7 @@ func Unmarshal(data []byte, v interface{}) error {
 			if name == "Signature" || name == "CollationSortingRule" {
 				field.SetString(string(data[idx : idx+4]))
 				idx += 4
-			} else if name == "Type" || name == "Flags" {
+			} else if name == "Type" {
 				field.SetString(Hexify(Bytereverse(data[idx : idx+4])))
 				idx += 4
 			} else if name == "Res" || name == "Len" {
@@ -564,6 +570,9 @@ func Unmarshal(data []byte, v interface{}) error {
 				name == "OrigObjID" || name == "OrigDomID" {
 				field.SetString(stringifyGuIDs(data[idx : idx+16]))
 				idx += 16
+			} else if name == "MajVer" || name == "MinVer" {
+				field.SetString(Hexify(Bytereverse(data[idx : idx+1])))
+				idx += 1
 			}
 		case reflect.Struct:
 			var windowsTime WindowsTime
@@ -610,7 +619,7 @@ func (record *MFTrecord) process(bs []byte) {
 	}
 
 	ReadPtr := record.AttrOff //offset to first attribute
-
+	fmt.Printf("\n Processing $MFT entry %d ", record.Entry)
 	for ReadPtr < 1024 {
 
 		if Hexify(bs[ReadPtr:ReadPtr+4]) == "ffffffff" { //End of attributes
@@ -619,6 +628,8 @@ func (record *MFTrecord) process(bs []byte) {
 
 		var attrHeader AttributeHeader
 		Unmarshal(bs[ReadPtr:ReadPtr+16], &attrHeader)
+
+		fmt.Printf("type %s ", attrHeader.getType())
 
 		if attrHeader.isLast() { // End of attributes
 			break
@@ -638,7 +649,7 @@ func (record *MFTrecord) process(bs []byte) {
 						atrRecordResident.OffsetContent+66+2*uint16(readEndian(bs[ReadPtr+
 						atrRecordResident.OffsetContent+64:ReadPtr+
 						atrRecordResident.OffsetContent+65]).(uint8))])
-				record.FullName = &fnattr
+				record.FileName = &fnattr
 
 			} else if attrHeader.isData() {
 				record.Data = &DATA{&attrHeader,
@@ -673,16 +684,15 @@ func (record *MFTrecord) process(bs []byte) {
 				record.Bitmap = true
 
 			} else if attrHeader.isVolumeName() { //Volume Name
-				record.VolumeName = &VolumeName{NoNull(bs[ReadPtr+atrRecordResident.OffsetContent : ReadPtr+atrRecordResident.OffsetContent+16]), record.Entry, 0}
+				record.VolumeName = &VolumeName{NoNull(bs[ReadPtr+
+					atrRecordResident.OffsetContent : uint32(ReadPtr)+
+					uint32(atrRecordResident.OffsetContent)+atrRecordResident.ContentSize])}
 
 			} else if attrHeader.isVolumeInfo() { //Volume Info
-				record.VolumeInfo = &VolumeInfo{readEndian(bs[ReadPtr+atrRecordResident.OffsetContent : ReadPtr+atrRecordResident.OffsetContent+8]).(uint64),
-					Hexify(Bytereverse(bs[ReadPtr+atrRecordResident.OffsetContent+8 : ReadPtr+atrRecordResident.OffsetContent+9])),
-					Hexify(Bytereverse(bs[ReadPtr+atrRecordResident.OffsetContent+9 : ReadPtr+atrRecordResident.OffsetContent+10])),
-					Hexify(Bytereverse(bs[ReadPtr+atrRecordResident.OffsetContent+10 : ReadPtr+atrRecordResident.OffsetContent+12])),
-					readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+12 : ReadPtr+atrRecordResident.OffsetContent+16]).(uint32),
-					record.Entry, 0}
-
+				var volumeInfo *VolumeInfo = new(VolumeInfo)
+				Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+
+					atrRecordResident.OffsetContent+12], volumeInfo)
+				record.VolumeInfo = volumeInfo
 			} else if attrHeader.isIndexRoot() { //Index Root
 				var idxRoot IndexRoot
 				Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+
@@ -709,8 +719,9 @@ func (record *MFTrecord) process(bs []byte) {
 				}
 			} else if attrHeader.isStdInfo() { //Standard Information
 				startpoint := ReadPtr + atrRecordResident.OffsetContent
-				var siattr SIAttribute
+				var siattr *SIAttribute
 				Unmarshal(bs[startpoint:startpoint+72], &siattr)
+				record.StandardInformation = siattr
 
 			}
 
@@ -757,12 +768,14 @@ func (record *MFTrecord) process(bs []byte) {
 func (record MFTrecord) getBasicInfoFromRecord(file1 *os.File) {
 
 	s := fmt.Sprintf("%d;%d;%s", record.Entry, record.Seq, MFTflags[record.UpdateSeqArrSize])
-
-	s1 := strings.Join([]string{s, record.FullName.Atime.convertToIsoTime(),
-		record.FullName.Crtime.convertToIsoTime(),
-		record.FullName.Mtime.convertToIsoTime(), record.FullName.Fname,
-		fmt.Sprintf(";%d;%d;%s", record.FullName.ParRef, record.FullName.ParSeq,
-			Flags[record.FullName.Flags])}, ";")
+	if record.FileName == nil {
+		return
+	}
+	s1 := strings.Join([]string{s, record.FileName.Atime.convertToIsoTime(),
+		record.FileName.Crtime.convertToIsoTime(),
+		record.FileName.Mtime.convertToIsoTime(), record.FileName.Fname,
+		fmt.Sprintf(";%d;%d;%s", record.FileName.ParRef, record.FileName.ParSeq,
+			Flags[record.FileName.Flags])}, ";")
 
 	writeToCSV(file1, s1)
 
@@ -908,7 +921,6 @@ func main() {
 	bs := make([]byte, 1024) //byte array to hold MFT entries
 
 	for i := 0; i <= int(fsize.Size()); i += 1024 {
-		fmt.Printf("Processing $MFT entry %d \n", i/1024)
 		_, err := file.ReadAt(bs, int64(i))
 		// fmt.Printf("\n I read %s and out is %d\n",hex.Dump(bs[20:22]), readEndian(bs[20:22]).(uint16))
 		if err != nil {
