@@ -39,10 +39,14 @@ var AttrTypes = map[string]string{
 	"ffffffff": "Last",
 }
 
-var Flags = map[uint32]string{
+var SIFlags = map[uint32]string{
 	1: "Read Only", 2: "Hidden", 4: "System", 32: "Archive", 64: "Device", 128: "Normal",
 	256: "Temporary", 512: "Sparse", 1024: "Reparse Point", 2048: "Compressed", 4096: "Offline",
 	8192: "Not Indexed", 16384: "Encrypted",
+}
+
+var NameSpaceFlags = map[uint32]string{
+	0: "POSIX", 1: "Win32", 2: "DOS", 3: "Win32 & Dos",
 }
 
 var MFTflags = map[uint16]string{
@@ -449,6 +453,10 @@ func (record MFTrecord) hasResidentDataAttr() bool {
 	return record.Data != nil && !record.Data.Header.isNoNResident()
 }
 
+func (record MFTrecord) getType() string {
+	return MFTflags[record.UpdateSeqArrSize]
+}
+
 func (record MFTrecord) createFileFromEntry() {
 	if record.hasResidentDataAttr() {
 		file, err := os.Create(record.FileName.Fname)
@@ -545,6 +553,9 @@ func (attrHeader AttributeHeader) isStdInfo() bool {
 	return attrHeader.getType() == "Standard Information"
 }
 
+func (fnAttr FNAttribute) getType() string {
+	return NameSpaceFlags[fnAttr.Flags]
+}
 func Unmarshal(data []byte, v interface{}) error {
 	idx := 0
 	structValPtr := reflect.ValueOf(v)
@@ -619,7 +630,7 @@ func (record *MFTrecord) process(bs []byte) {
 	}
 
 	ReadPtr := record.AttrOff //offset to first attribute
-	fmt.Printf("\n Processing $MFT entry %d ", record.Entry)
+	fmt.Printf("\n Processing $MFT entry %d %s ", record.Entry, record.getType())
 	for ReadPtr < 1024 {
 
 		if Hexify(bs[ReadPtr:ReadPtr+4]) == "ffffffff" { //End of attributes
@@ -629,7 +640,7 @@ func (record *MFTrecord) process(bs []byte) {
 		var attrHeader AttributeHeader
 		Unmarshal(bs[ReadPtr:ReadPtr+16], &attrHeader)
 
-		fmt.Printf("type %s ", attrHeader.getType())
+		fmt.Printf("%s ", attrHeader.getType())
 
 		if attrHeader.isLast() { // End of attributes
 			break
@@ -767,7 +778,7 @@ func (record *MFTrecord) process(bs []byte) {
 
 func (record MFTrecord) getBasicInfoFromRecord(file1 *os.File) {
 
-	s := fmt.Sprintf("%d;%d;%s", record.Entry, record.Seq, MFTflags[record.UpdateSeqArrSize])
+	s := fmt.Sprintf("%d;%d;%s", record.Entry, record.Seq, record.getType())
 	if record.FileName == nil {
 		return
 	}
@@ -775,7 +786,7 @@ func (record MFTrecord) getBasicInfoFromRecord(file1 *os.File) {
 		record.FileName.Crtime.convertToIsoTime(),
 		record.FileName.Mtime.convertToIsoTime(), record.FileName.Fname,
 		fmt.Sprintf(";%d;%d;%s", record.FileName.ParRef, record.FileName.ParSeq,
-			Flags[record.FileName.Flags])}, ";")
+			record.FileName.getType())}, ";")
 
 	writeToCSV(file1, s1)
 
