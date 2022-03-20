@@ -311,6 +311,22 @@ func (record MFTrecord) ShowIsResident() {
 	}
 }
 
+func (record MFTrecord) ShowFNAModifiedTime() {
+	fmt.Printf("%s ", record.FileName.Mtime.ConvertToIsoTime())
+}
+
+func (record MFTrecord) ShowFNACreationTime() {
+	fmt.Printf("%s ", record.FileName.Crtime.ConvertToIsoTime())
+}
+
+func (record MFTrecord) ShowFNAMFTModifiedTime() {
+	fmt.Printf("%s ", record.FileName.MFTmtime.ConvertToIsoTime())
+}
+
+func (record MFTrecord) ShowFNAMFTAccessTime() {
+	fmt.Printf("%s ", record.FileName.Atime.ConvertToIsoTime())
+}
+
 func (record MFTrecord) CreateFileFromEntry() {
 	if record.hasResidentDataAttr() {
 		file, err := os.Create(record.FileName.Fname)
