@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
+
+	"github.com/aarsakian/MFTExtractor/utils"
 )
 
 var IndexEntryFlags = map[string]string{
@@ -102,17 +103,13 @@ type ATRrecordNoNResIDent struct {
 
 }
 
-type WindowsTime struct {
-	Stamp uint64
-}
-
 type FNAttribute struct {
 	ParRef      uint64
 	ParSeq      uint16
-	Crtime      WindowsTime
-	Mtime       WindowsTime //WindowsTime
-	MFTmtime    WindowsTime //WindowsTime
-	Atime       WindowsTime //WindowsTime
+	Crtime      utils.WindowsTime
+	Mtime       utils.WindowsTime //WindowsTime
+	MFTmtime    utils.WindowsTime //WindowsTime
+	Atime       utils.WindowsTime //WindowsTime
 	AllocFsize  uint64
 	RealFsize   uint64
 	Flags       uint32 //hIDden Read Only? check Reparse
@@ -136,7 +133,7 @@ type ObjectID struct { //unique guID
 }
 
 type VolumeName struct {
-	Name NoNull
+	Name utils.NoNull
 }
 
 type IndexEntry struct {
@@ -179,7 +176,7 @@ type AttributeList struct { //more than one MFT entry to store a file/directory 
 	FileRef    uint64 //16-22      # 6
 	Seq        uint16 //       22-24    # 2
 	ID         uint8  //     24-26   # 4
-	name       NoNull
+	name       utils.NoNull
 }
 
 type VolumeInfo struct {
@@ -194,10 +191,10 @@ type VolumeInfo struct {
 }
 
 type SIAttribute struct {
-	Crtime   WindowsTime
-	Mtime    WindowsTime
-	MFTmtime WindowsTime
-	Atime    WindowsTime
+	Crtime   utils.WindowsTime
+	Mtime    utils.WindowsTime
+	MFTmtime utils.WindowsTime
+	Atime    utils.WindowsTime
 	Dos      uint32
 	Maxver   uint32
 	Ver      uint32
@@ -210,29 +207,21 @@ type SIAttribute struct {
 	AttrID   uint16 //for DB use
 }
 
-func (winTime *WindowsTime) convertToIsoTime() string { //receiver winTime struct
-	// t:=math.Pow((uint64(winTime.high)*2),32) + uint64(winTime.low)
-	x := winTime.Stamp/10000000 - 116444736*1e2
-	unixtime := time.Unix(int64(x), 0).UTC()
-	return unixtime.Format("02-01-2006 15:04:05")
-
-}
-
 func (atrRecordNoNResident ATRrecordNoNResIDent) ProcessRunList(runlist []byte) {
 	clusterPtr := uint64(0)
 
 	// fmt.Printf("LEN %d RUNLIST %x\n" ,len(runlist),runlist)
 	for clusterPtr < uint64(len(runlist)) { // length of bytes of runlist
-		ClusterOffsB, ClusterLenB := determineClusterOffsetLength(runlist[clusterPtr])
+		ClusterOffsB, ClusterLenB := utils.DetermineClusterOffsetLength(runlist[clusterPtr])
 
 		if ClusterLenB != 0 && ClusterOffsB != 0 {
 			//   fmt.Println("reading from",uint64(ReadPtr)+uint64(atrRecordResident.RunOff)+uint64(index),"ews ",
 			//     uint64(ReadPtr)+uint64(atrRecordResident.RunOff)+uint64(index)+ClusterLen+ClusterOffs,
 			//    "atrRecordResident star                     ts at",ReadPtr+atrRecordResident.RunOff,"atrRecordResident LEN",uint16(atrRecordResident.Len),"reading at",uint64(ReadPtr)+uint64(atrRecordResident.RunOff)+uint64(index)+ClusterLen+ClusterOffs)
 
-			ClustersLen := readEndianInt(runlist[clusterPtr+1 : clusterPtr+ClusterLenB+1])
+			ClustersLen := utils.ReadEndianInt(runlist[clusterPtr+1 : clusterPtr+ClusterLenB+1])
 
-			ClustersOff := readEndianInt(runlist[clusterPtr+1+ClusterLenB : clusterPtr+ClusterLenB+ClusterOffsB+1])
+			ClustersOff := utils.ReadEndianInt(runlist[clusterPtr+1+ClusterLenB : clusterPtr+ClusterLenB+ClusterOffsB+1])
 			fmt.Printf("len of %d clusterlen %d and clust %d clustoff %d came from %x \n", ClusterLenB, ClustersLen, ClusterOffsB, ClustersOff, runlist[clusterPtr])
 			//readEndianInt(bs[uint64(ReadPtr)+uint64(atrRecordResident.RunOff)+1:uint64(ReadPtr)+uint64(atrRecordResident.RunOff)+ClusterLen+1]))
 			/*s := []string{fmt.Sprintf(";%d;%d", ClustersOff, ClustersLen)}
@@ -314,7 +303,7 @@ func (record MFTrecord) getType() string {
 	return MFTflags[record.UpdateSeqArrSize]
 }
 
-func (record MFTrecord) createFileFromEntry() {
+func (record MFTrecord) CreateFileFromEntry() {
 	if record.hasResidentDataAttr() {
 		file, err := os.Create(record.FileName.Fname)
 		if err != nil {
@@ -337,9 +326,9 @@ func (record MFTrecord) createFileFromEntry() {
 
 }
 
-func (record *MFTrecord) process(bs []byte) {
+func (record *MFTrecord) Process(bs []byte) {
 
-	Unmarshal(bs, record)
+	utils.Unmarshal(bs, record)
 
 	if record.Signature == "BAAD" { //skip bad entry
 		return
@@ -349,12 +338,12 @@ func (record *MFTrecord) process(bs []byte) {
 	fmt.Printf("\n Processing $MFT entry %d %s ", record.Entry, record.getType())
 	for ReadPtr < 1024 {
 
-		if Hexify(bs[ReadPtr:ReadPtr+4]) == "ffffffff" { //End of attributes
+		if utils.Hexify(bs[ReadPtr:ReadPtr+4]) == "ffffffff" { //End of attributes
 			break
 		}
 
 		var attrHeader AttributeHeader
-		Unmarshal(bs[ReadPtr:ReadPtr+16], &attrHeader)
+		utils.Unmarshal(bs[ReadPtr:ReadPtr+16], &attrHeader)
 
 		fmt.Printf("%s ", attrHeader.getType())
 
@@ -364,18 +353,16 @@ func (record *MFTrecord) process(bs []byte) {
 
 		if !attrHeader.isNoNResident() { //ResIDent Attribute
 			var atrRecordResident ATRrecordResident
-			Unmarshal(bs[ReadPtr+16:ReadPtr+24], &atrRecordResident)
+			utils.Unmarshal(bs[ReadPtr+16:ReadPtr+24], &atrRecordResident)
 
 			if attrHeader.isFileName() { // File name
 				var fnattr FNAttribute
-				Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+
+				utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+
 					atrRecordResident.OffsetContent+66], &fnattr)
 
 				fnattr.Fname =
-					DecodeUTF16(bs[ReadPtr+atrRecordResident.OffsetContent+66 : ReadPtr+
-						atrRecordResident.OffsetContent+66+2*uint16(readEndian(bs[ReadPtr+
-						atrRecordResident.OffsetContent+64:ReadPtr+
-						atrRecordResident.OffsetContent+65]).(uint8))])
+					utils.DecodeUTF16(bs[ReadPtr+atrRecordResident.OffsetContent+66 : ReadPtr+
+						atrRecordResident.OffsetContent+66+uint16(fnattr.Nlen)])
 				record.FileName = &fnattr
 
 			} else if attrHeader.isData() {
@@ -385,7 +372,7 @@ func (record *MFTrecord) process(bs []byte) {
 
 			} else if attrHeader.isObject() {
 				var objectattr ObjectID
-				Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+
+				utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+
 					atrRecordResident.OffsetContent+64], &objectattr)
 
 			} else if attrHeader.isAttrList() { //Attribute List
@@ -395,10 +382,10 @@ func (record *MFTrecord) process(bs []byte) {
 				for atrRecordResident.OffsetContent+24+attrLen < uint16(attrHeader.AttrLen) {
 					//fmt.Println("TEST",len(runlist),26+attrLen+atrRecordResident.OffsetContent, uint16(atrRecordResident.Len))
 					var attrList AttributeList
-					Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent+attrLen:ReadPtr+
+					utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent+attrLen:ReadPtr+
 						atrRecordResident.OffsetContent+attrLen+24], &attrList)
 
-					attrList.name = NoNull(bs[ReadPtr+atrRecordResident.OffsetContent+attrLen+
+					attrList.name = utils.NoNull(bs[ReadPtr+atrRecordResident.OffsetContent+attrLen+
 						uint16(attrList.Nameoffset) : ReadPtr+atrRecordResident.OffsetContent+
 						attrLen+uint16(attrList.Nameoffset)+uint16(attrList.Namelen)])
 					//     fmt.Println("START VCN",attrList.StartVcn)
@@ -411,34 +398,34 @@ func (record *MFTrecord) process(bs []byte) {
 				record.Bitmap = true
 
 			} else if attrHeader.isVolumeName() { //Volume Name
-				record.VolumeName = &VolumeName{NoNull(bs[ReadPtr+
+				record.VolumeName = &VolumeName{utils.NoNull(bs[ReadPtr+
 					atrRecordResident.OffsetContent : uint32(ReadPtr)+
 					uint32(atrRecordResident.OffsetContent)+atrRecordResident.ContentSize])}
 
 			} else if attrHeader.isVolumeInfo() { //Volume Info
 				var volumeInfo *VolumeInfo = new(VolumeInfo)
-				Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+
+				utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+
 					atrRecordResident.OffsetContent+12], volumeInfo)
 				record.VolumeInfo = volumeInfo
 			} else if attrHeader.isIndexRoot() { //Index Root
 				var idxRoot IndexRoot
-				Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+
+				utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+
 					atrRecordResident.OffsetContent+12], &idxRoot)
 
 				var nodeheader NodeHeader
-				Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent+
+				utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent+
 					16:ReadPtr+atrRecordResident.OffsetContent+32], &nodeheader)
 				idxRoot.nodeheader = &nodeheader
 
 				var idxEntry IndexEntry
-				Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent+16+
+				utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent+16+
 					uint16(nodeheader.OffsetEntryList):ReadPtr+atrRecordResident.OffsetContent+
 					16+uint16(nodeheader.OffsetEndUsedEntryList)], &idxEntry)
 				//
 
 				if idxEntry.FilenameLen > 0 {
 					var fnattrIDXEntry FNAttribute
-					Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent+16+
+					utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent+16+
 						uint16(nodeheader.OffsetEntryList)+16:ReadPtr+atrRecordResident.OffsetContent+16+
 						uint16(nodeheader.OffsetEntryList)+16+idxEntry.FilenameLen],
 						&fnattrIDXEntry)
@@ -447,7 +434,7 @@ func (record *MFTrecord) process(bs []byte) {
 			} else if attrHeader.isStdInfo() { //Standard Information
 				startpoint := ReadPtr + atrRecordResident.OffsetContent
 				var siattr *SIAttribute
-				Unmarshal(bs[startpoint:startpoint+72], &siattr)
+				utils.Unmarshal(bs[startpoint:startpoint+72], &siattr)
 				record.StandardInformation = siattr
 
 			}
@@ -456,7 +443,7 @@ func (record *MFTrecord) process(bs []byte) {
 
 		} else { //NoN ResIDent Attribute
 			var atrNoNRecordResident ATRrecordNoNResIDent
-			Unmarshal(bs[ReadPtr+16:ReadPtr+64], &atrNoNRecordResident)
+			utils.Unmarshal(bs[ReadPtr+16:ReadPtr+64], &atrNoNRecordResident)
 
 			if attrHeader.isData() {
 
@@ -492,19 +479,19 @@ func (record *MFTrecord) process(bs []byte) {
 
 }
 
-func (record MFTrecord) getBasicInfoFromRecord(file1 *os.File) {
+func (record MFTrecord) GetBasicInfoFromRecord(file1 *os.File) {
 
 	s := fmt.Sprintf("%d;%d;%s", record.Entry, record.Seq, record.getType())
 	if record.FileName == nil {
 		return
 	}
-	s1 := strings.Join([]string{s, record.FileName.Atime.convertToIsoTime(),
-		record.FileName.Crtime.convertToIsoTime(),
-		record.FileName.Mtime.convertToIsoTime(), record.FileName.Fname,
+	s1 := strings.Join([]string{s, record.FileName.Atime.ConvertToIsoTime(),
+		record.FileName.Crtime.ConvertToIsoTime(),
+		record.FileName.Mtime.ConvertToIsoTime(), record.FileName.Fname,
 		fmt.Sprintf(";%d;%d;%s\n", record.FileName.ParRef, record.FileName.ParSeq,
 			record.FileName.getType())}, ";")
 
-	writeToCSV(file1, s1)
+	utils.WriteToCSV(file1, s1)
 
 	//	false, false, record.Entry, 0}
 	//  fmt.Println("\nFNA ",bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+atrRecordResident.OffsetContent+65],bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+atrRecordResident.OffsetContent+6],readEndian(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+atrRecordResident.OffsetContent+6]).(uint64),

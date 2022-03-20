@@ -10,36 +10,13 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"unicode/utf16"
-	"unicode/utf8"
+
 	//	"github.com/coopernurse/gorp"
 	//	_ "github.com/mattn/go-sqlite3"
 	// "gob"//de-serialization
 	// "math"
+	"github.com/aarsakian/MFTExtractor/MFT"
 )
-
-func Bytereverse(barray []byte) []byte { //work with indexes
-	//  fmt.Println("before",barray)
-	for i, j := 0, len(barray)-1; i < j; i, j = i+1, j-1 {
-
-		barray[i], barray[j] = barray[j], barray[i]
-
-	}
-
-	//  binary.Read(bytes.NewBuffer(barray)  ,binary.LittleEndian,&val )
-	//     fmt.Println("after",barray)
-	return barray
-
-}
-
-func writeToCSV(file *os.File, data string) {
-	_, err := file.WriteString(data)
-	if err != nil {
-		// handle the error here
-		fmt.Printf("err %s\n", err)
-		return
-	}
-}
 
 func checkErr(err error, msg string) {
 	if err != nil {
@@ -144,18 +121,6 @@ func readEndianString(barray []byte) (val []byte) {
 	return val
 }
 
-func DecodeUTF16(b []byte) string {
-	utf := make([]uint16, (len(b)+(2-1))/2) //2 bytes for one char?
-	for i := 0; i+(2-1) < len(b); i += 2 {
-		utf[i/2] = binary.LittleEndian.Uint16(b[i:])
-	}
-	if len(b)/2 < len(utf) {
-		utf[len(utf)-1] = utf8.RuneError
-	}
-	return string(utf16.Decode(utf))
-
-}
-
 func main() {
 	//dbmap := initDb()
 	//defer dbmap.Db.Close()
@@ -208,12 +173,12 @@ func main() {
 			continue
 		}
 		if string(bs[:4]) == "FILE" {
-			var record MFTrecord
-			record.process(bs)
-			record.getBasicInfoFromRecord(file1)
+			var record MFT.MFTrecord
+			record.Process(bs)
+			record.GetBasicInfoFromRecord(file1)
 
 			if *exportResidentFiles {
-				record.createFileFromEntry()
+				record.CreateFileFromEntry()
 
 			}
 
