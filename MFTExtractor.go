@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math"
 	"os"
 
 	//	"github.com/coopernurse/gorp"
@@ -131,6 +132,8 @@ func main() {
 	MFTSelectedEntry := flag.Int("Entry", -1, "select a particular MFT entry")
 	showFileName := flag.Bool("FileName", false, "show the name of the filename attribute of each MFT record")
 	isResident := flag.Bool("Resident", false, "check whether entry is resident")
+	fromMFTEntry := flag.Int("fromEntry", 0, "select entry to start parsing")
+	ToMFTEntry := flag.Int("toEntry", math.MaxUint32, "select entry to end parsing")
 
 	flag.Parse() //ready to parse
 
@@ -171,9 +174,16 @@ func main() {
 			fmt.Printf("error reading file --->%s", err)
 			return
 		}
-		if *MFTSelectedEntry != -1 && i/1024 != *MFTSelectedEntry {
+
+		if i/1024 > *ToMFTEntry {
+			break
+		}
+
+		if *MFTSelectedEntry != -1 && i/1024 != *MFTSelectedEntry ||
+			*fromMFTEntry > i/1024 || i/1024 > *ToMFTEntry {
 			continue
 		}
+
 		if string(bs[:4]) == "FILE" {
 			var record MFT.MFTrecord
 			record.Process(bs)
