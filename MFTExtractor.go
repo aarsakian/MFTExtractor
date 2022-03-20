@@ -130,6 +130,7 @@ func main() {
 	exportResidentFiles := flag.Bool("Export", false, "export resident files")
 	MFTSelectedEntry := flag.Int("Entry", -1, "select a particular MFT entry")
 	showFileName := flag.Bool("FileName", false, "show the name of the filename attribute of each MFT record")
+	isResident := flag.Bool("Resident", false, "check whether entry is resident")
 
 	flag.Parse() //ready to parse
 
@@ -187,6 +188,9 @@ func main() {
 				record.ShowFileName()
 			}
 
+			if *isResident {
+				record.ShowIsResident()
+			}
 			if int(record.Entry) == *MFTSelectedEntry {
 				break
 			}
