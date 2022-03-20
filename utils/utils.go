@@ -6,14 +6,30 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
+	"unicode/utf16"
+	"unicode/utf8"
 )
 
 type NoNull string
 
-func readEndianInt(barray []byte) uint64 {
+type WindowsTime struct {
+	Stamp uint64
+}
+
+func (winTime *WindowsTime) ConvertToIsoTime() string { //receiver winTime struct
+	// t:=math.Pow((uint64(winTime.high)*2),32) + uint64(winTime.low)
+	x := winTime.Stamp/10000000 - 116444736*1e2
+	unixtime := time.Unix(int64(x), 0).UTC()
+	return unixtime.Format("02-01-2006 15:04:05")
+
+}
+
+func ReadEndianInt(barray []byte) uint64 {
 	var sum uint64
 	sum = 0
 	for index, val := range barray {
@@ -24,7 +40,7 @@ func readEndianInt(barray []byte) uint64 {
 	return sum
 }
 
-func determineClusterOffsetLength(val byte) (uint64, uint64) {
+func DetermineClusterOffsetLength(val byte) (uint64, uint64) {
 
 	var err error
 
@@ -137,4 +153,36 @@ func Unmarshal(data []byte, v interface{}) error {
 
 	}
 	return nil
+}
+
+func Bytereverse(barray []byte) []byte { //work with indexes
+	//  fmt.Println("before",barray)
+	for i, j := 0, len(barray)-1; i < j; i, j = i+1, j-1 {
+
+		barray[i], barray[j] = barray[j], barray[i]
+
+	}
+	return barray
+
+}
+
+func DecodeUTF16(b []byte) string {
+	utf := make([]uint16, (len(b)+(2-1))/2) //2 bytes for one char?
+	for i := 0; i+(2-1) < len(b); i += 2 {
+		utf[i/2] = binary.LittleEndian.Uint16(b[i:])
+	}
+	if len(b)/2 < len(utf) {
+		utf[len(utf)-1] = utf8.RuneError
+	}
+	return string(utf16.Decode(utf))
+
+}
+
+func WriteToCSV(file *os.File, data string) {
+	_, err := file.WriteString(data)
+	if err != nil {
+		// handle the error here
+		fmt.Printf("err %s\n", err)
+		return
+	}
 }
