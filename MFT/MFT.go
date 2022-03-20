@@ -303,6 +303,14 @@ func (record MFTrecord) getType() string {
 	return MFTflags[record.UpdateSeqArrSize]
 }
 
+func (record MFTrecord) ShowIsResident() {
+	if record.hasResidentDataAttr() {
+		fmt.Printf("Resident")
+	} else {
+		fmt.Printf("NoN Resident")
+	}
+}
+
 func (record MFTrecord) CreateFileFromEntry() {
 	if record.hasResidentDataAttr() {
 		file, err := os.Create(record.FileName.Fname)
