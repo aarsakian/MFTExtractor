@@ -124,6 +124,11 @@ func Unmarshal(data []byte, v interface{}) error {
 			Unmarshal(data[idx:idx+8], &windowsTime)
 			field.Set(reflect.ValueOf(windowsTime))
 			idx += 8
+		case reflect.Uint8:
+			var temp uint8
+			binary.Read(bytes.NewBuffer(data[idx:idx+1]), binary.LittleEndian, &temp)
+			field.SetUint(uint64(temp))
+			idx += 1
 		case reflect.Uint16:
 			var temp uint16
 			binary.Read(bytes.NewBuffer(data[idx:idx+2]), binary.LittleEndian, &temp)

@@ -129,6 +129,7 @@ func main() {
 	inputfile := flag.String("MFT", "MFT file", "absolute path to the MFT file")
 	exportResidentFiles := flag.Bool("Export", false, "export resident files")
 	MFTSelectedEntry := flag.Int("Entry", -1, "select a particular MFT entry")
+	showFileName := flag.Bool("FileName", false, "show the name of the filename attribute of each MFT record")
 
 	flag.Parse() //ready to parse
 
@@ -180,6 +181,10 @@ func main() {
 			if *exportResidentFiles {
 				record.CreateFileFromEntry()
 
+			}
+
+			if *showFileName {
+				record.ShowFileName()
 			}
 
 			if int(record.Entry) == *MFTSelectedEntry {
