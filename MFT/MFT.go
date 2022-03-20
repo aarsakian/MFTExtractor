@@ -362,7 +362,7 @@ func (record *MFTrecord) Process(bs []byte) {
 
 				fnattr.Fname =
 					utils.DecodeUTF16(bs[ReadPtr+atrRecordResident.OffsetContent+66 : ReadPtr+
-						atrRecordResident.OffsetContent+66+uint16(fnattr.Nlen)])
+						atrRecordResident.OffsetContent+66+2*uint16(fnattr.Nlen)])
 				record.FileName = &fnattr
 
 			} else if attrHeader.isData() {
@@ -477,6 +477,10 @@ func (record *MFTrecord) Process(bs []byte) {
 
 	} //ends while
 
+}
+
+func (record MFTrecord) ShowFileName() {
+	fmt.Printf("%s ", record.FileName.Fname)
 }
 
 func (record MFTrecord) GetBasicInfoFromRecord(file1 *os.File) {
