@@ -300,7 +300,7 @@ func (record MFTrecord) hasResidentDataAttr() bool {
 }
 
 func (record MFTrecord) getType() string {
-	return MFTflags[record.UpdateSeqArrSize]
+	return MFTflags[record.Flags]
 }
 
 func (record MFTrecord) ShowIsResident() {
