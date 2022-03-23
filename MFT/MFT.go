@@ -76,12 +76,10 @@ type AttributeHeader struct {
 }
 
 type ATRrecordResident struct {
-	ContentSize   uint32 //16-20 size of resIDent attribute
-	OffsetContent uint16 //20-22 offset to content            soff+ssize=len
-	IDxflag       uint16 //22-24
-	EntryID       uint32 //foreing key
-	AttrID        uint16 //for DB use
-
+	ContentSize          uint32 //16-20 size of resIDent attribute
+	OffsetContent        uint16 //20-22 offset to content            soff+ssize=len
+	IDxflag              uint16 //22-24
+	AttributeListEntries []AttributeList
 }
 
 type DATA struct {
@@ -166,6 +164,7 @@ type IndexAllocation struct {
 	VCN              int64  //16-24 where the record fits in the tree
 	nodeheader       *NodeHeader
 }
+
 type AttributeList struct { //more than one MFT entry to store a file/directory its attributes
 	Type       string //        typeif 0-4    # 4
 	Len        uint16 //4-6
@@ -385,8 +384,8 @@ func (record *MFTrecord) Process(bs []byte) {
 				//  runlist:=bs[ReadPtr+atrRecordResident.OffsetContent:uint32(ReadPtr)+atrRecordResident.Len]
 
 				attrLen := uint16(0)
+				var attrListEntries []AttributeList
 				for atrRecordResident.OffsetContent+24+attrLen < uint16(attrHeader.AttrLen) {
-					//fmt.Println("TEST",len(runlist),26+attrLen+atrRecordResident.OffsetContent, uint16(atrRecordResident.Len))
 					var attrList AttributeList
 					utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent+attrLen:ReadPtr+
 						atrRecordResident.OffsetContent+attrLen+24], &attrList)
@@ -394,12 +393,13 @@ func (record *MFTrecord) Process(bs []byte) {
 					attrList.name = utils.NoNull(bs[ReadPtr+atrRecordResident.OffsetContent+attrLen+
 						uint16(attrList.Nameoffset) : ReadPtr+atrRecordResident.OffsetContent+
 						attrLen+uint16(attrList.Nameoffset)+uint16(attrList.Namelen)])
-					//     fmt.Println("START VCN",attrList.StartVcn)
-
 					//   runlist=bs[ReadPtr+atrRecordResident.OffsetContent+attrList.len:uint32(ReadPtr)+atrRecordResident.Len]
+					attrListEntries = append(attrListEntries, attrList)
 					attrLen += attrList.Len
 
 				}
+				atrRecordResident.AttributeListEntries = attrListEntries
+
 			} else if attrHeader.isBitmap() { //BITMAP
 				record.Bitmap = true
 
