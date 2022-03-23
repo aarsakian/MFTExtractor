@@ -218,7 +218,8 @@ func ProcessRunList(runlist []byte) []uint64 {
 			clustersLen := utils.ReadEndianInt(runlist[clusterPtr+1 : clusterPtr+ClusterLenB+1])
 
 			clustersOff := utils.ReadEndianInt(runlist[clusterPtr+1+ClusterLenB : clusterPtr+ClusterLenB+ClusterOffsB+1])
-			fmt.Printf("len of %d clusterlen %d and clust %d clustoff %d came from %x \n", ClusterLenB, ClustersLen, ClusterOffsB, ClustersOff, runlist[clusterPtr])
+			fmt.Printf("len of %d clusterlen %d and clust %d clustoff %d came from %x \n",
+				ClusterLenB, clustersLen, ClusterOffsB, clustersOff, runlist[clusterPtr])
 			for nextCluster := uint64(1); nextCluster <= clustersLen; nextCluster++ {
 
 				clusters = append(clusters, clustersOff)
@@ -450,13 +451,10 @@ func (record *MFTrecord) Process(bs []byte) {
 			var atrNoNRecordResident ATRrecordNoNResIDent
 			utils.Unmarshal(bs[ReadPtr+16:ReadPtr+64], &atrNoNRecordResident)
 
-			if attrHeader.isData() {
+			if uint32(ReadPtr)+attrHeader.AttrLen <= 1024 {
+				atrNoNRecordResident.RunList = ProcessRunList(bs[ReadPtr+
+					atrNoNRecordResident.RunOff : uint32(ReadPtr)+attrHeader.AttrLen])
 
-				if uint32(ReadPtr)+attrHeader.AttrLen <= 1024 {
-					atrNoNRecordResident.RunList = ProcessRunList(bs[ReadPtr+
-						atrNoNRecordResident.RunOff : uint32(ReadPtr)+attrHeader.AttrLen])
-
-				}
 			}
 
 			/*else if  atrRecordResident.Type == "000000a0" {//Index Allcation
