@@ -171,6 +171,30 @@ func Bytereverse(barray []byte) []byte { //work with indexes
 
 }
 
+func StringToUTF16Ptr(str string) *uint16 {
+	wchars := utf16.Encode([]rune(str + "\x00"))
+	return &wchars[0]
+}
+
+func WriteFile(filename string, content []byte) {
+	file, err := os.Create(filename)
+	if err != nil {
+		// handle the error here
+		fmt.Printf("err %s opening the file \n", err)
+
+	}
+
+	bytesWritten, err := file.Write(content)
+	if err != nil {
+		fmt.Printf("err %s writing the file \n", err)
+
+	}
+
+	fmt.Printf("wrote file %s total %d bytes \n",
+		filename, bytesWritten)
+
+}
+
 func DecodeUTF16(b []byte) string {
 	utf := make([]uint16, (len(b)+(2-1))/2) //2 bytes for one char?
 	for i := 0; i+(2-1) < len(b); i += 2 {
