@@ -90,16 +90,15 @@ type DATA struct {
 }
 
 type ATRrecordNoNResIDent struct {
-	StartVcn   uint64 //16-24
-	LastVcn    uint64 //24-32
-	RunOff     uint16 //32-24     offset to the start of the attribute
-	Compusize  uint16 //34-36
-	F1         uint32 //36-40
-	Alen       uint64 //40-48
-	NonRessize uint64 //48-56
-	Initsize   uint64 //56-64
-	EntryID    uint32 //foreing key
-	AttrID     uint16 //for DB use
+	StartVcn   uint64   //16-24
+	LastVcn    uint64   //24-32
+	RunOff     uint16   //32-24     offset to the start of the attribute
+	Compusize  uint16   //34-36
+	F1         uint32   //36-40
+	Alen       uint64   //40-48
+	NonRessize uint64   //48-56
+	Initsize   uint64   //56-64
+	RunList    []uint64 //holds an array of the clusters
 
 }
 
@@ -207,39 +206,31 @@ type SIAttribute struct {
 	AttrID   uint16 //for DB use
 }
 
-func (atrRecordNoNResident ATRrecordNoNResIDent) ProcessRunList(runlist []byte) {
+func ProcessRunList(runlist []byte) []uint64 {
 	clusterPtr := uint64(0)
+	var clusters []uint64
 
 	// fmt.Printf("LEN %d RUNLIST %x\n" ,len(runlist),runlist)
 	for clusterPtr < uint64(len(runlist)) { // length of bytes of runlist
 		ClusterOffsB, ClusterLenB := utils.DetermineClusterOffsetLength(runlist[clusterPtr])
 
 		if ClusterLenB != 0 && ClusterOffsB != 0 {
-			//   fmt.Println("reading from",uint64(ReadPtr)+uint64(atrRecordResident.RunOff)+uint64(index),"ews ",
-			//     uint64(ReadPtr)+uint64(atrRecordResident.RunOff)+uint64(index)+ClusterLen+ClusterOffs,
-			//    "atrRecordResident star                     ts at",ReadPtr+atrRecordResident.RunOff,"atrRecordResident LEN",uint16(atrRecordResident.Len),"reading at",uint64(ReadPtr)+uint64(atrRecordResident.RunOff)+uint64(index)+ClusterLen+ClusterOffs)
+			clustersLen := utils.ReadEndianInt(runlist[clusterPtr+1 : clusterPtr+ClusterLenB+1])
 
-			ClustersLen := utils.ReadEndianInt(runlist[clusterPtr+1 : clusterPtr+ClusterLenB+1])
-
-			ClustersOff := utils.ReadEndianInt(runlist[clusterPtr+1+ClusterLenB : clusterPtr+ClusterLenB+ClusterOffsB+1])
+			clustersOff := utils.ReadEndianInt(runlist[clusterPtr+1+ClusterLenB : clusterPtr+ClusterLenB+ClusterOffsB+1])
 			fmt.Printf("len of %d clusterlen %d and clust %d clustoff %d came from %x \n", ClusterLenB, ClustersLen, ClusterOffsB, ClustersOff, runlist[clusterPtr])
-			//readEndianInt(bs[uint64(ReadPtr)+uint64(atrRecordResident.RunOff)+1:uint64(ReadPtr)+uint64(atrRecordResident.RunOff)+ClusterLen+1]))
-			/*s := []string{fmt.Sprintf(";%d;%d", ClustersOff, ClustersLen)}
-			_, err := file1.WriteString(strings.Join(s, " "))
-			if err != nil {
-				// handle the error here
-				fmt.Printf("err %s\n", err)
-				return
-			}*/
+			for nextCluster := uint64(1); nextCluster <= clustersLen; nextCluster++ {
 
-			//fmt.Println("lenght of runlist",len(runlist),"cluster len" ,ClusterLen+ClusterOffs,"runlist",runlist)
-
+				clusters = append(clusters, clustersOff)
+				clustersOff++
+			}
 			clusterPtr += ClusterLenB + ClusterOffsB
 
 		} else {
 			break
 		}
 	}
+	return clusters
 }
 
 func (attrHeader AttributeHeader) getType() string {
@@ -327,25 +318,15 @@ func (record MFTrecord) ShowFNAMFTAccessTime() {
 	fmt.Printf("%s ", record.FileName.Atime.ConvertToIsoTime())
 }
 
-func (record MFTrecord) CreateFileFromEntry() {
-	if record.hasResidentDataAttr() {
-		file, err := os.Create(record.FileName.Fname)
-		if err != nil {
-			// handle the error here
-			fmt.Printf("err %s opening the file \n", err)
+func (record MFTrecord) CreateFileFromEntry(exportFiles string) {
 
-		}
+	if (exportFiles == "Resident" || exportFiles == "All") &&
+		record.hasResidentDataAttr() {
+		utils.WriteFile(record.FileName.Fname, record.Data.Content)
 
-		bytesWritten, err := file.Write(record.Data.Content)
-		if err != nil {
-			fmt.Printf("err %s writing the file \n", err)
+	} else if (exportFiles == "NoNResident" || exportFiles == "All") &&
+		!record.hasResidentDataAttr() {
 
-		}
-
-		fmt.Printf("wrote file %s total %d bytes \n",
-			record.FileName.Fname, bytesWritten)
-	} else {
-		fmt.Printf("record has not DATA attribute")
 	}
 
 }
@@ -472,7 +453,7 @@ func (record *MFTrecord) Process(bs []byte) {
 			if attrHeader.isData() {
 
 				if uint32(ReadPtr)+attrHeader.AttrLen <= 1024 {
-					atrNoNRecordResident.ProcessRunList(bs[ReadPtr+
+					atrNoNRecordResident.RunList = ProcessRunList(bs[ReadPtr+
 						atrNoNRecordResident.RunOff : uint32(ReadPtr)+attrHeader.AttrLen])
 
 				}
@@ -504,7 +485,12 @@ func (record *MFTrecord) Process(bs []byte) {
 }
 
 func (record MFTrecord) ShowFileName() {
-	fmt.Printf("%s ", record.FileName.Fname)
+	if record.FileName != nil {
+		fmt.Printf("%s ", record.FileName.Fname)
+	} else {
+		fmt.Printf("no filename")
+	}
+
 }
 
 func (record MFTrecord) GetBasicInfoFromRecord(file1 *os.File) {
