@@ -128,7 +128,7 @@ func main() {
 
 	//	save2DB := flag.Bool("db", false, "bool if set an sqlite file will be created, each table will corresponed to an MFT attribute")
 	inputfile := flag.String("MFT", "MFT file", "absolute path to the MFT file")
-	exportResidentFiles := flag.Bool("Export", false, "export resident files")
+	exportFiles := flag.String("Export", "None", "export resident files")
 	MFTSelectedEntry := flag.Int("Entry", -1, "select a particular MFT entry")
 	showFileName := flag.Bool("FileName", false, "show the name of the filename attribute of each MFT record")
 	isResident := flag.Bool("Resident", false, "check whether entry is resident")
@@ -189,10 +189,8 @@ func main() {
 			record.Process(bs)
 			record.GetBasicInfoFromRecord(file1)
 
-			if *exportResidentFiles {
-				record.CreateFileFromEntry()
-
-			}
+			if *exportFiles != "None" {
+				record.CreateFileFromEntry(*exportFiles)
 
 			if *showFileName {
 				record.ShowFileName()
