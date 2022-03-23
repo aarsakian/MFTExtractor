@@ -191,6 +191,7 @@ func main() {
 
 			if *exportFiles != "None" {
 				record.CreateFileFromEntry(*exportFiles)
+			}
 
 			if *showFileName {
 				record.ShowFileName()
