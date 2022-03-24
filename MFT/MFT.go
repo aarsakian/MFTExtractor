@@ -38,29 +38,31 @@ var MFTflags = map[uint16]string{
 }
 
 type MFTrecord struct {
-	Signature           string //0-3
-	UpdateSeqArrOffset  uint16 //4-5      offset values are relative to the start of the entry.
-	UpdateSeqArrSize    uint16 //6-7
-	Lsn                 uint64 //8-15       logical File Sequence Number
-	Seq                 uint16 //16-17   is incremented when the entry is either allocated or unallocated, determined by the OS.
-	Linkcount           uint16 //18-19        how many directories have entries for this MFTentry
-	AttrOff             uint16 //20-21       //first attr location
-	Flags               uint16 //22-23  //tells whether entry is used or not
-	Size                uint32 //24-27
-	AllocSize           uint32 //28-31
-	BaseRef             uint64 //32-39
-	NextAttrID          uint16 //40-41 e.g. if it is 6 then there are attributes with 1 to 5
-	F1                  uint16 //42-43
-	Entry               uint32 //44-48                  ??
-	Fncnt               bool
-	Data                *DATA
-	FileName            *FNAttribute
-	StandardInformation *SIAttribute
-	VolumeInfo          *VolumeInfo
-	VolumeName          *VolumeName
-	Bitmap              bool
+	Signature          string //0-3
+	UpdateSeqArrOffset uint16 //4-5      offset values are relative to the start of the entry.
+	UpdateSeqArrSize   uint16 //6-7
+	Lsn                uint64 //8-15       logical File Sequence Number
+	Seq                uint16 //16-17   is incremented when the entry is either allocated or unallocated, determined by the OS.
+	Linkcount          uint16 //18-19        how many directories have entries for this MFTentry
+	AttrOff            uint16 //20-21       //first attr location
+	Flags              uint16 //22-23  //tells whether entry is used or not
+	Size               uint32 //24-27
+	AllocSize          uint32 //28-31
+	BaseRef            uint64 //32-39
+	NextAttrID         uint16 //40-41 e.g. if it is 6 then there are attributes with 1 to 5
+	F1                 uint16 //42-43
+	Entry              uint32 //44-48                  ??
+	Fncnt              bool
+	Attributes         []Attribute
+	Bitmap             bool
 	// fixupArray add the        UpdateSeqArrOffset to find is location
 
+}
+
+type Attribute interface {
+	findType() string
+	setHeader(header *AttributeHeader)
+	getHeader() AttributeHeader
 }
 
 type AttributeHeader struct {
@@ -72,22 +74,21 @@ type AttributeHeader struct {
 	Flags             uint16 //12-14           //compressed,
 	ID                uint16 //14-16 type of attribute
 	ATRrecordResident *ATRrecordResident
-	ATRrecordNoNResID *ATRrecordNoNResIDent
+	ATRrecordNoNResID *ATRrecordNoNResident
 }
 
 type ATRrecordResident struct {
-	ContentSize          uint32 //16-20 size of resIDent attribute
-	OffsetContent        uint16 //20-22 offset to content            soff+ssize=len
-	IDxflag              uint16 //22-24
-	AttributeListEntries []AttributeList
+	ContentSize   uint32 //16-20 size of Resident attribute
+	OffsetContent uint16 //20-22 offset to content            soff+ssize=len
+	IDxflag       uint16 //22-24
 }
 
 type DATA struct {
-	Header  *AttributeHeader
 	Content []byte
+	Header  *AttributeHeader
 }
 
-type ATRrecordNoNResIDent struct {
+type ATRrecordNoNResident struct {
 	StartVcn   uint64   //16-24
 	LastVcn    uint64   //24-32
 	RunOff     uint16   //32-24     offset to the start of the attribute
@@ -118,6 +119,7 @@ type FNAttribute struct {
 	UnicodeHack bool
 	EntryID     uint32 //foreing key
 	AttrID      uint16 //for DB use
+	Header      *AttributeHeader
 }
 
 type ObjectID struct { //unique guID
@@ -127,10 +129,12 @@ type ObjectID struct { //unique guID
 	OrigDomID string // domain ID
 	EntryID   uint32 //foreing key
 	AttrID    uint16
+	Header    *AttributeHeader
 }
 
 type VolumeName struct {
-	Name utils.NoNull
+	Name   utils.NoNull
+	Header *AttributeHeader
 }
 
 type IndexEntry struct {
@@ -147,6 +151,7 @@ type IndexRoot struct {
 	Sizebytes            uint32 //8-12
 	Sizeclusters         uint8  //12-12
 	nodeheader           *NodeHeader
+	Header               *AttributeHeader
 }
 
 type NodeHeader struct {
@@ -165,6 +170,11 @@ type IndexAllocation struct {
 	nodeheader       *NodeHeader
 }
 
+type AttributeListEntries struct {
+	Entries []AttributeList
+	Header  *AttributeHeader
+}
+
 type AttributeList struct { //more than one MFT entry to store a file/directory its attributes
 	Type       string //        typeif 0-4    # 4
 	Len        uint16 //4-6
@@ -178,14 +188,12 @@ type AttributeList struct { //more than one MFT entry to store a file/directory 
 }
 
 type VolumeInfo struct {
-	F1      uint64 //unused
-	MajVer  string // 8-8
-	MinVer  string // 9-9
-	Flags   uint16 //see table 13.22
-	F2      uint32
-	EntryID uint32 //foreing key
-	AttrID  uint16 //for DB use
-
+	F1     uint64 //unused
+	MajVer string // 8-8
+	MinVer string // 9-9
+	Flags  uint16 //see table 13.22
+	F2     uint32
+	Header *AttributeHeader
 }
 
 type SIAttribute struct {
@@ -201,8 +209,16 @@ type SIAttribute struct {
 	SecID    uint32
 	Quota    uint64
 	Usn      uint64
-	EntryID  uint32 //foreing key
-	AttrID   uint16 //for DB use
+	Header   *AttributeHeader
+}
+
+func (record MFTrecord) findAttribute(attributeName string) Attribute {
+	for _, attribute := range record.Attributes {
+		if attribute.findType() == attributeName {
+			return attribute
+		}
+	}
+	return nil
 }
 
 func ProcessRunList(runlist []byte) []uint64 {
@@ -231,6 +247,90 @@ func ProcessRunList(runlist []byte) []uint64 {
 		}
 	}
 	return clusters
+}
+
+func (fnattr FNAttribute) setHeader(header *AttributeHeader) {
+	fnattr.Header = header
+}
+
+func (fnattr FNAttribute) getHeader() AttributeHeader {
+	return *fnattr.Header
+}
+
+func (fnattr FNAttribute) findType() string {
+	return fnattr.Header.getType()
+}
+
+func (siattr SIAttribute) setHeader(header *AttributeHeader) {
+	siattr.Header = header
+}
+
+func (siattr SIAttribute) getHeader() AttributeHeader {
+	return *siattr.Header
+}
+
+func (siattr SIAttribute) findType() string {
+	return siattr.Header.getType()
+}
+
+func (data DATA) setHeader(header *AttributeHeader) {
+	data.Header = header
+}
+
+func (data DATA) getHeader() AttributeHeader {
+	return *data.Header
+}
+
+func (data DATA) findType() string {
+	return data.Header.getType()
+}
+
+func (objectId ObjectID) setHeader(header *AttributeHeader) {
+	objectId.Header = header
+}
+
+func (objectId ObjectID) getHeader() AttributeHeader {
+	return *objectId.Header
+}
+
+func (objectId ObjectID) findType() string {
+	return objectId.Header.getType()
+}
+
+func (volInfo VolumeInfo) setHeader(header *AttributeHeader) {
+	volInfo.Header = header
+}
+
+func (volInfo VolumeInfo) getHeader() AttributeHeader {
+	return *volInfo.Header
+}
+
+func (volInfo VolumeInfo) findType() string {
+	return volInfo.Header.getType()
+}
+
+func (volName VolumeName) setHeader(header *AttributeHeader) {
+	volName.Header = header
+}
+
+func (volName VolumeName) getHeader() AttributeHeader {
+	return *volName.Header
+}
+
+func (volName VolumeName) findType() string {
+	return volName.Header.getType()
+}
+
+func (attrListEntries AttributeListEntries) setHeader(header *AttributeHeader) {
+	attrListEntries.Header = header
+}
+
+func (attrListEntries AttributeListEntries) getHeader() AttributeHeader {
+	return *attrListEntries.Header
+}
+
+func (attrListEntries AttributeListEntries) findType() string {
+	return attrListEntries.Header.getType()
 }
 
 func (attrHeader AttributeHeader) getType() string {
@@ -287,7 +387,8 @@ func (fnAttr FNAttribute) getType() string {
 }
 
 func (record MFTrecord) hasResidentDataAttr() bool {
-	return record.Data != nil && !record.Data.Header.isNoNResident()
+	attribute := record.findAttribute("Data")
+	return attribute != nil && !attribute.getHeader().isNoNResident()
 }
 
 func (record MFTrecord) getType() string {
@@ -303,7 +404,7 @@ func (record MFTrecord) ShowIsResident() {
 }
 
 func (record MFTrecord) ShowFNAModifiedTime() {
-	fmt.Printf("%s ", record.FileName.Mtime.ConvertToIsoTime())
+	fmt.Printf("%s ", record.findAttribute("Standard Information").Mtime.ConvertToIsoTime())
 }
 
 func (record MFTrecord) ShowFNACreationTime() {
@@ -341,6 +442,7 @@ func (record *MFTrecord) Process(bs []byte) {
 
 	ReadPtr := record.AttrOff //offset to first attribute
 	fmt.Printf("\n Processing $MFT entry %d %s ", record.Entry, record.getType())
+	var attributes []Attribute
 	for ReadPtr < 1024 {
 
 		if utils.Hexify(bs[ReadPtr:ReadPtr+4]) == "ffffffff" { //End of attributes
@@ -356,7 +458,7 @@ func (record *MFTrecord) Process(bs []byte) {
 			break
 		}
 
-		if !attrHeader.isNoNResident() { //ResIDent Attribute
+		if !attrHeader.isNoNResident() { //Resident Attribute
 			var atrRecordResident ATRrecordResident
 			utils.Unmarshal(bs[ReadPtr+16:ReadPtr+24], &atrRecordResident)
 
@@ -368,23 +470,25 @@ func (record *MFTrecord) Process(bs []byte) {
 				fnattr.Fname =
 					utils.DecodeUTF16(bs[ReadPtr+atrRecordResident.OffsetContent+66 : ReadPtr+
 						atrRecordResident.OffsetContent+66+2*uint16(fnattr.Nlen)])
-				record.FileName = &fnattr
+
+				attributes = append(attributes, fnattr)
 
 			} else if attrHeader.isData() {
-				record.Data = &DATA{&attrHeader,
-					bs[ReadPtr+atrRecordResident.OffsetContent : ReadPtr +
-						+uint16(attrHeader.AttrLen)]}
+				data := DATA{bs[ReadPtr+atrRecordResident.OffsetContent : ReadPtr +
+					+uint16(attrHeader.AttrLen)], &attrHeader}
+				attributes = append(attributes, data)
 
 			} else if attrHeader.isObject() {
 				var objectattr ObjectID
 				utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+
 					atrRecordResident.OffsetContent+64], &objectattr)
+				attributes = append(attributes, objectattr)
 
 			} else if attrHeader.isAttrList() { //Attribute List
 				//  runlist:=bs[ReadPtr+atrRecordResident.OffsetContent:uint32(ReadPtr)+atrRecordResident.Len]
 
 				attrLen := uint16(0)
-				var attrListEntries []AttributeList
+				var attrListEntries AttributeListEntries
 				for atrRecordResident.OffsetContent+24+attrLen < uint16(attrHeader.AttrLen) {
 					var attrList AttributeList
 					utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent+attrLen:ReadPtr+
@@ -394,25 +498,28 @@ func (record *MFTrecord) Process(bs []byte) {
 						uint16(attrList.Nameoffset) : ReadPtr+atrRecordResident.OffsetContent+
 						attrLen+uint16(attrList.Nameoffset)+uint16(attrList.Namelen)])
 					//   runlist=bs[ReadPtr+atrRecordResident.OffsetContent+attrList.len:uint32(ReadPtr)+atrRecordResident.Len]
-					attrListEntries = append(attrListEntries, attrList)
+					attrListEntries.Entries = append(attrListEntries.Entries, attrList)
 					attrLen += attrList.Len
 
 				}
-				atrRecordResident.AttributeListEntries = attrListEntries
+
+				attributes = append(attributes, attrListEntries)
 
 			} else if attrHeader.isBitmap() { //BITMAP
 				record.Bitmap = true
 
 			} else if attrHeader.isVolumeName() { //Volume Name
-				record.VolumeName = &VolumeName{utils.NoNull(bs[ReadPtr+
+				volumeName := VolumeName{utils.NoNull(bs[ReadPtr+
 					atrRecordResident.OffsetContent : uint32(ReadPtr)+
-					uint32(atrRecordResident.OffsetContent)+atrRecordResident.ContentSize])}
+					uint32(atrRecordResident.OffsetContent)+atrRecordResident.ContentSize]), &attrHeader}
+				attributes = append(attributes, volumeName)
 
 			} else if attrHeader.isVolumeInfo() { //Volume Info
 				var volumeInfo *VolumeInfo = new(VolumeInfo)
 				utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+
 					atrRecordResident.OffsetContent+12], volumeInfo)
-				record.VolumeInfo = volumeInfo
+				attributes = append(attributes, volumeInfo)
+
 			} else if attrHeader.isIndexRoot() { //Index Root
 				var idxRoot IndexRoot
 				utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+
@@ -441,14 +548,14 @@ func (record *MFTrecord) Process(bs []byte) {
 				startpoint := ReadPtr + atrRecordResident.OffsetContent
 				var siattr *SIAttribute
 				utils.Unmarshal(bs[startpoint:startpoint+72], &siattr)
-				record.StandardInformation = siattr
+				attributes = append(attributes, siattr)
 
 			}
 
 			ReadPtr = ReadPtr + uint16(attrHeader.AttrLen)
 
-		} else { //NoN ResIDent Attribute
-			var atrNoNRecordResident ATRrecordNoNResIDent
+		} else { //NoN Resident Attribute
+			var atrNoNRecordResident ATRrecordNoNResident
 			utils.Unmarshal(bs[ReadPtr+16:ReadPtr+64], &atrNoNRecordResident)
 
 			if uint32(ReadPtr)+attrHeader.AttrLen <= 1024 {
@@ -476,10 +583,10 @@ func (record *MFTrecord) Process(bs []byte) {
 
 			ReadPtr = ReadPtr + uint16(attrHeader.AttrLen)
 
-		} //ends non resIDent
+		} //ends non Resident
 
 	} //ends while
-
+	record.Attributes = attributes
 }
 
 func (record MFTrecord) ShowFileName() {
