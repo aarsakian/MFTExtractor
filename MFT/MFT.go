@@ -249,7 +249,7 @@ func ProcessRunList(runlist []byte) []uint64 {
 	return clusters
 }
 
-func (fnattr FNAttribute) setHeader(header *AttributeHeader) {
+func (fnattr *FNAttribute) setHeader(header *AttributeHeader) {
 	fnattr.Header = header
 }
 
@@ -261,7 +261,7 @@ func (fnattr FNAttribute) findType() string {
 	return fnattr.Header.getType()
 }
 
-func (siattr SIAttribute) setHeader(header *AttributeHeader) {
+func (siattr *SIAttribute) setHeader(header *AttributeHeader) {
 	siattr.Header = header
 }
 
@@ -273,7 +273,7 @@ func (siattr SIAttribute) findType() string {
 	return siattr.Header.getType()
 }
 
-func (data DATA) setHeader(header *AttributeHeader) {
+func (data *DATA) setHeader(header *AttributeHeader) {
 	data.Header = header
 }
 
@@ -297,7 +297,7 @@ func (objectId ObjectID) findType() string {
 	return objectId.Header.getType()
 }
 
-func (volInfo VolumeInfo) setHeader(header *AttributeHeader) {
+func (volInfo *VolumeInfo) setHeader(header *AttributeHeader) {
 	volInfo.Header = header
 }
 
@@ -309,7 +309,7 @@ func (volInfo VolumeInfo) findType() string {
 	return volInfo.Header.getType()
 }
 
-func (volName VolumeName) setHeader(header *AttributeHeader) {
+func (volName *VolumeName) setHeader(header *AttributeHeader) {
 	volName.Header = header
 }
 
@@ -321,7 +321,7 @@ func (volName VolumeName) findType() string {
 	return volName.Header.getType()
 }
 
-func (attrListEntries AttributeListEntries) setHeader(header *AttributeHeader) {
+func (attrListEntries *AttributeListEntries) setHeader(header *AttributeHeader) {
 	attrListEntries.Header = header
 }
 
@@ -333,7 +333,7 @@ func (attrListEntries AttributeListEntries) findType() string {
 	return attrListEntries.Header.getType()
 }
 
-func (idxRoot IndexRoot) setHeader(header *AttributeHeader) {
+func (idxRoot *IndexRoot) setHeader(header *AttributeHeader) {
 	idxRoot.Header = header
 }
 
@@ -399,39 +399,48 @@ func (fnAttr FNAttribute) getType() string {
 }
 
 func (record MFTrecord) hasResidentDataAttr() bool {
-	attribute := record.findAttribute("DATA").(DATA)
-	return !attribute.getHeader().isNoNResident()
+	attribute := record.findAttribute("DATA")
+	return attribute != nil && !attribute.(*DATA).getHeader().isNoNResident()
 }
 
 func (record MFTrecord) getType() string {
 	return MFTflags[record.Flags]
 }
 
+func (record MFTrecord) hasDataAttr() bool {
+	return record.findAttribute("DATA") != nil
+}
+
 func (record MFTrecord) ShowIsResident() {
-	if record.hasResidentDataAttr() {
-		fmt.Printf("Resident")
+	if record.hasDataAttr() {
+		if record.hasResidentDataAttr() {
+			fmt.Printf("Resident")
+		} else {
+			fmt.Printf("NoN Resident")
+		}
+
 	} else {
-		fmt.Printf("NoN Resident")
+		fmt.Print("NO DATA attr")
 	}
 }
 
 func (record MFTrecord) ShowFNAModifiedTime() {
-	fnattr := record.findAttribute("FileName").(FNAttribute)
+	fnattr := record.findAttribute("FileName").(*FNAttribute)
 	fmt.Printf("%s ", fnattr.Mtime.ConvertToIsoTime())
 }
 
 func (record MFTrecord) ShowFNACreationTime() {
-	fnattr := record.findAttribute("FileName").(FNAttribute)
+	fnattr := record.findAttribute("FileName").(*FNAttribute)
 	fmt.Printf("%s ", fnattr.Crtime.ConvertToIsoTime())
 }
 
 func (record MFTrecord) ShowFNAMFTModifiedTime() {
-	fnattr := record.findAttribute("FileName").(FNAttribute)
+	fnattr := record.findAttribute("FileName").(*FNAttribute)
 	fmt.Printf("%s ", fnattr.MFTmtime.ConvertToIsoTime())
 }
 
 func (record MFTrecord) ShowFNAMFTAccessTime() {
-	fnattr := record.findAttribute("FileName").(FNAttribute)
+	fnattr := record.findAttribute("FileName").(*FNAttribute)
 	fmt.Printf("%s ", fnattr.Atime.ConvertToIsoTime())
 }
 
@@ -439,7 +448,7 @@ func (record MFTrecord) CreateFileFromEntry(exportFiles string) {
 
 	if (exportFiles == "Resident" || exportFiles == "All") &&
 		record.hasResidentDataAttr() {
-		fnattr := record.findAttribute("FileName").(FNAttribute)
+		fnattr := record.findAttribute("FileName").(*FNAttribute)
 		data := record.findAttribute("DATA").(DATA)
 		utils.WriteFile(fnattr.Fname, data.Content)
 
@@ -481,9 +490,9 @@ func (record *MFTrecord) Process(bs []byte) {
 			utils.Unmarshal(bs[ReadPtr+16:ReadPtr+24], &atrRecordResident)
 
 			if attrHeader.isFileName() { // File name
-				var fnattr FNAttribute
+				var fnattr *FNAttribute = new(FNAttribute)
 				utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+
-					atrRecordResident.OffsetContent+66], &fnattr)
+					atrRecordResident.OffsetContent+66], fnattr)
 
 				fnattr.Fname =
 					utils.DecodeUTF16(bs[ReadPtr+atrRecordResident.OffsetContent+66 : ReadPtr+
@@ -492,21 +501,23 @@ func (record *MFTrecord) Process(bs []byte) {
 				attributes = append(attributes, fnattr)
 
 			} else if attrHeader.isData() {
-				data := DATA{bs[ReadPtr+atrRecordResident.OffsetContent : ReadPtr +
+				data := &DATA{bs[ReadPtr+atrRecordResident.OffsetContent : ReadPtr +
 					+uint16(attrHeader.AttrLen)], &attrHeader}
+				data.setHeader(&attrHeader)
 				attributes = append(attributes, data)
 
 			} else if attrHeader.isObject() {
-				var objectattr ObjectID
+				var objectattr *ObjectID = new(ObjectID)
 				utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+
-					atrRecordResident.OffsetContent+64], &objectattr)
-				attributes = append(attributes, objectattr)
+					atrRecordResident.OffsetContent+64], objectattr)
+				objectattr.setHeader(&attrHeader)
+				attributes = append(attributes, *objectattr)
 
 			} else if attrHeader.isAttrList() { //Attribute List
 				//  runlist:=bs[ReadPtr+atrRecordResident.OffsetContent:uint32(ReadPtr)+atrRecordResident.Len]
 
 				attrLen := uint16(0)
-				var attrListEntries AttributeListEntries
+				var attrListEntries *AttributeListEntries = new(AttributeListEntries)
 				for atrRecordResident.OffsetContent+24+attrLen < uint16(attrHeader.AttrLen) {
 					var attrList AttributeList
 					utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent+attrLen:ReadPtr+
@@ -520,28 +531,30 @@ func (record *MFTrecord) Process(bs []byte) {
 					attrLen += attrList.Len
 
 				}
-
+				attrListEntries.setHeader(&attrHeader)
 				attributes = append(attributes, attrListEntries)
 
 			} else if attrHeader.isBitmap() { //BITMAP
 				record.Bitmap = true
 
 			} else if attrHeader.isVolumeName() { //Volume Name
-				volumeName := VolumeName{utils.NoNull(bs[ReadPtr+
+				volumeName := &VolumeName{utils.NoNull(bs[ReadPtr+
 					atrRecordResident.OffsetContent : uint32(ReadPtr)+
 					uint32(atrRecordResident.OffsetContent)+atrRecordResident.ContentSize]), &attrHeader}
+				volumeName.setHeader(&attrHeader)
 				attributes = append(attributes, volumeName)
 
 			} else if attrHeader.isVolumeInfo() { //Volume Info
 				var volumeInfo *VolumeInfo = new(VolumeInfo)
 				utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+
 					atrRecordResident.OffsetContent+12], volumeInfo)
+				volumeInfo.setHeader(&attrHeader)
 				attributes = append(attributes, volumeInfo)
 
 			} else if attrHeader.isIndexRoot() { //Index Root
-				var idxRoot IndexRoot
+				var idxRoot *IndexRoot
 				utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+
-					atrRecordResident.OffsetContent+12], &idxRoot)
+					atrRecordResident.OffsetContent+12], idxRoot)
 
 				var nodeheader NodeHeader
 				utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent+
@@ -562,11 +575,12 @@ func (record *MFTrecord) Process(bs []byte) {
 						&fnattrIDXEntry)
 
 				}
+				idxRoot.setHeader(&attrHeader)
 				attributes = append(attributes, idxRoot)
 			} else if attrHeader.isStdInfo() { //Standard Information
 				startpoint := ReadPtr + atrRecordResident.OffsetContent
-				var siattr SIAttribute
-				utils.Unmarshal(bs[startpoint:startpoint+72], &siattr)
+				var siattr *SIAttribute = new(SIAttribute)
+				utils.Unmarshal(bs[startpoint:startpoint+72], siattr)
 				siattr.setHeader(&attrHeader)
 				attributes = append(attributes, siattr)
 
@@ -610,7 +624,7 @@ func (record *MFTrecord) Process(bs []byte) {
 }
 
 func (record MFTrecord) ShowFileName() {
-	fnattr := record.findAttribute("FileName").(FNAttribute)
+	fnattr := record.findAttribute("FileName").(*FNAttribute)
 	fmt.Printf("%s ", fnattr.Fname)
 
 }
@@ -618,7 +632,7 @@ func (record MFTrecord) ShowFileName() {
 func (record MFTrecord) GetBasicInfoFromRecord(file1 *os.File) {
 
 	s := fmt.Sprintf("%d;%d;%s", record.Entry, record.Seq, record.getType())
-	fnattr := record.findAttribute("FileName").(FNAttribute)
+	fnattr := record.findAttribute("FileName").(*FNAttribute)
 
 	s1 := strings.Join([]string{s, fnattr.Atime.ConvertToIsoTime(),
 		fnattr.Crtime.ConvertToIsoTime(),
