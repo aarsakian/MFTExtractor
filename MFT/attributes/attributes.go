@@ -2,10 +2,24 @@ package attributes
 
 import "github.com/aarsakian/MFTExtractor/utils"
 
+var NameSpaceFlags = map[uint32]string{
+	0: "POSIX", 1: "Win32", 2: "DOS", 3: "Win32 & Dos",
+}
+
+var AttrTypes = map[string]string{
+	"00000010": "Standard Information", "00000020": "Attribute List",
+	"00000030": "FileName", "00000040": "Object ID",
+	"00000050": "Security Descriptor", "00000060": "Volume Name",
+	"00000070": "Volume Information", "00000080": "DATA",
+	"00000090": "Index Root", "000000A0": "Index Allocation",
+	"000000B0": "BitMap", "000000C0": "Reparse Point",
+	"ffffffff": "Last",
+}
+
 type Attribute interface {
-	findType() string
-	setHeader(header *AttributeHeader)
-	getHeader() AttributeHeader
+	FindType() string
+	SetHeader(header *AttributeHeader)
+	GetHeader() AttributeHeader
 }
 
 type AttributeHeader struct {
@@ -93,7 +107,7 @@ type IndexRoot struct {
 	CollationSortingRule string
 	Sizebytes            uint32 //8-12
 	Sizeclusters         uint8  //12-12
-	nodeheader           *NodeHeader
+	Nodeheader           *NodeHeader
 	Header               *AttributeHeader
 }
 
@@ -110,7 +124,7 @@ type IndexAllocation struct {
 	NumEntries       int16  //6-8
 	LSN              int64  //8-16
 	VCN              int64  //16-24 where the record fits in the tree
-	nodeheader       *NodeHeader
+	Nodeheader       *NodeHeader
 }
 
 type AttributeListEntries struct {
@@ -127,7 +141,7 @@ type AttributeList struct { //more than one MFT entry to store a file/directory 
 	FileRef    uint64 //16-22      # 6
 	Seq        uint16 //       22-24    # 2
 	ID         uint8  //     24-26   # 4
-	name       utils.NoNull
+	Name       utils.NoNull
 }
 
 type VolumeInfo struct {
@@ -153,4 +167,153 @@ type SIAttribute struct {
 	Quota    uint64
 	Usn      uint64
 	Header   *AttributeHeader
+}
+
+func (fnattr *FNAttribute) SetHeader(header *AttributeHeader) {
+	fnattr.Header = header
+}
+
+func (fnattr FNAttribute) GetHeader() AttributeHeader {
+	return *fnattr.Header
+}
+
+func (fnattr FNAttribute) FindType() string {
+	return fnattr.Header.GetType()
+}
+
+func (siattr *SIAttribute) SetHeader(header *AttributeHeader) {
+	siattr.Header = header
+}
+
+func (siattr SIAttribute) GetHeader() AttributeHeader {
+	return *siattr.Header
+}
+
+func (siattr SIAttribute) FindType() string {
+	return siattr.Header.GetType()
+}
+
+func (data *DATA) SetHeader(header *AttributeHeader) {
+	data.Header = header
+}
+
+func (data DATA) GetHeader() AttributeHeader {
+	return *data.Header
+}
+
+func (data DATA) FindType() string {
+	return data.Header.GetType()
+}
+
+func (objectId ObjectID) SetHeader(header *AttributeHeader) {
+	objectId.Header = header
+}
+
+func (objectId ObjectID) GetHeader() AttributeHeader {
+	return *objectId.Header
+}
+
+func (objectId ObjectID) FindType() string {
+	return objectId.Header.GetType()
+}
+
+func (volInfo *VolumeInfo) SetHeader(header *AttributeHeader) {
+	volInfo.Header = header
+}
+
+func (volInfo VolumeInfo) GetHeader() AttributeHeader {
+	return *volInfo.Header
+}
+
+func (volInfo VolumeInfo) FindType() string {
+	return volInfo.Header.GetType()
+}
+
+func (volName *VolumeName) SetHeader(header *AttributeHeader) {
+	volName.Header = header
+}
+
+func (volName VolumeName) GetHeader() AttributeHeader {
+	return *volName.Header
+}
+
+func (volName VolumeName) FindType() string {
+	return volName.Header.GetType()
+}
+
+func (attrListEntries *AttributeListEntries) SetHeader(header *AttributeHeader) {
+	attrListEntries.Header = header
+}
+
+func (attrListEntries AttributeListEntries) GetHeader() AttributeHeader {
+	return *attrListEntries.Header
+}
+
+func (attrListEntries AttributeListEntries) FindType() string {
+	return attrListEntries.Header.GetType()
+}
+
+func (idxRoot *IndexRoot) SetHeader(header *AttributeHeader) {
+	idxRoot.Header = header
+}
+
+func (idxRoot IndexRoot) GetHeader() AttributeHeader {
+	return *idxRoot.Header
+}
+
+func (idxRoot IndexRoot) FindType() string {
+	return idxRoot.Header.GetType()
+}
+
+func (attrHeader AttributeHeader) GetType() string {
+	return AttrTypes[attrHeader.Type]
+}
+
+func (attrHeader AttributeHeader) IsNoNResident() bool {
+	return attrHeader.NoNResident == "1"
+
+}
+
+func (attrHeader AttributeHeader) IsLast() bool {
+	return attrHeader.GetType() == "Last"
+}
+
+func (attrHeader AttributeHeader) IsFileName() bool {
+	return attrHeader.GetType() == "FileName"
+}
+
+func (attrHeader AttributeHeader) IsData() bool {
+	return attrHeader.GetType() == "DATA"
+}
+
+func (attrHeader AttributeHeader) IsObject() bool {
+	return attrHeader.GetType() == "Object ID"
+}
+
+func (attrHeader AttributeHeader) IsAttrList() bool {
+	return attrHeader.GetType() == "Attribute List"
+}
+
+func (attrHeader AttributeHeader) IsBitmap() bool {
+	return attrHeader.GetType() == "Bitmap"
+}
+
+func (attrHeader AttributeHeader) IsVolumeName() bool {
+	return attrHeader.GetType() == "Volume Name"
+}
+
+func (attrHeader AttributeHeader) IsVolumeInfo() bool {
+	return attrHeader.GetType() == "Volume Info"
+}
+
+func (attrHeader AttributeHeader) IsIndexRoot() bool {
+	return attrHeader.GetType() == "Index Root"
+}
+
+func (attrHeader AttributeHeader) IsStdInfo() bool {
+	return attrHeader.GetType() == "Standard Information"
+}
+
+func (fnAttr FNAttribute) GetType() string {
+	return NameSpaceFlags[fnAttr.Flags]
 }
