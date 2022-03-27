@@ -20,6 +20,7 @@ type Attribute interface {
 	FindType() string
 	SetHeader(header *AttributeHeader)
 	GetHeader() AttributeHeader
+	IsNoNResident() bool
 }
 
 type AttributeHeader struct {
@@ -84,8 +85,6 @@ type ObjectID struct { //unique guID
 	OrigVolID string //volume ID
 	OrigObjID string //original objID
 	OrigDomID string // domain ID
-	EntryID   uint32 //foreing key
-	AttrID    uint16
 	Header    *AttributeHeader
 }
 
@@ -181,6 +180,14 @@ func (fnattr FNAttribute) FindType() string {
 	return fnattr.Header.GetType()
 }
 
+func (fnAttr FNAttribute) GetType() string {
+	return NameSpaceFlags[fnAttr.Flags]
+}
+
+func (fnAttr FNAttribute) IsNoNResident() bool {
+	return false
+}
+
 func (siattr *SIAttribute) SetHeader(header *AttributeHeader) {
 	siattr.Header = header
 }
@@ -193,6 +200,10 @@ func (siattr SIAttribute) FindType() string {
 	return siattr.Header.GetType()
 }
 
+func (siattr SIAttribute) IsNoNResident() bool {
+	return false // always resident
+}
+
 func (data *DATA) SetHeader(header *AttributeHeader) {
 	data.Header = header
 }
@@ -203,6 +214,9 @@ func (data DATA) GetHeader() AttributeHeader {
 
 func (data DATA) FindType() string {
 	return data.Header.GetType()
+}
+func (data DATA) IsNoNResident() bool {
+	return data.Header.IsNoNResident()
 }
 
 func (objectId ObjectID) SetHeader(header *AttributeHeader) {
@@ -217,12 +231,20 @@ func (objectId ObjectID) FindType() string {
 	return objectId.Header.GetType()
 }
 
+func (objectId ObjectID) IsNoNResident() bool {
+	return objectId.Header.IsNoNResident()
+}
+
 func (volInfo *VolumeInfo) SetHeader(header *AttributeHeader) {
 	volInfo.Header = header
 }
 
 func (volInfo VolumeInfo) GetHeader() AttributeHeader {
 	return *volInfo.Header
+}
+
+func (volInfo VolumeInfo) IsNoNResident() bool {
+	return volInfo.Header.IsNoNResident()
 }
 
 func (volInfo VolumeInfo) FindType() string {
@@ -241,6 +263,10 @@ func (volName VolumeName) FindType() string {
 	return volName.Header.GetType()
 }
 
+func (volName VolumeName) IsNoNResident() bool {
+	return volName.Header.IsNoNResident()
+}
+
 func (attrListEntries *AttributeListEntries) SetHeader(header *AttributeHeader) {
 	attrListEntries.Header = header
 }
@@ -253,6 +279,10 @@ func (attrListEntries AttributeListEntries) FindType() string {
 	return attrListEntries.Header.GetType()
 }
 
+func (attrListEntries AttributeListEntries) IsNoNResident() bool {
+	return attrListEntries.Header.IsNoNResident()
+}
+
 func (idxRoot *IndexRoot) SetHeader(header *AttributeHeader) {
 	idxRoot.Header = header
 }
@@ -261,17 +291,16 @@ func (idxRoot IndexRoot) GetHeader() AttributeHeader {
 	return *idxRoot.Header
 }
 
+func (idxRoot IndexRoot) IsNoNResident() bool {
+	return false // always resident
+}
+
 func (idxRoot IndexRoot) FindType() string {
 	return idxRoot.Header.GetType()
 }
 
 func (attrHeader AttributeHeader) GetType() string {
 	return AttrTypes[attrHeader.Type]
-}
-
-func (attrHeader AttributeHeader) IsNoNResident() bool {
-	return attrHeader.NoNResident == "1"
-
 }
 
 func (attrHeader AttributeHeader) IsLast() bool {
@@ -314,6 +343,6 @@ func (attrHeader AttributeHeader) IsStdInfo() bool {
 	return attrHeader.GetType() == "Standard Information"
 }
 
-func (fnAttr FNAttribute) GetType() string {
-	return NameSpaceFlags[fnAttr.Flags]
+func (attrHeader AttributeHeader) IsNoNResident() bool {
+	return attrHeader.NoNResident == "1"
 }
