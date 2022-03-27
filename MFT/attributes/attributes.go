@@ -75,8 +75,6 @@ type FNAttribute struct {
 	Fname       string //special string type without nulls
 	HexFlag     bool
 	UnicodeHack bool
-	EntryID     uint32 //foreing key
-	AttrID      uint16 //for DB use
 	Header      *AttributeHeader
 }
 
@@ -185,7 +183,7 @@ func (fnAttr FNAttribute) GetType() string {
 }
 
 func (fnAttr FNAttribute) IsNoNResident() bool {
-	return false
+	return fnAttr.Header.IsNoNResident()
 }
 
 func (siattr *SIAttribute) SetHeader(header *AttributeHeader) {
@@ -201,7 +199,7 @@ func (siattr SIAttribute) FindType() string {
 }
 
 func (siattr SIAttribute) IsNoNResident() bool {
-	return false // always resident
+	return siattr.Header.IsNoNResident() // always resident
 }
 
 func (data *DATA) SetHeader(header *AttributeHeader) {
@@ -219,7 +217,7 @@ func (data DATA) IsNoNResident() bool {
 	return data.Header.IsNoNResident()
 }
 
-func (objectId ObjectID) SetHeader(header *AttributeHeader) {
+func (objectId *ObjectID) SetHeader(header *AttributeHeader) {
 	objectId.Header = header
 }
 
