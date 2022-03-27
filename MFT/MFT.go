@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/aarsakian/MFTExtractor/MFT/attributes"
 	MFTAttributes "github.com/aarsakian/MFTExtractor/MFT/attributes"
 	"github.com/aarsakian/MFTExtractor/utils"
 )
@@ -46,7 +47,7 @@ type MFTrecord struct {
 
 }
 
-func (record MFTrecord) findAttribute(attributeName string) interface{} {
+func (record MFTrecord) findAttribute(attributeName string) attributes.Attribute {
 	for _, attribute := range record.Attributes {
 		if attribute.FindType() == attributeName {
 			return attribute
@@ -85,11 +86,28 @@ func ProcessRunList(runlist []byte) []uint64 {
 
 func (record MFTrecord) hasResidentDataAttr() bool {
 	attribute := record.findAttribute("DATA")
-	return attribute != nil && !attribute.(*MFTAttributes.DATA).GetHeader().IsNoNResident()
+	return attribute != nil && !attribute.IsNoNResident()
 }
 
 func (record MFTrecord) getType() string {
 	return MFTflags[record.Flags]
+}
+
+func (record MFTrecord) getRunList() []uint64 {
+	for _, attribute := range record.Attributes {
+		if attribute.IsNoNResident() {
+			return attribute.GetHeader().ATRrecordNoNResID.RunList
+		}
+	}
+	return nil
+}
+
+func (record MFTrecord) ShowRunList() {
+	runlists := record.getRunList()
+	runs := ""
+	for cluster := range runlists {
+		runs += fmt.Sprintf("%d ", cluster)
+	}
 }
 
 func (record MFTrecord) hasDataAttr() bool {
@@ -186,9 +204,9 @@ func (record *MFTrecord) Process(bs []byte) {
 				attributes = append(attributes, fnattr)
 
 			} else if attrHeader.IsData() {
-				data := &MFTAttributes.DATA{bs[ReadPtr+atrRecordResident.OffsetContent : ReadPtr +
-					+uint16(attrHeader.AttrLen)], &attrHeader}
-				data.SetHeader(&attrHeader)
+				data := &MFTAttributes.DATA{Content: bs[ReadPtr+
+					atrRecordResident.OffsetContent : ReadPtr +
+					+uint16(attrHeader.AttrLen)], Header: &attrHeader}
 				attributes = append(attributes, data)
 
 			} else if attrHeader.IsObject() {
@@ -196,10 +214,9 @@ func (record *MFTrecord) Process(bs []byte) {
 				utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+
 					atrRecordResident.OffsetContent+64], objectattr)
 				objectattr.SetHeader(&attrHeader)
-				attributes = append(attributes, *objectattr)
+				attributes = append(attributes, objectattr)
 
 			} else if attrHeader.IsAttrList() { //Attribute List
-				//  runlist:=bs[ReadPtr+atrRecordResident.OffsetContent:uint32(ReadPtr)+atrRecordResident.Len]
 
 				attrLen := uint16(0)
 				var attrListEntries *MFTAttributes.AttributeListEntries = new(MFTAttributes.AttributeListEntries)
@@ -223,9 +240,10 @@ func (record *MFTrecord) Process(bs []byte) {
 				record.Bitmap = true
 
 			} else if attrHeader.IsVolumeName() { //Volume Name
-				volumeName := &MFTAttributes.VolumeName{utils.NoNull(bs[ReadPtr+
+				volumeName := &MFTAttributes.VolumeName{Name: utils.NoNull(bs[ReadPtr+
 					atrRecordResident.OffsetContent : uint32(ReadPtr)+
-					uint32(atrRecordResident.OffsetContent)+atrRecordResident.ContentSize]), &attrHeader}
+					uint32(atrRecordResident.OffsetContent)+atrRecordResident.ContentSize]),
+					Header: &attrHeader}
 				volumeName.SetHeader(&attrHeader)
 				attributes = append(attributes, volumeName)
 
