@@ -201,12 +201,13 @@ func main() {
 			if *isResident {
 				record.ShowIsResident()
 			}
-			if int(record.Entry) == *MFTSelectedEntry {
-				break
-			}
 
 			if *showRunList {
 				record.ShowRunList()
+			}
+
+			if int(record.Entry) == *MFTSelectedEntry {
+				break
 			}
 
 		}
