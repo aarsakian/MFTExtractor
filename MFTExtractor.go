@@ -134,6 +134,7 @@ func main() {
 	isResident := flag.Bool("Resident", false, "check whether entry is resident")
 	fromMFTEntry := flag.Int("fromEntry", 0, "select entry to start parsing")
 	ToMFTEntry := flag.Int("toEntry", math.MaxUint32, "select entry to end parsing")
+	showRunList := flag.Bool("runlist", false, "show runlist of MFT record attributes")
 
 	flag.Parse() //ready to parse
 
@@ -202,6 +203,10 @@ func main() {
 			}
 			if int(record.Entry) == *MFTSelectedEntry {
 				break
+			}
+
+			if *showRunList {
+				record.ShowRunList()
 			}
 
 		}
