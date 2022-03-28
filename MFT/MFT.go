@@ -255,7 +255,7 @@ func (record *MFTrecord) Process(bs []byte) {
 				attributes = append(attributes, volumeInfo)
 
 			} else if attrHeader.IsIndexRoot() { //Index Root
-				var idxRoot *MFTAttributes.IndexRoot
+				var idxRoot *MFTAttributes.IndexRoot = new(MFTAttributes.IndexRoot)
 				utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+
 					atrRecordResident.OffsetContent+12], idxRoot)
 

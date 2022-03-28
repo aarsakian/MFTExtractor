@@ -100,9 +100,9 @@ type IndexEntry struct {
 }
 
 type IndexRoot struct {
-	Type                 string //0-4 similar to FNA type
-	CollationSortingRule string
-	Sizebytes            uint32 //8-12
+	Type                 string //0-3 similar to FNA type
+	CollationSortingRule string //4-7
+	Sizebytes            uint32 //8-11
 	Sizeclusters         uint8  //12-12
 	Nodeheader           *NodeHeader
 	Header               *AttributeHeader
