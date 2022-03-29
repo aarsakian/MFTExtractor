@@ -17,7 +17,8 @@ var IndexEntryFlags = map[string]string{
 
 var SIFlags = map[uint32]string{
 	1: "Read Only", 2: "Hidden", 4: "System", 32: "Archive", 64: "Device", 128: "Normal",
-	256: "Temporary", 512: "Sparse", 1024: "Reparse Point", 2048: "Compressed", 4096: "Offline",
+	256: "Temporary", 512: "Sparse", 1024: "Reparse Point", 2048: "Compressed", 
+	4096: "Offline",
 	8192: "Not Indexed", 16384: "Encrypted",
 }
 
@@ -46,6 +47,16 @@ type MFTrecord struct {
 	// fixupArray add the        UpdateSeqArrOffset to find is location
 
 }
+
+func (record MFTrecord) containsAttribute(attributeName string) bool {
+	for _, attribute := range record.Attributes {
+		if attribute.FindType() == attributeName {
+			return true
+		}
+	}
+	return false
+}
+
 
 func (record MFTrecord) findAttribute(attributeName string) attributes.Attribute {
 	for _, attribute := range record.Attributes {
@@ -107,6 +118,9 @@ func (record MFTrecord) ShowRunList() {
 	runs := ""
 	for cluster := range runlists {
 		runs += fmt.Sprintf("%d ", cluster)
+	}
+	if runs != "" {
+		fmt.Printf("runs %s", runs)
 	}
 }
 
@@ -327,23 +341,34 @@ func (record *MFTrecord) Process(bs []byte) {
 }
 
 func (record MFTrecord) ShowFileName() {
-	fnattr := record.findAttribute("FileName").(*MFTAttributes.FNAttribute)
-	fmt.Printf("%s ", fnattr.Fname)
+	fnAttributes := utils.Filter(record.Attributes, func(attribute MFTAttributes.Attribute) bool {
+		return attribute.FindType() == "FileName" 
+	})
+	if len(fnAttributes) != 0 {
+		for _, attr :=range fnAttributes {
+			fnattr := attr.(*MFTAttributes.FNAttribute)
+			fmt.Printf("%s ", fnattr.Fname)
+		}
+	
+	}
 
 }
 
 func (record MFTrecord) GetBasicInfoFromRecord(file1 *os.File) {
 
 	s := fmt.Sprintf("%d;%d;%s", record.Entry, record.Seq, record.getType())
-	fnattr := record.findAttribute("FileName").(*MFTAttributes.FNAttribute)
+	attr := record.findAttribute("FileName")
+	if attr != nil {
+		fnattr := attr.(*MFTAttributes.FNAttribute)
 
-	s1 := strings.Join([]string{s, fnattr.Atime.ConvertToIsoTime(),
-		fnattr.Crtime.ConvertToIsoTime(),
-		fnattr.Mtime.ConvertToIsoTime(), fnattr.Fname,
-		fmt.Sprintf(";%d;%d;%s\n", fnattr.ParRef, fnattr.ParSeq,
-			fnattr.GetType())}, ";")
+		s1 := strings.Join([]string{s, fnattr.Atime.ConvertToIsoTime(),
+			fnattr.Crtime.ConvertToIsoTime(),
+			fnattr.Mtime.ConvertToIsoTime(), fnattr.Fname,
+			fmt.Sprintf(";%d;%d;%s\n", fnattr.ParRef, fnattr.ParSeq,
+				fnattr.GetType())}, ";")
 
-	utils.WriteToCSV(file1, s1)
+		utils.WriteToCSV(file1, s1)
+	}
 
 	//	false, false, record.Entry, 0}
 	//  fmt.Println("\nFNA ",bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+atrRecordResident.OffsetContent+65],bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+atrRecordResident.OffsetContent+6],readEndian(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+atrRecordResident.OffsetContent+6]).(uint64),
