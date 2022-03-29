@@ -340,6 +340,17 @@ func (record *MFTrecord) Process(bs []byte) {
 	record.Attributes = attributes
 }
 
+func (record MFTrecord) ShowFileSize() {
+	
+	attr := record.findAttribute("FileName")
+	if attr != nil {
+		fnattr := attr.(*MFTAttributes.FNAttribute)
+		fmt.Printf(" allocated: %d (KB), real: %d (KB)",
+		 fnattr.AllocFsize/1024, fnattr.RealFsize/1024)
+	}
+	
+}
+
 func (record MFTrecord) ShowFileName() {
 	fnAttributes := utils.Filter(record.Attributes, func(attribute MFTAttributes.Attribute) bool {
 		return attribute.FindType() == "FileName" 
@@ -347,7 +358,7 @@ func (record MFTrecord) ShowFileName() {
 	if len(fnAttributes) != 0 {
 		for _, attr :=range fnAttributes {
 			fnattr := attr.(*MFTAttributes.FNAttribute)
-			fmt.Printf("%s ", fnattr.Fname)
+			fmt.Printf(" %s ", fnattr.Fname)
 		}
 	
 	}
