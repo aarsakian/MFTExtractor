@@ -21,6 +21,17 @@ type WindowsTime struct {
 	Stamp uint64
 }
 
+func Filter[T any](s []T, f func(T) bool) []T {
+	var r []T
+	for _, v := range s {
+		if f(v) {
+			r = append(r, v)
+		}
+	}
+	return r
+}
+
+
 func (winTime *WindowsTime) ConvertToIsoTime() string { //receiver winTime struct
 	// t:=math.Pow((uint64(winTime.high)*2),32) + uint64(winTime.low)
 	x := winTime.Stamp/10000000 - 116444736*1e2
