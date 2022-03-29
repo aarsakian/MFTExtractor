@@ -135,6 +135,7 @@ func main() {
 	fromMFTEntry := flag.Int("fromEntry", 0, "select entry to start parsing")
 	ToMFTEntry := flag.Int("toEntry", math.MaxUint32, "select entry to end parsing")
 	showRunList := flag.Bool("runlist", false, "show runlist of MFT record attributes")
+	showFileSize := flag.Bool("filesize", false, "show file size of a record holding a file")
 
 	flag.Parse() //ready to parse
 
@@ -204,6 +205,10 @@ func main() {
 
 			if *showRunList {
 				record.ShowRunList()
+			}
+
+			if *showFileSize {
+				record.ShowFileSize()
 			}
 
 			if int(record.Entry) == *MFTSelectedEntry {
