@@ -17,7 +17,7 @@ var IndexEntryFlags = map[string]string{
 
 var SIFlags = map[uint32]string{
 	1: "Read Only", 2: "Hidden", 4: "System", 32: "Archive", 64: "Device", 128: "Normal",
-	256: "Temporary", 512: "Sparse", 1024: "Reparse Point", 2048: "Compressed", 
+	256: "Temporary", 512: "Sparse", 1024: "Reparse Point", 2048: "Compressed",
 	4096: "Offline",
 	8192: "Not Indexed", 16384: "Encrypted",
 }
@@ -57,7 +57,6 @@ func (record MFTrecord) containsAttribute(attributeName string) bool {
 	return false
 }
 
-
 func (record MFTrecord) findAttribute(attributeName string) attributes.Attribute {
 	for _, attribute := range record.Attributes {
 		if attribute.FindType() == attributeName {
@@ -65,34 +64,6 @@ func (record MFTrecord) findAttribute(attributeName string) attributes.Attribute
 		}
 	}
 	return nil
-}
-
-func ProcessRunList(runlist []byte) []uint64 {
-	clusterPtr := uint64(0)
-	var clusters []uint64
-
-	// fmt.Printf("LEN %d RUNLIST %x\n" ,len(runlist),runlist)
-	for clusterPtr < uint64(len(runlist)) { // length of bytes of runlist
-		ClusterOffsB, ClusterLenB := utils.DetermineClusterOffsetLength(runlist[clusterPtr])
-
-		if ClusterLenB != 0 && ClusterOffsB != 0 {
-			clustersLen := utils.ReadEndianInt(runlist[clusterPtr+1 : clusterPtr+ClusterLenB+1])
-
-			clustersOff := utils.ReadEndianInt(runlist[clusterPtr+1+ClusterLenB : clusterPtr+ClusterLenB+ClusterOffsB+1])
-			fmt.Printf("len of %d clusterlen %d and clust %d clustoff %d came from %x \n",
-				ClusterLenB, clustersLen, ClusterOffsB, clustersOff, runlist[clusterPtr])
-			for nextCluster := uint64(1); nextCluster <= clustersLen; nextCluster++ {
-
-				clusters = append(clusters, clustersOff)
-				clustersOff++
-			}
-			clusterPtr += ClusterLenB + ClusterOffsB
-
-		} else {
-			break
-		}
-	}
-	return clusters
 }
 
 func (record MFTrecord) hasResidentDataAttr() bool {
@@ -104,24 +75,23 @@ func (record MFTrecord) getType() string {
 	return MFTflags[record.Flags]
 }
 
-func (record MFTrecord) getRunList() []uint64 {
+func (record MFTrecord) getRunList() MFTAttributes.RunList {
 	for _, attribute := range record.Attributes {
 		if attribute.IsNoNResident() {
-			return attribute.GetHeader().ATRrecordNoNResID.RunList
+			return *attribute.GetHeader().ATRrecordNoNResID.RunList
 		}
 	}
-	return nil
+	return MFTAttributes.RunList{}
 }
 
 func (record MFTrecord) ShowRunList() {
-	runlists := record.getRunList()
-	runs := ""
-	for cluster := range runlists {
-		runs += fmt.Sprintf("%d ", cluster)
+	runlist := record.getRunList()
+
+	for (MFTAttributes.RunList{}) != runlist {
+		fmt.Printf(" offset %d  len %d ", runlist.Offset, runlist.Length)
+		runlist = *runlist.Next
 	}
-	if runs != "" {
-		fmt.Printf("runs %s", runs)
-	}
+
 }
 
 func (record MFTrecord) hasDataAttr() bool {
@@ -310,8 +280,10 @@ func (record *MFTrecord) Process(bs []byte) {
 			utils.Unmarshal(bs[ReadPtr+16:ReadPtr+64], &atrNoNRecordResident)
 
 			if uint32(ReadPtr)+attrHeader.AttrLen <= 1024 {
-				atrNoNRecordResident.RunList = ProcessRunList(bs[ReadPtr+
+				var runlist *MFTAttributes.RunList = new(MFTAttributes.RunList)
+				runlist.Process(bs[ReadPtr+
 					atrNoNRecordResident.RunOff : uint32(ReadPtr)+attrHeader.AttrLen])
+				atrNoNRecordResident.RunList = runlist
 
 			}
 
@@ -341,26 +313,26 @@ func (record *MFTrecord) Process(bs []byte) {
 }
 
 func (record MFTrecord) ShowFileSize() {
-	
+
 	attr := record.findAttribute("FileName")
 	if attr != nil {
 		fnattr := attr.(*MFTAttributes.FNAttribute)
 		fmt.Printf(" allocated: %d (KB), real: %d (KB)",
-		 fnattr.AllocFsize/1024, fnattr.RealFsize/1024)
+			fnattr.AllocFsize/1024, fnattr.RealFsize/1024)
 	}
-	
+
 }
 
 func (record MFTrecord) ShowFileName() {
 	fnAttributes := utils.Filter(record.Attributes, func(attribute MFTAttributes.Attribute) bool {
-		return attribute.FindType() == "FileName" 
+		return attribute.FindType() == "FileName"
 	})
 	if len(fnAttributes) != 0 {
-		for _, attr :=range fnAttributes {
+		for _, attr := range fnAttributes {
 			fnattr := attr.(*MFTAttributes.FNAttribute)
 			fmt.Printf(" %s ", fnattr.Fname)
 		}
-	
+
 	}
 
 }
