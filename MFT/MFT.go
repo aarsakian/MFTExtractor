@@ -78,7 +78,7 @@ func (record MFTrecord) getType() string {
 func (record MFTrecord) getRunList() MFTAttributes.RunList {
 	for _, attribute := range record.Attributes {
 		if attribute.IsNoNResident() {
-			return *attribute.GetHeader().ATRrecordNoNResID.RunList
+			return *attribute.GetHeader().ATRrecordNoNResident.RunList
 		}
 	}
 	return MFTAttributes.RunList{}
@@ -89,6 +89,9 @@ func (record MFTrecord) ShowRunList() {
 
 	for (MFTAttributes.RunList{}) != runlist {
 		fmt.Printf(" offset %d  len %d ", runlist.Offset, runlist.Length)
+		if runlist.Next == nil {
+			break
+		}
 		runlist = *runlist.Next
 	}
 
@@ -173,8 +176,9 @@ func (record *MFTrecord) Process(bs []byte) {
 		}
 
 		if !attrHeader.IsNoNResident() { //Resident Attribute
-			var atrRecordResident MFTAttributes.ATRrecordResident
-			utils.Unmarshal(bs[ReadPtr+16:ReadPtr+24], &atrRecordResident)
+			var atrRecordResident *MFTAttributes.ATRrecordResident = new(MFTAttributes.ATRrecordResident)
+			utils.Unmarshal(bs[ReadPtr+16:ReadPtr+24], atrRecordResident)
+			attrHeader.ATRrecordResident = atrRecordResident
 
 			if attrHeader.IsFileName() { // File name
 				var fnattr *MFTAttributes.FNAttribute = new(MFTAttributes.FNAttribute)
@@ -276,8 +280,8 @@ func (record *MFTrecord) Process(bs []byte) {
 			ReadPtr = ReadPtr + uint16(attrHeader.AttrLen)
 
 		} else { //NoN Resident Attribute
-			var atrNoNRecordResident MFTAttributes.ATRrecordNoNResident
-			utils.Unmarshal(bs[ReadPtr+16:ReadPtr+64], &atrNoNRecordResident)
+			var atrNoNRecordResident *MFTAttributes.ATRrecordNoNResident = new(MFTAttributes.ATRrecordNoNResident)
+			utils.Unmarshal(bs[ReadPtr+16:ReadPtr+64], atrNoNRecordResident)
 
 			if uint32(ReadPtr)+attrHeader.AttrLen <= 1024 {
 				var runlist *MFTAttributes.RunList = new(MFTAttributes.RunList)
@@ -286,6 +290,11 @@ func (record *MFTrecord) Process(bs []byte) {
 				atrNoNRecordResident.RunList = runlist
 
 			}
+			attrHeader.ATRrecordNoNResident = atrNoNRecordResident
+
+			data := &MFTAttributes.DATA{}
+			data.SetHeader(&attrHeader)
+			attributes = append(attributes, data)
 
 			/*else if  atrRecordResident.Type == "000000a0" {//Index Allcation
 					 nodeheader := NodeHeader {readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+16:ReadPtr+atrRecordResident.OffsetContent+20]).(uint32),readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+20:ReadPtr+atrRecordResident.OffsetContent+24]).(uint32),

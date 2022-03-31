@@ -24,15 +24,15 @@ type Attribute interface {
 }
 
 type AttributeHeader struct {
-	Type              string //        0-3                              type of attribute e.g. $DATA
-	AttrLen           uint32 //4-8             length of attribute
-	NoNResident       uint8  //8
-	Nlen              string
-	NameOff           uint16 //name offset 10-12          relative to the start of attribute
-	Flags             uint16 //12-14           //compressed,
-	ID                uint16 //14-16 type of attribute
-	ATRrecordResident *ATRrecordResident
-	ATRrecordNoNResID *ATRrecordNoNResident
+	Type                 string //        0-3                              type of attribute e.g. $DATA
+	AttrLen              uint32 //4-8             length of attribute
+	NoNResident          uint8  //8
+	Nlen                 string
+	NameOff              uint16 //name offset 10-12          relative to the start of attribute
+	Flags                uint16 //12-14           //compressed,
+	ID                   uint16 //14-16 type of attribute
+	ATRrecordResident    *ATRrecordResident
+	ATRrecordNoNResident *ATRrecordNoNResident
 }
 
 type ATRrecordResident struct {
