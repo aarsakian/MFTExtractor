@@ -47,15 +47,15 @@ type DATA struct {
 }
 
 type ATRrecordNoNResident struct {
-	StartVcn   uint64   //16-24
-	LastVcn    uint64   //24-32
-	RunOff     uint16   //32-34     offset to the start of the attribute
-	Compusize  uint16   //34-36
-	F1         uint32   //36-40
-	Alen       uint64   //40-48
-	NonRessize uint64   //48-56
-	Initsize   uint64   //56-64
-	RunList    *RunList //holds a linked list of runs
+	StartVcn     uint64   //16-24
+	LastVcn      uint64   //24-32
+	RunOff       uint16   //32-34     offset to the start of the attribute
+	Compusize    uint16   //34-36
+	F1           uint32   //36-40
+	Length       uint64   //40-48
+	ActualLength uint64   //48-56
+	InitLength   uint64   //56-64
+	RunList      *RunList //holds a linked list of runs
 
 }
 
@@ -112,6 +112,7 @@ type IndexRoot struct {
 	Sizeclusters         uint8  //12-12
 	Nodeheader           *NodeHeader
 	Header               *AttributeHeader
+	IndexEntries         []IndexEntry
 }
 
 type NodeHeader struct {
@@ -128,6 +129,8 @@ type IndexAllocation struct {
 	LSN              int64  //8-16
 	VCN              int64  //16-24 where the record fits in the tree
 	Nodeheader       *NodeHeader
+	Header           *AttributeHeader
+	IndexEntries     []IndexEntry
 }
 
 type AttributeListEntries struct {
@@ -239,6 +242,22 @@ func (objectId ObjectID) IsNoNResident() bool {
 	return objectId.Header.IsNoNResident()
 }
 
+func (idxAllocation IndexAllocation) SetHeader(header *AttributeHeader) {
+	idxAllocation.Header = header
+}
+
+func (idxAllocation IndexAllocation) GetHeader() AttributeHeader {
+	return *idxAllocation.Header
+}
+
+func (idxAllocation IndexAllocation) FindType() string {
+	return idxAllocation.Header.GetType()
+}
+
+func (idxAllocation IndexAllocation) IsNoNResident() bool {
+	return idxAllocation.Header.IsNoNResident()
+}
+
 func (volInfo *VolumeInfo) SetHeader(header *AttributeHeader) {
 	volInfo.Header = header
 }
@@ -333,6 +352,10 @@ func (attrHeader AttributeHeader) IsBitmap() bool {
 
 func (attrHeader AttributeHeader) IsVolumeName() bool {
 	return attrHeader.GetType() == "Volume Name"
+}
+
+func (attrHeader AttributeHeader) IsIndexAllocation() bool {
+	return attrHeader.GetType() == "Index Allocation"
 }
 
 func (attrHeader AttributeHeader) IsVolumeInfo() bool {
