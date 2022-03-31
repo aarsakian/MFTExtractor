@@ -397,7 +397,7 @@ func (firstRunlist *RunList) Process(runlists []byte) {
 
 			}
 			*prevRunlist = runlist
-			clusterPtr += ClusterLenB + ClusterOffsB
+			clusterPtr += ClusterLenB + ClusterOffsB + 1
 
 		} else {
 			break
