@@ -247,15 +247,15 @@ func (record *MFTrecord) Process(bs []byte) {
 				utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+
 					atrRecordResident.OffsetContent+12], idxRoot)
 
-				var nodeheader MFTAttributes.NodeHeader
+				var nodeheader *MFTAttributes.NodeHeader = new(MFTAttributes.NodeHeader)
 				utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent+
-					16:ReadPtr+atrRecordResident.OffsetContent+32], &nodeheader)
-				idxRoot.Nodeheader = &nodeheader
+					16:ReadPtr+atrRecordResident.OffsetContent+32], nodeheader)
+				idxRoot.Nodeheader = nodeheader
 
-				var idxEntry MFTAttributes.IndexEntry
+				var idxEntry *MFTAttributes.IndexEntry = new(MFTAttributes.IndexEntry)
 				utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent+16+
-					uint16(nodeheader.OffsetEntryList):ReadPtr+atrRecordResident.OffsetContent+
-					16+uint16(nodeheader.OffsetEndUsedEntryList)], &idxEntry)
+					uint16(nodeheader.OffsetEntryList):ReadPtr+atrRecordResident.OffsetContent+16+
+					uint16(nodeheader.OffsetEntryList)+16], idxEntry)
 				//
 
 				if idxEntry.FilenameLen > 0 {
@@ -266,6 +266,7 @@ func (record *MFTrecord) Process(bs []byte) {
 						&fnattrIDXEntry)
 
 				}
+
 				idxRoot.SetHeader(&attrHeader)
 				attributes = append(attributes, idxRoot)
 			} else if attrHeader.IsStdInfo() { //Standard Information
@@ -292,26 +293,27 @@ func (record *MFTrecord) Process(bs []byte) {
 			}
 			attrHeader.ATRrecordNoNResident = atrNoNRecordResident
 
-			data := &MFTAttributes.DATA{}
-			data.SetHeader(&attrHeader)
-			attributes = append(attributes, data)
+			if attrHeader.IsData() {
+				data := &MFTAttributes.DATA{}
+				data.SetHeader(&attrHeader)
+				attributes = append(attributes, data)
+			} else if attrHeader.IsIndexAllocation() {
+				var idxAllocation *MFTAttributes.IndexAllocation = new(MFTAttributes.IndexAllocation)
+				utils.Unmarshal(bs[ReadPtr+64:ReadPtr+64+24], idxAllocation)
 
-			/*else if  atrRecordResident.Type == "000000a0" {//Index Allcation
-					 nodeheader := NodeHeader {readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+16:ReadPtr+atrRecordResident.OffsetContent+20]).(uint32),readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+20:ReadPtr+atrRecordResident.OffsetContent+24]).(uint32),
-					readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+24:ReadPtr+atrRecordResident.OffsetContent+28]).(uint32)}
-					IDxall := IndexAllocation{string(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+atrRecordResident.OffsetContent+4]),readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+4:ReadPtr+atrRecordResident.OffsetContent+6]).(uint16),readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+6:ReadPtr+atrRecordResident.OffsetContent+8]).(uint16),
-					readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+16:ReadPtr+atrRecordResident.OffsetContent+24]).(uint64), nodeheader}
+				var nodeheader *MFTAttributes.NodeHeader = new(MFTAttributes.NodeHeader)
+				utils.Unmarshal(bs[ReadPtr+64+24:ReadPtr+64+24+16], nodeheader)
 
-				 s := [] string  {"Index Allocation Type ",IDxall.Type,fmt.Sprintf("VCN %d  ",IDxall.VCN),"Index entry start",fmt.Sprintf("%d",IDxall.nodeheader.OffsetEntryList),
-						fmt.Sprintf(" used portion ends at %d",IDxall.nodeheader.OffsetEndUsedEntryList),fmt.Sprintf("allocated ends at %d",IDxall.nodeheader.OffsetEndEntryListBuffer)  ,string(10)}
-				  _,err:=file1.WriteString(strings.Join(s," "))
-				  if err != nil {
-					// handle the error here
-					fmt.Printf("err %s\n",err)
-					  return
-					}
+				idxAllocation.Nodeheader = nodeheader
+				idxAllocation.SetHeader(&attrHeader)
+				attributes = append(attributes, idxAllocation)
 
-			   }*/
+				var idxEntry *MFTAttributes.IndexEntry = new(MFTAttributes.IndexEntry)
+				nodeheaderEndOffs := ReadPtr + 64 + 24 + 16
+				utils.Unmarshal(bs[nodeheaderEndOffs+
+					uint16(nodeheader.OffsetEntryList):nodeheaderEndOffs+
+					uint16(nodeheader.OffsetEntryList)+15], idxEntry)
+			}
 
 			ReadPtr = ReadPtr + uint16(attrHeader.AttrLen)
 
