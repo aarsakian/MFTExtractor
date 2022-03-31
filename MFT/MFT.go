@@ -278,8 +278,6 @@ func (record *MFTrecord) Process(bs []byte) {
 
 			}
 
-			ReadPtr = ReadPtr + uint16(attrHeader.AttrLen)
-
 		} else { //NoN Resident Attribute
 			var atrNoNRecordResident *MFTAttributes.ATRrecordNoNResident = new(MFTAttributes.ATRrecordNoNResident)
 			utils.Unmarshal(bs[ReadPtr+16:ReadPtr+64], atrNoNRecordResident)
@@ -315,9 +313,8 @@ func (record *MFTrecord) Process(bs []byte) {
 					uint16(nodeheader.OffsetEntryList)+15], idxEntry)
 			}
 
-			ReadPtr = ReadPtr + uint16(attrHeader.AttrLen)
-
 		} //ends non Resident
+		ReadPtr = ReadPtr + uint16(attrHeader.AttrLen)
 
 	} //ends while
 	record.Attributes = attributes
