@@ -60,7 +60,7 @@ type ATRrecordNoNResident struct {
 }
 
 type RunList struct {
-	Offset uint64
+	Offset int64
 	Length uint64
 	Next   *RunList
 }
@@ -376,27 +376,28 @@ func (attrHeader AttributeHeader) IsNoNResident() bool {
 
 func (firstRunlist *RunList) Process(runlists []byte) {
 	clusterPtr := uint64(0)
-	var prevRunlist *RunList = new(RunList)
+	var prevRunlist RunList
 	for clusterPtr < uint64(len(runlists)) { // length of bytes of runlist
 		ClusterOffsB, ClusterLenB := utils.DetermineClusterOffsetLength(runlists[clusterPtr])
 
 		if ClusterLenB != 0 && ClusterOffsB != 0 {
-			clustersLen := utils.ReadEndianInt(runlists[clusterPtr+1 : clusterPtr+
+			clustersLen := utils.ReadEndianUInt(runlists[clusterPtr+1 : clusterPtr+
 				ClusterLenB+1])
 
 			clustersOff := utils.ReadEndianInt(runlists[clusterPtr+1+
 				ClusterLenB : clusterPtr+ClusterLenB+ClusterOffsB+1])
-			//	fmt.Printf("len of %d clusterlen %d and clust %d clustoff %d came from %x \n",
-			//		ClusterLenB, clustersLen, ClusterOffsB, clustersOff, runlist[clusterPtr])
 			runlist := RunList{Offset: clustersOff, Length: clustersLen}
-			if firstRunlist != nil {
-				*firstRunlist = runlist
 
+			if clusterPtr == 0 {
+				prevRunlist = runlist       //copy first value
+				*firstRunlist = prevRunlist // first run points to prev
 			} else {
-				*prevRunlist.Next = runlist
+				prevRunlist.Next = &runlist
 
+				prevRunlist = runlist
 			}
-			*prevRunlist = runlist
+
+			//*prevRunlist = runlist
 			clusterPtr += ClusterLenB + ClusterOffsB + 1
 
 		} else {
