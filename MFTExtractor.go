@@ -136,7 +136,7 @@ func main() {
 	ToMFTEntry := flag.Int("toEntry", math.MaxUint32, "select entry to end parsing")
 	showRunList := flag.Bool("runlist", false, "show runlist of MFT record attributes")
 	showFileSize := flag.Bool("filesize", false, "show file size of a record holding a file")
-
+	showVCNs := flag.Bool("vcns", false, "show the vncs of non resident attributes")
 	flag.Parse() //ready to parse
 
 	//err := dbmap.TruncateTables()
@@ -209,6 +209,10 @@ func main() {
 
 			if *showFileSize {
 				record.ShowFileSize()
+			}
+
+			if *showVCNs {
+				record.ShowVCNs()
 			}
 
 			if int(record.Entry) == *MFTSelectedEntry {
