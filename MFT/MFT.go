@@ -7,6 +7,7 @@ import (
 
 	"github.com/aarsakian/MFTExtractor/MFT/attributes"
 	MFTAttributes "github.com/aarsakian/MFTExtractor/MFT/attributes"
+	"github.com/aarsakian/MFTExtractor/img"
 	"github.com/aarsakian/MFTExtractor/utils"
 )
 
@@ -164,7 +165,9 @@ func (record MFTrecord) CreateFileFromEntry(exportFiles string) {
 
 	} else if (exportFiles == "NoNResident" || exportFiles == "All") &&
 		!record.hasResidentDataAttr() {
-
+		runlist := record.getRunList()
+		img.ReadDisk("////.//PhysicalDrive0", int32(runlist.Offset),
+			uint32(runlist.Length))
 	}
 
 }
