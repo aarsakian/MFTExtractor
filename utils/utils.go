@@ -31,7 +31,6 @@ func Filter[T any](s []T, f func(T) bool) []T {
 	return r
 }
 
-
 func (winTime *WindowsTime) ConvertToIsoTime() string { //receiver winTime struct
 	// t:=math.Pow((uint64(winTime.high)*2),32) + uint64(winTime.low)
 	x := winTime.Stamp/10000000 - 116444736*1e2
@@ -40,11 +39,22 @@ func (winTime *WindowsTime) ConvertToIsoTime() string { //receiver winTime struc
 
 }
 
-func ReadEndianInt(barray []byte) uint64 {
+func ReadEndianUInt(barray []byte) uint64 {
 	var sum uint64
 	sum = 0
 	for index, val := range barray {
 		sum += uint64(val) << uint(index*8)
+
+	}
+
+	return sum
+}
+
+func ReadEndianInt(barray []byte) int64 {
+	var sum int64
+	sum = 0
+	for index, val := range barray {
+		sum += int64(val) << int(index*8)
 
 	}
 
