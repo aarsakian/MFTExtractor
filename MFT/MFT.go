@@ -77,11 +77,31 @@ func (record MFTrecord) getType() string {
 
 func (record MFTrecord) getRunList() MFTAttributes.RunList {
 	for _, attribute := range record.Attributes {
-		if attribute.IsNoNResident() {
+		if attribute.IsNoNResident() &&
+			attribute.GetHeader().ATRrecordNoNResident.RunList != nil {
 			return *attribute.GetHeader().ATRrecordNoNResident.RunList
 		}
 	}
 	return MFTAttributes.RunList{}
+}
+
+func (record MFTrecord) ShowVCNs() {
+	startVCN, lastVCN := record.getVCNs()
+	if startVCN != 0 || lastVCN != 0 {
+		fmt.Printf(" startVCN %d endVCN %d", startVCN, lastVCN)
+	}
+
+}
+
+func (record MFTrecord) getVCNs() (uint64, uint64) {
+	for _, attribute := range record.Attributes {
+		if attribute.IsNoNResident() {
+			return attribute.GetHeader().ATRrecordNoNResident.StartVcn,
+				attribute.GetHeader().ATRrecordNoNResident.LastVcn
+		}
+	}
+	return 0, 0
+
 }
 
 func (record MFTrecord) ShowRunList() {
