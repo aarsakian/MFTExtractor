@@ -374,9 +374,9 @@ func (attrHeader AttributeHeader) IsNoNResident() bool {
 	return attrHeader.NoNResident == 1
 }
 
-func (firstRunlist *RunList) Process(runlists []byte) {
+func (prevRunlist *RunList) Process(runlists []byte) {
 	clusterPtr := uint64(0)
-	var prevRunlist RunList
+
 	for clusterPtr < uint64(len(runlists)) { // length of bytes of runlist
 		ClusterOffsB, ClusterLenB := utils.DetermineClusterOffsetLength(runlists[clusterPtr])
 
@@ -386,18 +386,17 @@ func (firstRunlist *RunList) Process(runlists []byte) {
 
 			clustersOff := utils.ReadEndianInt(runlists[clusterPtr+1+
 				ClusterLenB : clusterPtr+ClusterLenB+ClusterOffsB+1])
+
 			runlist := RunList{Offset: clustersOff, Length: clustersLen}
 
 			if clusterPtr == 0 {
-				prevRunlist = runlist       //copy first value
-				*firstRunlist = prevRunlist // first run points to prev
+				*prevRunlist = runlist
 			} else {
 				prevRunlist.Next = &runlist
-
-				prevRunlist = runlist
+				prevRunlist = &runlist
 			}
 
-			//*prevRunlist = runlist
+			//		prevRunlist = runlist
 			clusterPtr += ClusterLenB + ClusterOffsB + 1
 
 		} else {
