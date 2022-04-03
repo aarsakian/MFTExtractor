@@ -107,10 +107,12 @@ func (record MFTrecord) getVCNs() (uint64, uint64) {
 
 func (record MFTrecord) ShowRunList() {
 	runlist := record.getRunList()
-
+	totalSize := 0
 	for (MFTAttributes.RunList{}) != runlist {
-		fmt.Printf(" offset %d  len %d ", runlist.Offset, runlist.Length)
+		totalSize += int(runlist.Length)
+		fmt.Printf(" offs. %d cluster len %d ", runlist.Offset, runlist.Length)
 		if runlist.Next == nil {
+			fmt.Printf("total size %d ", totalSize)
 			break
 		}
 		runlist = *runlist.Next
