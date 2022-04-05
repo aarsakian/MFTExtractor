@@ -7,9 +7,9 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-func ReadDisk(a_file string, lowoffset int32, byteToRead uint32) {
+func ReadDisk(a_file string, offset int64, bytesToRead uint32) []byte {
 
-	file_ptr := utils.StringToUTF16Ptr(a_file)
+	file_ptr, _ := windows.UTF16PtrFromString(a_file)
 	var templateHandle windows.Handle
 	fd, err := windows.CreateFile(file_ptr, windows.FILE_READ_DATA,
 		windows.FILE_SHARE_READ, nil,
@@ -19,9 +19,20 @@ func ReadDisk(a_file string, lowoffset int32, byteToRead uint32) {
 	}
 
 	defer windows.Close(fd)
-	var buf_pointer []byte
-	windows.SetFilePointer(fd, lowoffset, nil, windows.FILE_BEGIN)
+	buf_pointer := make([]byte, bytesToRead)
+	largeInteger := utils.NewLargeInteger(offset)
+	var bytesRead uint32
 
-	windows.ReadFile(fd, buf_pointer, &byteToRead, nil)
+	newLowOffset, err := windows.SetFilePointer(fd, largeInteger.LowPart, &largeInteger.HighPart, windows.FILE_BEGIN)
+	largeInteger.LowPart = int32(newLowOffset)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	err = windows.ReadFile(fd, buf_pointer, &bytesRead, nil)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	return buf_pointer
 
 }
