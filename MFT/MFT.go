@@ -115,8 +115,10 @@ func (record MFTrecord) getData() []byte {
 	} else {
 		runlist := record.getRunList()
 		var dataRuns [][]byte
+		offset := int64(0)
 		for (MFTAttributes.RunList{}) != runlist {
-			data := img.ReadDisk("\\\\.\\PHYSICALDRIVE0", runlist.Offset*8*512+1026048*512,
+			offset += runlist.Offset*8*512 + 1026048*512
+			data := img.ReadDisk("\\\\.\\PHYSICALDRIVE0", offset,
 				uint32(runlist.Length*8*512))
 			dataRuns = append(dataRuns, data)
 			if runlist.Next == nil {
