@@ -192,7 +192,7 @@ func main() {
 			record.GetBasicInfoFromRecord(file1)
 
 			if *exportFiles != "None" {
-				record.CreateFileFromEntry(*exportFiles)
+				record.CreateFileFromEntry()
 			}
 
 			if *showFileName {
