@@ -168,8 +168,8 @@ func (record MFTrecord) CreateFileFromEntry(exportFiles string) {
 	} else if (exportFiles == "NoNResident" || exportFiles == "All") &&
 		!record.hasResidentDataAttr() {
 		runlist := record.getRunList()
-		img.ReadDisk("////.//PhysicalDrive0", int32(runlist.Offset),
-			uint32(runlist.Length))
+		img.ReadDisk("\\\\.\\PHYSICALDRIVE0", runlist.Offset*8*512,
+			uint32(runlist.Length*8*512))
 	}
 
 }

@@ -17,6 +17,19 @@ import (
 
 type NoNull string
 
+type LargeInteger struct {
+	QuadPart int64
+	HighPart int32
+	LowPart  int32
+}
+
+func NewLargeInteger(val int64) LargeInteger {
+
+	return LargeInteger{QuadPart: val, HighPart: int32(val >> 32),
+		LowPart: int32(val & 0xFFFFFFFF)}
+
+}
+
 type WindowsTime struct {
 	Stamp uint64
 }
@@ -190,11 +203,6 @@ func Bytereverse(barray []byte) []byte { //work with indexes
 	}
 	return barray
 
-}
-
-func StringToUTF16Ptr(str string) *uint16 {
-	wchars := utf16.Encode([]rune(str + "\x00"))
-	return &wchars[0]
 }
 
 func WriteFile(filename string, content []byte) {
