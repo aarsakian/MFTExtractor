@@ -16,8 +16,7 @@ type DISK_GEOMETRY struct {
 	BytesPerSector    int32
 }
 
-func ReadDisk(a_file string, offset int64, bytesToRead uint32) []byte {
-
+func GetHandler(a_file string) windows.Handle {
 	file_ptr, _ := windows.UTF16PtrFromString(a_file)
 	var templateHandle windows.Handle
 	fd, err := windows.CreateFile(file_ptr, windows.FILE_READ_DATA,
@@ -27,7 +26,14 @@ func ReadDisk(a_file string, offset int64, bytesToRead uint32) []byte {
 		log.Fatalln(err)
 	}
 
-	defer windows.Close(fd)
+	return fd
+}
+
+func CloseHandler(fd windows.Handle) {
+	windows.Close(fd)
+}
+func ReadDisk(fd windows.Handle, offset int64, bytesToRead uint32) []byte {
+
 	buf_pointer := make([]byte, bytesToRead)
 	largeInteger := utils.NewLargeInteger(offset)
 	var bytesRead uint32
@@ -38,15 +44,6 @@ func ReadDisk(a_file string, offset int64, bytesToRead uint32) []byte {
 		log.Fatalln(err)
 	}
 
-	diskSize := getDiskSize(fd)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	if offset > int64(diskSize) {
-		log.Fatal("error offset exceeds file size ", offset-diskSize)
-	}
-
 	err = windows.ReadFile(fd, buf_pointer, &bytesRead, nil)
 	if err != nil {
 		log.Fatalln(err)
@@ -55,7 +52,7 @@ func ReadDisk(a_file string, offset int64, bytesToRead uint32) []byte {
 
 }
 
-func getDiskSize(hD windows.Handle) int64 {
+func GetDiskSize(hD windows.Handle) int64 {
 	const IOCTL_DISK_GET_DRIVE_GEOMETRY = 0x70000
 	const nByte_DISK_GEOMETRY = 24
 	disk_geometry := DISK_GEOMETRY{}

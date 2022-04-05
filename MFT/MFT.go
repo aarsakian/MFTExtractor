@@ -116,11 +116,20 @@ func (record MFTrecord) getData() []byte {
 		runlist := record.getRunList()
 		var dataRuns [][]byte
 		offset := int64(0)
+		hD := img.GetHandler("\\\\.\\PHYSICALDRIVE0")
+		diskSize := img.GetDiskSize(hD)
+		defer img.CloseHandler(hD)
+
 		for (MFTAttributes.RunList{}) != runlist {
 			offset += runlist.Offset*8*512 + 1026048*512
-			data := img.ReadDisk("\\\\.\\PHYSICALDRIVE0", offset,
+			if offset > diskSize {
+				fmt.Printf("skipped offset %d exceeds disk size! exiting", offset)
+				break
+			}
+			data := img.ReadDisk(hD, offset,
 				uint32(runlist.Length*8*512))
 			dataRuns = append(dataRuns, data)
+
 			if runlist.Next == nil {
 				break
 			}
