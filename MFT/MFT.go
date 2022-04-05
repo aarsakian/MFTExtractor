@@ -1,6 +1,7 @@
 package MFT
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"strings"
@@ -105,12 +106,37 @@ func (record MFTrecord) getVCNs() (uint64, uint64) {
 
 }
 
+func (record MFTrecord) getData() []byte {
+
+	if record.hasResidentDataAttr() {
+
+		return record.findAttribute("DATA").(*MFTAttributes.DATA).Content
+
+	} else {
+		runlist := record.getRunList()
+		var dataRuns [][]byte
+		for (MFTAttributes.RunList{}) != runlist {
+			data := img.ReadDisk("\\\\.\\PHYSICALDRIVE0", runlist.Offset*8*512+1026048*512,
+				uint32(runlist.Length*8*512))
+			dataRuns = append(dataRuns, data)
+			if runlist.Next == nil {
+				break
+			}
+
+			runlist = *runlist.Next
+		}
+		return bytes.Join(dataRuns, []byte(""))
+
+	}
+
+}
+
 func (record MFTrecord) ShowRunList() {
 	runlist := record.getRunList()
 	totalSize := 0
 	for (MFTAttributes.RunList{}) != runlist {
 		totalSize += int(runlist.Length)
-		fmt.Printf(" offs. %d cluster len %d ", runlist.Offset, runlist.Length)
+		fmt.Printf(" offs. %d sector len %d ", runlist.Offset*8, runlist.Length*8)
 		if runlist.Next == nil {
 			fmt.Printf("total size %d ", totalSize)
 			break
@@ -157,20 +183,11 @@ func (record MFTrecord) ShowFNAMFTAccessTime() {
 	fmt.Printf("%s ", fnattr.Atime.ConvertToIsoTime())
 }
 
-func (record MFTrecord) CreateFileFromEntry(exportFiles string) {
+func (record MFTrecord) CreateFileFromEntry() {
+	fnattr := record.findAttribute("FileName").(*MFTAttributes.FNAttribute)
 
-	if (exportFiles == "Resident" || exportFiles == "All") &&
-		record.hasResidentDataAttr() {
-		fnattr := record.findAttribute("FileName").(*MFTAttributes.FNAttribute)
-		data := record.findAttribute("DATA").(*MFTAttributes.DATA)
-		utils.WriteFile(fnattr.Fname, data.Content)
-
-	} else if (exportFiles == "NoNResident" || exportFiles == "All") &&
-		!record.hasResidentDataAttr() {
-		runlist := record.getRunList()
-		img.ReadDisk("\\\\.\\PHYSICALDRIVE0", runlist.Offset*8*512,
-			uint32(runlist.Length*8*512))
-	}
+	data := record.getData()
+	utils.WriteFile(fnattr.Fname, data)
 
 }
 
