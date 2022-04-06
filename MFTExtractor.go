@@ -128,15 +128,17 @@ func main() {
 
 	//	save2DB := flag.Bool("db", false, "bool if set an sqlite file will be created, each table will corresponed to an MFT attribute")
 	inputfile := flag.String("MFT", "MFT file", "absolute path to the MFT file")
-	exportFiles := flag.String("Export", "None", "export resident files")
-	MFTSelectedEntry := flag.Int("Entry", -1, "select a particular MFT entry")
-	showFileName := flag.Bool("FileName", false, "show the name of the filename attribute of each MFT record")
-	isResident := flag.Bool("Resident", false, "check whether entry is resident")
+	exportFiles := flag.String("export", "None", "export resident files")
+	MFTSelectedEntry := flag.Int("entry", -1, "select a particular MFT entry")
+	showFileName := flag.Bool("fileName", false, "show the name of the filename attribute of each MFT record")
+	isResident := flag.Bool("resident", false, "check whether entry is resident")
 	fromMFTEntry := flag.Int("fromEntry", 0, "select entry to start parsing")
 	ToMFTEntry := flag.Int("toEntry", math.MaxUint32, "select entry to end parsing")
 	showRunList := flag.Bool("runlist", false, "show runlist of MFT record attributes")
 	showFileSize := flag.Bool("filesize", false, "show file size of a record holding a file")
 	showVCNs := flag.Bool("vcns", false, "show the vncs of non resident attributes")
+	showAttributes := flag.Bool("attributes", false, "show attributes")
+	showTimestamps := flag.Bool("timestamps", false, "show all timestamps")
 	flag.Parse() //ready to parse
 
 	//err := dbmap.TruncateTables()
@@ -189,7 +191,6 @@ func main() {
 		if string(bs[:4]) == "FILE" {
 			var record MFT.MFTrecord
 			record.Process(bs)
-			record.GetBasicInfoFromRecord(file1)
 
 			if *exportFiles != "None" {
 				record.CreateFileFromEntry()
@@ -197,6 +198,14 @@ func main() {
 
 			if *showFileName {
 				record.ShowFileName()
+			}
+
+			if *showAttributes {
+				record.ShowAttributes()
+			}
+
+			if *showTimestamps {
+				record.ShowTimestamps()
 			}
 
 			if *isResident {

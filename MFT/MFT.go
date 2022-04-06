@@ -106,6 +106,30 @@ func (record MFTrecord) getVCNs() (uint64, uint64) {
 
 }
 
+func (record MFTrecord) ShowAttributes() {
+	fmt.Printf("%d %d %s ", record.Entry, record.Seq, record.getType())
+	for _, attribute := range record.Attributes {
+		fmt.Printf("%s ", attribute.FindType())
+	}
+
+}
+
+func (record MFTrecord) ShowTimestamps() {
+	var attr attributes.Attribute
+	attr = record.findAttribute("FileName")
+	if attr != nil {
+		fnattr := attr.(*MFTAttributes.FNAttribute)
+		atime, ctime, mtime, mftime := fnattr.GetTimestamps()
+		fmt.Printf("FN a %s c %s m %s mftm %s ", atime, ctime, mtime, mftime)
+	}
+	attr = record.findAttribute("Standard Information")
+	if attr != nil {
+		siattr := attr.(*MFTAttributes.SIAttribute)
+		atime, ctime, mtime, mftime := siattr.GetTimestamps()
+		fmt.Printf("SI a %s c %s m %s mftm %s ", atime, ctime, mtime, mftime)
+	}
+}
+
 func (record MFTrecord) getData() []byte {
 
 	if record.hasResidentDataAttr() {
@@ -211,7 +235,7 @@ func (record *MFTrecord) Process(bs []byte) {
 	}
 
 	ReadPtr := record.AttrOff //offset to first attribute
-	fmt.Printf("\n Processing $MFT entry %d %s ", record.Entry, record.getType())
+	fmt.Printf("\n Processing $MFT entry %d ", record.Entry)
 	var attributes []MFTAttributes.Attribute
 	for ReadPtr < 1024 {
 
@@ -221,8 +245,6 @@ func (record *MFTrecord) Process(bs []byte) {
 
 		var attrHeader MFTAttributes.AttributeHeader
 		utils.Unmarshal(bs[ReadPtr:ReadPtr+16], &attrHeader)
-
-		fmt.Printf("%s ", attrHeader.GetType())
 
 		if attrHeader.IsLast() { // End of attributes
 			break
