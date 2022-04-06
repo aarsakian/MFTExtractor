@@ -12,10 +12,8 @@ import (
 	"math"
 	"os"
 
-	//	"github.com/coopernurse/gorp"
-	//	_ "github.com/mattn/go-sqlite3"
-	// "gob"//de-serialization
-	// "math"
+	ntfs "github.com/aarsakian/MFTExtractor/NTFS"
+
 	"github.com/aarsakian/MFTExtractor/MFT"
 )
 
@@ -139,6 +137,8 @@ func main() {
 	showVCNs := flag.Bool("vcns", false, "show the vncs of non resident attributes")
 	showAttributes := flag.Bool("attributes", false, "show attributes")
 	showTimestamps := flag.Bool("timestamps", false, "show all timestamps")
+	physicalDriveNumber := flag.Int("physicalDrive", -1, "use physical drive information for extraction of non resident files")
+
 	flag.Parse() //ready to parse
 
 	//err := dbmap.TruncateTables()
@@ -191,6 +191,10 @@ func main() {
 		if string(bs[:4]) == "FILE" {
 			var record MFT.MFTrecord
 			record.Process(bs)
+
+			if *physicalDriveNumber != -1 {
+				ntfs.Parse(*physicalDriveNumber)
+			}
 
 			if *exportFiles != "None" {
 				record.CreateFileFromEntry()
