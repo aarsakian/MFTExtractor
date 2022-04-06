@@ -130,7 +130,7 @@ func (record MFTrecord) ShowTimestamps() {
 	}
 }
 
-func (record MFTrecord) getData() []byte {
+func (record MFTrecord) getData(sectorsPerCluster uint8) []byte {
 
 	if record.hasResidentDataAttr() {
 
@@ -145,7 +145,7 @@ func (record MFTrecord) getData() []byte {
 		defer img.CloseHandler(hD)
 
 		for (MFTAttributes.RunList{}) != runlist {
-			offset += runlist.Offset*8*512 + 1026048*512
+			offset += runlist.Offset*int64(sectorsPerCluster)*512 + 1026048*512
 			if offset > diskSize {
 				fmt.Printf("skipped offset %d exceeds disk size! exiting", offset)
 				break
@@ -218,10 +218,10 @@ func (record MFTrecord) ShowFNAMFTAccessTime() {
 	fmt.Printf("%s ", fnattr.Atime.ConvertToIsoTime())
 }
 
-func (record MFTrecord) CreateFileFromEntry() {
+func (record MFTrecord) CreateFileFromEntry(clusterPerSector uint8) {
 	fnattr := record.findAttribute("FileName").(*MFTAttributes.FNAttribute)
 
-	data := record.getData()
+	data := record.getData(clusterPerSector)
 	utils.WriteFile(fnattr.Fname, data)
 
 }
