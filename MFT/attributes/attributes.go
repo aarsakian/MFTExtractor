@@ -191,6 +191,14 @@ func (fnAttr FNAttribute) GetType() string {
 	return NameSpaceFlags[fnAttr.Flags]
 }
 
+func (fnAttr FNAttribute) GetTimestamps() (string, string, string, string) {
+	atime := fnAttr.Atime.ConvertToIsoTime()
+	ctime := fnAttr.Crtime.ConvertToIsoTime()
+	mtime := fnAttr.Mtime.ConvertToIsoTime()
+	mftime := fnAttr.MFTmtime.ConvertToIsoTime()
+	return atime, ctime, mtime, mftime
+}
+
 func (fnAttr FNAttribute) IsNoNResident() bool {
 	return fnAttr.Header.IsNoNResident()
 }
@@ -209,6 +217,14 @@ func (siattr SIAttribute) FindType() string {
 
 func (siattr SIAttribute) IsNoNResident() bool {
 	return siattr.Header.IsNoNResident() // always resident
+}
+
+func (siattr SIAttribute) GetTimestamps() (string, string, string, string) {
+	atime := siattr.Atime.ConvertToIsoTime()
+	ctime := siattr.Crtime.ConvertToIsoTime()
+	mtime := siattr.Mtime.ConvertToIsoTime()
+	mftime := siattr.MFTmtime.ConvertToIsoTime()
+	return atime, ctime, mtime, mftime
 }
 
 func (data *DATA) SetHeader(header *AttributeHeader) {
