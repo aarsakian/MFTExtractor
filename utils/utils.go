@@ -187,6 +187,8 @@ func Unmarshal(data []byte, v interface{}) error {
 		case reflect.Bool:
 			field.SetBool(false)
 			idx += 1
+		case reflect.Array:
+			idx += field.Len()
 
 		}
 

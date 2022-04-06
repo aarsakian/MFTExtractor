@@ -190,14 +190,14 @@ func main() {
 
 		if string(bs[:4]) == "FILE" {
 			var record MFT.MFTrecord
+
 			record.Process(bs)
 
-			if *physicalDriveNumber != -1 {
-				ntfs.Parse(*physicalDriveNumber)
-			}
-
-			if *exportFiles != "None" {
-				record.CreateFileFromEntry()
+			if *exportFiles != "None" && *physicalDriveNumber != -1 {
+				ntfs := ntfs.Parse(*physicalDriveNumber)
+				record.CreateFileFromEntry(ntfs.SectorsPerCluster)
+			} else if *exportFiles != "None" {
+				record.CreateFileFromEntry(0)
 			}
 
 			if *showFileName {
