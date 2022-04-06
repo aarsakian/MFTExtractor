@@ -11,3 +11,7 @@ type NFTS struct {
 	MFTOffset         uint64   //48-56
 	MFTMirrOffset     uint64   //56-64
 }
+
+func Parse(driveNumber int) {
+
+}
