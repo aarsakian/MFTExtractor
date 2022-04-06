@@ -436,102 +436,58 @@ func (record MFTrecord) GetBasicInfoFromRecord(file1 *os.File) {
 		utils.WriteToCSV(file1, s1)
 	}
 
-	//	false, false, record.Entry, 0}
-	//  fmt.Println("\nFNA ",bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+atrRecordResident.OffsetContent+65],bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+atrRecordResident.OffsetContent+6],readEndian(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+atrRecordResident.OffsetContent+6]).(uint64),
-	//	"PAREF",fnattr.ParRef,"SQ",fnattr.fname,"FLAG",fnattr.flags)
-	//   fmt.Printf("time Mod %s time Accessed %s time Created %s Filename %s\n ", fnattr.atime.convertToIsoTime(),fnattr.crtime.convertToIsoTime(),fnattr.mtime.convertToIsoTime(),fnattr.fname )
-	//    fmt.Println(strings.TrimSpace(string(bs[ReadPtr+atrRecordResident.OffsetContent+66:ReadPtr+atrRecordResident.OffsetContent+66+2*uint16(readEndian(bs[ReadPtr+atrRecordResident.OffsetContent+64:ReadPtr+atrRecordResident.OffsetContent+65]).(uint8))])))
-	/*if *save2DB {
-						dbmap.Insert(&fnattr)
-						checkErr(err, "Insert failed")
-					}
+	/*
+
+						// fmt.Println("file unique ID ",objectattr.objID)
+							if *save2DB {
+								dbmap.Insert(&objectattr)
+								checkErr(err, "Insert failed")
+							}
+							s := []string{";", objectattr.ObjID}
+							_, err := file1.WriteString(strings.Join(s, " "))
+							if err != nil {
+								// handle the error here
+								fmt.Printf("err %s\n", err)
+								return
+							}
 
 
-
-					// fmt.Println("file unique ID ",objectattr.objID)
-						if *save2DB {
-							dbmap.Insert(&objectattr)
-							checkErr(err, "Insert failed")
-						}
-						s := []string{";", objectattr.ObjID}
-						_, err := file1.WriteString(strings.Join(s, " "))
-						if err != nil {
-							// handle the error here
-							fmt.Printf("err %s\n", err)
-							return
-						}
-
-
-		s := []string{"Type of Attr in Run list", fmt.Sprintf("Attribute starts at %d", ReadPtr),
-			AttrTypes[attrList.Type], fmt.Sprintf("length %d ", attrList.Len), fmt.Sprintf("start VCN %d ", attrList.StartVcn),
-			"MFT Record Number", fmt.Sprintf("%d Name %s", attrList.FileRef, attrList.name),
-			"Attribute ID ", fmt.Sprintf("%d ", attrList.ID), string(10)}
-		_, err := file1.WriteString(strings.Join(s, " "))
-		if err != nil {
-			// handle the error here
-			fmt.Printf("err %s\n", err)
-			return
-		}
-
-		s := []string{";", volname.Name.PrintNulls()}
-		_, err := file1.WriteString(strings.Join(s, "s"))
-		if err != nil {
-			// handle the error here
-			fmt.Printf("err %s\n", err)
-			return
-		}
-
-		s := []string{"Vol Info flags", volinfo.Flags, string(10)}
-		_, err := file1.WriteString(strings.Join(s, " "))
-		if err != nil {
-			// handle the error here
-			fmt.Printf("err %s\n", err)
-			return
-		}
-
-		s := []string{idxRoot.Type, ";", fmt.Sprintf(";%d", idxRoot.Sizeclusters), ";", fmt.Sprintf("%d;", 16+idxRoot.nodeheader.OffsetEntryList),
-		fmt.Sprintf(";%d", 16+idxRoot.nodeheader.OffsetEndUsedEntryList), fmt.Sprintf("allocated ends at %d", 16+idxRoot.nodeheader.OffsetEndEntryListBuffer),
-		fmt.Sprintf("MFT entry%d ", idxEntry.MFTfileref), "FLags", IndexEntryFlags[idxEntry.Flags]}
-	//fmt.Sprintf("%x",bs[uint32(ReadPtr)+uint32(atrRecordResident.OffsetContent)+32:uint32(ReadPtr)+uint32(atrRecordResident.OffsetContent)+16+IDxroot.nodeheader.OffsetEndEntryListBuffer]
-	s1 := []string{"Filename idx Entry", fnattrIDXEntry.Fname}
-	file1.WriteString(strings.Join(s1, " "))
-	}
-
-	_, err := file1.WriteString(strings.Join(s, " "))
-	if err != nil {
-	// handle the error here
-	fmt.Printf("err %s\n", err)
-	return
-	s1 := []string{"Filename idx Entry", fnattrIDXEntry.Fname}
-	file1.WriteString(strings.Join(s1, " "))
-	}
-
-	_, err := file1.WriteString(strings.Join(s, " "))
-	if err != nil {
-	// handle the error here
-	fmt.Printf("err %s\n", err)
-	return
-
-	s := []string{fmt.Sprintf(";%d", startpoint), ";", siattr.Crtime.convertToIsoTime(),
-	";", siattr.Atime.convertToIsoTime(), ";", siattr.Mtime.convertToIsoTime(), ";",
-	siattr.MFTmtime.convertToIsoTime()}
-	writeToCSV(file1, strings.Join(s, ""))
-
-	s := []string{";", AttrTypes[atrNoNRecordResident.Type], fmt.Sprintf(";%d", ReadPtr), ";false", fmt.Sprintf(";%d;%d", atrNoNRecordResident.StartVcn, atrNoNRecordResident.LastVcn)}
-	_, err := file1.WriteString(strings.Join(s, ""))
-	if err != nil {
-		// handle the error here
-		fmt.Printf("err %s\n", err)
-		return
-	}
-
-				//s := [] string {fmt.Sprintf("Start VCN %d END VCN %d",atrRecordResident.StartVcn,atrRecordResident.LastVcn ), string(10)}
-				// _,err:=file1.WriteString(strings.Join(s," "))
-				//  if err != nil {
+			s := []string{"Type of Attr in Run list", fmt.Sprintf("Attribute starts at %d", ReadPtr),
+				AttrTypes[attrList.Type], fmt.Sprintf("length %d ", attrList.Len), fmt.Sprintf("start VCN %d ", attrList.StartVcn),
+				"MFT Record Number", fmt.Sprintf("%d Name %s", attrList.FileRef, attrList.name),
+				"Attribute ID ", fmt.Sprintf("%d ", attrList.ID), string(10)}
+			_, err := file1.WriteString(strings.Join(s, " "))
+			if err != nil {
 				// handle the error here
-				//   fmt.Printf("err %s\n",err)
-				//     return
-				//  }
+				fmt.Printf("err %s\n", err)
+				return
+			}
+
+			s := []string{";", volname.Name.PrintNulls()}
+			_, err := file1.WriteString(strings.Join(s, "s"))
+			if err != nil {
+				// handle the error here
+				fmt.Printf("err %s\n", err)
+				return
+			}
+
+			s := []string{"Vol Info flags", volinfo.Flags, string(10)}
+			_, err := file1.WriteString(strings.Join(s, " "))
+			if err != nil {
+				// handle the error here
+				fmt.Printf("err %s\n", err)
+				return
+			}
+
+			s := []string{idxRoot.Type, ";", fmt.Sprintf(";%d", idxRoot.Sizeclusters), ";", fmt.Sprintf("%d;", 16+idxRoot.nodeheader.OffsetEntryList),
+			fmt.Sprintf(";%d", 16+idxRoot.nodeheader.OffsetEndUsedEntryList), fmt.Sprintf("allocated ends at %d", 16+idxRoot.nodeheader.OffsetEndEntryListBuffer),
+			fmt.Sprintf("MFT entry%d ", idxEntry.MFTfileref), "FLags", IndexEntryFlags[idxEntry.Flags]}
+		//fmt.Sprintf("%x",bs[uint32(ReadPtr)+uint32(atrRecordResident.OffsetContent)+32:uint32(ReadPtr)+uint32(atrRecordResident.OffsetContent)+16+IDxroot.nodeheader.OffsetEndEntryListBuffer]
+		s1 := []string{"Filename idx Entry", fnattrIDXEntry.Fname}
+		file1.WriteString(strings.Join(s1, " "))
+		}
+
+
 
 	*/
 }
