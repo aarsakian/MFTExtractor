@@ -22,10 +22,12 @@ type NTFS struct {
 func Parse(driveNumber int) NTFS {
 	offset := int64(124769275 * 512)
 	length := uint32(512)
-	hD := img.GetHandler("\\\\.\\PHYSICALDRIVE" + fmt.Sprintf("%d", driveNumber))
 
-	defer img.CloseHandler(hD)
-	data := img.ReadDisk(hD, offset, length)
+	var data []byte
+	hD := img.GetHandler("/dev/sda" + fmt.Sprintf("%d", driveNumber))
+	data = hD.ReadFile(offset, length)
+	//"\\\\.\\PHYSICALDRIVE" + fmt.Sprintf("%d", driveNumber))
+
 	var ntfs NTFS
 	utils.Unmarshal(data, &ntfs)
 	return ntfs
