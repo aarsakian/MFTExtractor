@@ -141,8 +141,7 @@ func (record MFTrecord) getData(sectorsPerCluster uint8) []byte {
 		var dataRuns [][]byte
 		offset := int64(0)
 		hD := img.GetHandler("\\\\.\\PHYSICALDRIVE0")
-		diskSize := img.GetDiskSize(hD)
-		defer img.CloseHandler(hD)
+		diskSize := hD.GetDiskSize()
 
 		for (MFTAttributes.RunList{}) != runlist {
 			offset += runlist.Offset*int64(sectorsPerCluster)*512 + 1026048*512
@@ -150,7 +149,7 @@ func (record MFTrecord) getData(sectorsPerCluster uint8) []byte {
 				fmt.Printf("skipped offset %d exceeds disk size! exiting", offset)
 				break
 			}
-			data := img.ReadDisk(hD, offset,
+			data := hD.ReadFile(offset,
 				uint32(runlist.Length*8*512))
 			dataRuns = append(dataRuns, data)
 
