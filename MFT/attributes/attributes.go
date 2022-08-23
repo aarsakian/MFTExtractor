@@ -102,6 +102,7 @@ type IndexEntry struct {
 	Len         uint16 //8-9
 	FilenameLen uint16 //10-11
 	Flags       uint32 //12-15
+	ChildVCN    uint64
 	Fnattr      *FNAttribute
 }
 
