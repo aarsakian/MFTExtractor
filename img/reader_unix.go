@@ -1,6 +1,7 @@
 package img
 
 import (
+	"fmt"
 	"log"
 
 	"golang.org/x/sys/unix"
@@ -23,9 +24,11 @@ func (unixreader UnixReader) ReadFile(buf_pointer int64, bytesToRead uint32) []b
 	buffer := make([]byte, bytesToRead)
 	unix.Seek(unixreader.fd, buf_pointer, unix.SEEK_SET)
 	_, err := unix.Read(unixreader.fd, buffer)
-	if err == nil {
-		log.Fatal("error reading")
+	if err != nil {
+		log.Fatal("error reading", err)
 	}
+
+	fmt.Printf("offset %d \n", buf_pointer)
 	return buffer
 
 }

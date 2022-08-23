@@ -23,6 +23,6 @@ func GetHandler(pathToDisk string) DiskReader {
 
 	}
 	dr.CreateHandler()
-	defer dr.CloseHandler()
+
 	return dr
 }
