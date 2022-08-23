@@ -105,7 +105,7 @@ func (record MFTrecord) ShowIndex() {
 			if idxEntry.Fnattr == nil {
 				continue
 			}
-			fmt.Printf("file ref %d idx name %s flags %d vcn %d", idxEntry.MFTfileref,
+			fmt.Printf("file ref %d idx name %s flags %d vcn %d", idxEntry.ParRef,
 				idxEntry.Fnattr.Fname, idxEntry.Flags, idxEntry.ChildVCN)
 		}
 

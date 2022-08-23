@@ -98,7 +98,8 @@ type VolumeName struct {
 }
 
 type IndexEntry struct {
-	MFTfileref  uint64 //0-7
+	ParRef      uint64
+	ParSeq      uint16
 	Len         uint16 //8-9
 	FilenameLen uint16 //10-11
 	Flags       uint32 //12-15
