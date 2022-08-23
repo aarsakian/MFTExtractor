@@ -177,7 +177,9 @@ func Unmarshal(data []byte, v interface{}) error {
 			var temp uint64
 			name := structType.Elem().Field(i).Name
 			if name == "ParRef" {
-				binary.Read(bytes.NewBuffer(data[idx:idx+6]), binary.LittleEndian, &temp)
+				buf := make([]byte, 8)
+				copy(buf, data[idx:idx+6])
+				binary.Read(bytes.NewBuffer(buf), binary.LittleEndian, &temp)
 				idx += 6
 			} else if name == "ChildVCN" {
 				len := structValPtr.Elem().FieldByName("Len").Uint()
