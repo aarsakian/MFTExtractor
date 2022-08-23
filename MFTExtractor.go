@@ -2,17 +2,16 @@ package main
 
 import (
 	"C"
-	"bytes"
 
 	//"database/sql"
-	"encoding/binary"
+
 	"flag"
 	"fmt"
 	"log"
 	"math"
 	"os"
 
-	ntfs "github.com/aarsakian/MFTExtractor/NTFS"
+	ntfsLib "github.com/aarsakian/MFTExtractor/NTFS"
 
 	"github.com/aarsakian/MFTExtractor/MFT"
 )
@@ -50,76 +49,6 @@ func checkErr(err error, msg string) {
 	return dbmap
 }*/
 
-func readEndian(barray []byte) (val interface{}) {
-	//conversion function
-	//fmt.Println("before conversion----------------",barray)
-	//fmt.Printf("len%d ",len(barray))
-
-	switch len(barray) {
-	case 8:
-		var vale uint64
-		binary.Read(bytes.NewBuffer(barray), binary.LittleEndian, &vale)
-		val = vale
-	case 6:
-
-		var vale uint32
-		buf := make([]byte, 6)
-		binary.Read(bytes.NewBuffer(barray[:4]), binary.LittleEndian, &vale)
-		var vale1 uint16
-		binary.Read(bytes.NewBuffer(barray[4:]), binary.LittleEndian, &vale1)
-		binary.LittleEndian.PutUint32(buf[:4], vale)
-		binary.LittleEndian.PutUint16(buf[4:], vale1)
-		val, _ = binary.ReadUvarint(bytes.NewBuffer(buf))
-
-	case 4:
-		var vale uint32
-		//   fmt.Println("barray",barray)
-		binary.Read(bytes.NewBuffer(barray), binary.LittleEndian, &vale)
-		val = vale
-	case 2:
-
-		var vale uint16
-
-		binary.Read(bytes.NewBuffer(barray), binary.LittleEndian, &vale)
-		//   fmt.Println("after conversion vale----------------",barray,vale)
-		val = vale
-
-	case 1:
-
-		var vale uint8
-
-		binary.Read(bytes.NewBuffer(barray), binary.LittleEndian, &vale)
-		//      fmt.Println("after conversion vale----------------",barray,vale)
-		val = vale
-
-	default: //best it would be nil
-		var vale uint64
-
-		binary.Read(bytes.NewBuffer(barray), binary.LittleEndian, &vale)
-		val = vale
-	}
-
-	//     b:=[]byte{0x18,0x2d}
-
-	//    fmt.Println("after conversion val",val)
-	return val
-}
-
-func readEndianFloat(barray []byte) (val uint64) {
-
-	//    fmt.Printf("len%d ",len(barray))
-
-	binary.Read(bytes.NewBuffer(barray), binary.LittleEndian, &val)
-	return val
-}
-
-func readEndianString(barray []byte) (val []byte) {
-
-	binary.Read(bytes.NewBuffer(barray), binary.LittleEndian, &val)
-
-	return val
-}
-
 func main() {
 	//dbmap := initDb()
 	//defer dbmap.Db.Close()
@@ -137,7 +66,7 @@ func main() {
 	showVCNs := flag.Bool("vcns", false, "show the vncs of non resident attributes")
 	showAttributes := flag.Bool("attributes", false, "show attributes")
 	showTimestamps := flag.Bool("timestamps", false, "show all timestamps")
-	physicalDriveNumber := flag.Int("physicalDrive", -1, "use physical drive information for extraction of non resident files")
+	physicalDrive := flag.String("physicalDrive", "", "use physical drive information for extraction of non resident files")
 
 	flag.Parse() //ready to parse
 
@@ -193,13 +122,11 @@ func main() {
 
 			record.Process(bs)
 
-			if *exportFiles != "None" && *physicalDriveNumber != -1 {
-				ntfs := ntfs.Parse(*physicalDriveNumber)
-				record.CreateFileFromEntry(ntfs.SectorsPerCluster)
-			} else if *exportFiles != "None" {
-				record.CreateFileFromEntry(0)
-			}
+			if *exportFiles != "None" && *physicalDrive != "" {
+				ntfs := ntfsLib.Parse(*physicalDrive)
+				record.CreateFileFromEntry(ntfs.SectorsPerCluster, *physicalDrive)
 
+			}
 			if *showFileName {
 				record.ShowFileName()
 			}
