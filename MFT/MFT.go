@@ -95,6 +95,33 @@ func (record MFTrecord) ShowVCNs() {
 
 }
 
+func (record MFTrecord) ShowIndex() {
+	indexAttr := record.findAttribute("Index Root")
+	indexAlloc := record.findAttribute("Index Allocation")
+
+	if indexAttr != nil {
+		idxRoot := indexAttr.(*MFTAttributes.IndexRoot)
+		for _, idxEntry := range idxRoot.IndexEntries {
+			if idxEntry.Fnattr == nil {
+				continue
+			}
+			fmt.Printf("file ref %d idx name %s ", idxEntry.MFTfileref,
+				idxEntry.Fnattr.Fname)
+		}
+
+	}
+
+	if indexAlloc != nil {
+		idx := indexAlloc.(*MFTAttributes.IndexAllocation)
+		if idx.IndexEntries[0].Fnattr != nil {
+			fmt.Printf("idx alloc %s ",
+				idx.IndexEntries[0].Fnattr.Fname)
+		}
+
+	}
+
+}
+
 func (record MFTrecord) getVCNs() (uint64, uint64) {
 	for _, attribute := range record.Attributes {
 		if attribute.IsNoNResident() {
@@ -173,7 +200,7 @@ func (record MFTrecord) ShowRunList() {
 		totalSize += int(runlist.Length)
 		fmt.Printf(" offs. %d sector len %d ", runlist.Offset*8, runlist.Length*8)
 		if runlist.Next == nil {
-			fmt.Printf("total size %d ", totalSize)
+			fmt.Printf("total size %d clusters", totalSize)
 			break
 		}
 		runlist = *runlist.Next
@@ -340,8 +367,14 @@ func (record *MFTrecord) Process(bs []byte) {
 						uint16(nodeheader.OffsetEntryList)+16+idxEntry.FilenameLen],
 						&fnattrIDXEntry)
 
-				}
+					fnattrIDXEntry.Fname =
+						utils.DecodeUTF16(bs[ReadPtr+atrRecordResident.OffsetContent+16+
+							uint16(nodeheader.OffsetEntryList)+16+66 : ReadPtr+atrRecordResident.OffsetContent+16+
+							uint16(nodeheader.OffsetEntryList)+16+66+2*uint16(fnattrIDXEntry.Nlen)])
+					idxEntry.Fnattr = &fnattrIDXEntry
 
+				}
+				idxRoot.IndexEntries = append(idxRoot.IndexEntries, *idxEntry)
 				idxRoot.SetHeader(&attrHeader)
 				attributes = append(attributes, idxRoot)
 			} else if attrHeader.IsStdInfo() { //Standard Information
@@ -377,15 +410,16 @@ func (record *MFTrecord) Process(bs []byte) {
 				var nodeheader *MFTAttributes.NodeHeader = new(MFTAttributes.NodeHeader)
 				utils.Unmarshal(bs[ReadPtr+64+24:ReadPtr+64+24+16], nodeheader)
 
-				idxAllocation.Nodeheader = nodeheader
-				idxAllocation.SetHeader(&attrHeader)
-				attributes = append(attributes, idxAllocation)
-
 				var idxEntry *MFTAttributes.IndexEntry = new(MFTAttributes.IndexEntry)
 				nodeheaderEndOffs := ReadPtr + 64 + 24 + 16
 				utils.Unmarshal(bs[nodeheaderEndOffs+
 					uint16(nodeheader.OffsetEntryList):nodeheaderEndOffs+
 					uint16(nodeheader.OffsetEntryList)+15], idxEntry)
+
+				idxAllocation.Nodeheader = nodeheader
+				idxAllocation.SetHeader(&attrHeader)
+				idxAllocation.IndexEntries = append(idxAllocation.IndexEntries, *idxEntry)
+				attributes = append(attributes, idxAllocation)
 			}
 
 		} //ends non Resident
