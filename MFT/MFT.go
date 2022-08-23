@@ -105,8 +105,8 @@ func (record MFTrecord) ShowIndex() {
 			if idxEntry.Fnattr == nil {
 				continue
 			}
-			fmt.Printf("file ref %d idx name %s ", idxEntry.MFTfileref,
-				idxEntry.Fnattr.Fname)
+			fmt.Printf("file ref %d idx name %s flags %d vcn %d", idxEntry.MFTfileref,
+				idxEntry.Fnattr.Fname, idxEntry.Flags, idxEntry.ChildVCN)
 		}
 
 	}
@@ -354,27 +354,27 @@ func (record *MFTrecord) Process(bs []byte) {
 					16:ReadPtr+atrRecordResident.OffsetContent+32], nodeheader)
 				idxRoot.Nodeheader = nodeheader
 
-				var idxEntry *MFTAttributes.IndexEntry = new(MFTAttributes.IndexEntry)
-				utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent+16+
-					uint16(nodeheader.OffsetEntryList):ReadPtr+atrRecordResident.OffsetContent+16+
-					uint16(nodeheader.OffsetEntryList)+16], idxEntry)
-				//
+				idxEntryOffset := ReadPtr + atrRecordResident.OffsetContent + 16 + uint16(nodeheader.OffsetEntryList)
 
-				if idxEntry.FilenameLen > 0 {
-					var fnattrIDXEntry MFTAttributes.FNAttribute
-					utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent+16+
-						uint16(nodeheader.OffsetEntryList)+16:ReadPtr+atrRecordResident.OffsetContent+16+
-						uint16(nodeheader.OffsetEntryList)+16+idxEntry.FilenameLen],
-						&fnattrIDXEntry)
+				for idxEntryOffset+16 < uint16(nodeheader.OffsetEndEntryListBuffer) {
+					var idxEntry *MFTAttributes.IndexEntry = new(MFTAttributes.IndexEntry)
+					utils.Unmarshal(bs[idxEntryOffset:idxEntryOffset+16], idxEntry)
 
-					fnattrIDXEntry.Fname =
-						utils.DecodeUTF16(bs[ReadPtr+atrRecordResident.OffsetContent+16+
-							uint16(nodeheader.OffsetEntryList)+16+66 : ReadPtr+atrRecordResident.OffsetContent+16+
-							uint16(nodeheader.OffsetEntryList)+16+66+2*uint16(fnattrIDXEntry.Nlen)])
-					idxEntry.Fnattr = &fnattrIDXEntry
+					if idxEntry.FilenameLen > 0 {
+						var fnattrIDXEntry MFTAttributes.FNAttribute
+						utils.Unmarshal(bs[idxEntryOffset+16:idxEntryOffset+16+idxEntry.FilenameLen],
+							&fnattrIDXEntry)
 
+						fnattrIDXEntry.Fname =
+							utils.DecodeUTF16(bs[idxEntryOffset+16+66 : idxEntryOffset+16+66+2*uint16(fnattrIDXEntry.Nlen)])
+						idxEntry.Fnattr = &fnattrIDXEntry
+
+					}
+					idxEntryOffset = idxEntryOffset + idxEntry.Len
+
+					idxRoot.IndexEntries = append(idxRoot.IndexEntries, *idxEntry)
 				}
-				idxRoot.IndexEntries = append(idxRoot.IndexEntries, *idxEntry)
+
 				idxRoot.SetHeader(&attrHeader)
 				attributes = append(attributes, idxRoot)
 			} else if attrHeader.IsStdInfo() { //Standard Information
