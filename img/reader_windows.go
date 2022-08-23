@@ -56,7 +56,7 @@ func (winreader WindowsReader) GetDiskSize() int64 {
 
 func (winreader WindowsReader) ReadFile(buf_pointer int64, bytesRead uint32) []byte {
 
-	buf_pointer := make([]byte, bytesToRead)
+	buffer := make([]byte, bytesToRead)
 	largeInteger := utils.NewLargeInteger(offset)
 	var bytesRead uint32
 
@@ -67,9 +67,9 @@ func (winreader WindowsReader) ReadFile(buf_pointer int64, bytesRead uint32) []b
 		log.Fatalln(err)
 	}
 
-	err = windows.ReadFile(winreader.fd, buf_pointer, &bytesRead, nil)
+	err = windows.ReadFile(winreader.fd, buffer, &bytesRead, nil)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	return buf_pointer
+	return buffer
 }
