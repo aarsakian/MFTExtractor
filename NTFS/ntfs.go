@@ -19,16 +19,18 @@ type NTFS struct {
 	MFTMirrOffset     uint64   //56-64
 }
 
-func Parse(driveNumber int) NTFS {
-	offset := int64(124769275 * 512)
+func Parse(drive string) NTFS {
+	offset := int64(0)
 	length := uint32(512)
 
-	var data []byte
-	hD := img.GetHandler("/dev/sda" + fmt.Sprintf("%d", driveNumber))
-	data = hD.ReadFile(offset, length)
+	hD := img.GetHandler(drive)
+	data := hD.ReadFile(offset, length)
+	fmt.Printf("%d", data)
 	//"\\\\.\\PHYSICALDRIVE" + fmt.Sprintf("%d", driveNumber))
 
+	defer hD.CloseHandler()
 	var ntfs NTFS
 	utils.Unmarshal(data, &ntfs)
+	fmt.Printf("%s", data)
 	return ntfs
 }
