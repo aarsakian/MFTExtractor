@@ -246,3 +246,73 @@ func WriteToCSV(file *os.File, data string) {
 		return
 	}
 }
+
+func readEndian(barray []byte) (val interface{}) {
+	//conversion function
+	//fmt.Println("before conversion----------------",barray)
+	//fmt.Printf("len%d ",len(barray))
+
+	switch len(barray) {
+	case 8:
+		var vale uint64
+		binary.Read(bytes.NewBuffer(barray), binary.LittleEndian, &vale)
+		val = vale
+	case 6:
+
+		var vale uint32
+		buf := make([]byte, 6)
+		binary.Read(bytes.NewBuffer(barray[:4]), binary.LittleEndian, &vale)
+		var vale1 uint16
+		binary.Read(bytes.NewBuffer(barray[4:]), binary.LittleEndian, &vale1)
+		binary.LittleEndian.PutUint32(buf[:4], vale)
+		binary.LittleEndian.PutUint16(buf[4:], vale1)
+		val, _ = binary.ReadUvarint(bytes.NewBuffer(buf))
+
+	case 4:
+		var vale uint32
+		//   fmt.Println("barray",barray)
+		binary.Read(bytes.NewBuffer(barray), binary.LittleEndian, &vale)
+		val = vale
+	case 2:
+
+		var vale uint16
+
+		binary.Read(bytes.NewBuffer(barray), binary.LittleEndian, &vale)
+		//   fmt.Println("after conversion vale----------------",barray,vale)
+		val = vale
+
+	case 1:
+
+		var vale uint8
+
+		binary.Read(bytes.NewBuffer(barray), binary.LittleEndian, &vale)
+		//      fmt.Println("after conversion vale----------------",barray,vale)
+		val = vale
+
+	default: //best it would be nil
+		var vale uint64
+
+		binary.Read(bytes.NewBuffer(barray), binary.LittleEndian, &vale)
+		val = vale
+	}
+
+	//     b:=[]byte{0x18,0x2d}
+
+	//    fmt.Println("after conversion val",val)
+	return val
+}
+
+func readEndianFloat(barray []byte) (val uint64) {
+
+	//    fmt.Printf("len%d ",len(barray))
+
+	binary.Read(bytes.NewBuffer(barray), binary.LittleEndian, &val)
+	return val
+}
+
+func readEndianString(barray []byte) (val []byte) {
+
+	binary.Read(bytes.NewBuffer(barray), binary.LittleEndian, &val)
+
+	return val
+}
