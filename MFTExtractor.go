@@ -66,6 +66,7 @@ func main() {
 	showVCNs := flag.Bool("vcns", false, "show the vncs of non resident attributes")
 	showAttributes := flag.Bool("attributes", false, "show attributes")
 	showTimestamps := flag.Bool("timestamps", false, "show all timestamps")
+	showIndex := flag.Bool("index", false, "show index structures")
 	physicalDrive := flag.String("physicalDrive", "", "use physical drive information for extraction of non resident files")
 
 	flag.Parse() //ready to parse
@@ -153,6 +154,10 @@ func main() {
 
 			if *showVCNs {
 				record.ShowVCNs()
+			}
+
+			if *showIndex {
+				record.ShowIndex()
 			}
 
 			if int(record.Entry) == *MFTSelectedEntry {
