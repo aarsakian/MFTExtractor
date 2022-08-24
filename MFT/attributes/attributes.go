@@ -2,8 +2,8 @@ package attributes
 
 import "github.com/aarsakian/MFTExtractor/utils"
 
-var NameSpaceFlags = map[uint32]string{
-	0: "POSIX", 1: "Win32", 2: "DOS", 3: "Win32 & Dos",
+var NameSpaceFlags = map[uint8]string{
+	0: "POSIX", 1: "Win32", 2: "Dos", 3: "Win32 & Dos",
 }
 
 var AttrTypes = map[string]string{
@@ -15,6 +15,13 @@ var AttrTypes = map[string]string{
 	"000000B0": "BitMap", "000000C0": "Reparse Point",
 	"ffffffff": "Last",
 }
+
+var RecordTypes = map[uint32]string{
+	1: "Read Only", 2: "Hidden", 4: "System",
+	32: "Archive", 64: "Device", 128: "Normal", 256: "Temporary", 512: "Sparse file",
+	1024: "Reparse", 2048: "Compressed", 4096: "Offline",
+	8192:  "Content  is not being indexed for faster searches",
+	16384: "Encrypted"}
 
 type Attribute interface {
 	FindType() string
@@ -190,7 +197,11 @@ func (fnattr FNAttribute) FindType() string {
 }
 
 func (fnAttr FNAttribute) GetType() string {
-	return NameSpaceFlags[fnAttr.Flags]
+	return RecordTypes[fnAttr.Flags]
+}
+
+func (fnAttr FNAttribute) GetFileNameType() string {
+	return NameSpaceFlags[fnAttr.Nspace]
 }
 
 func (fnAttr FNAttribute) GetTimestamps() (string, string, string, string) {
