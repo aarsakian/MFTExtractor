@@ -441,14 +441,21 @@ func (record MFTrecord) ShowFileSize() {
 
 }
 
-func (record MFTrecord) ShowFileName() {
+func (record MFTrecord) ShowFileName(fileNameSyntax string) {
 	fnAttributes := utils.Filter(record.Attributes, func(attribute MFTAttributes.Attribute) bool {
 		return attribute.FindType() == "FileName"
 	})
 	if len(fnAttributes) != 0 {
 		for _, attr := range fnAttributes {
+
 			fnattr := attr.(*MFTAttributes.FNAttribute)
-			fmt.Printf(" %s ", fnattr.Fname)
+			if fileNameSyntax == "LONG" && fnattr.GetFileNameType() == "Win32 & Dos" {
+				fmt.Printf(" %s ", fnattr.Fname)
+			} else if fileNameSyntax == "SHORT" && fnattr.GetFileNameType() == "Dos" {
+				fmt.Printf(" %s ", fnattr.Fname)
+			} else if fileNameSyntax == "ANY" {
+				fmt.Printf(" %s ", fnattr.Fname)
+			}
 		}
 
 	}
