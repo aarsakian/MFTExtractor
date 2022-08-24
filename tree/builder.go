@@ -30,9 +30,12 @@ func (t *Tree) BuildTree(record MFT.MFTrecord) *Tree {
 
 func (n *Node) insert(record MFT.MFTrecord) {
 	if record.FindAttribute("FileName") != nil {
+		fnattr := record.FindAttribute("FileName").(*MFTAttributes.FNAttribute)
 		if uint64(n.record.Entry) ==
-			record.FindAttribute("FileName").(*MFTAttributes.FNAttribute).ParRef {
+			fnattr.ParRef && n.record.Seq-fnattr.ParSeq < 2 {
 			childNode := Node{record, n, nil}
+
+			childNode.parent = n
 			n.children = append(n.children, &childNode)
 
 		} else {
