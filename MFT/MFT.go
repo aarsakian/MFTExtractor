@@ -59,7 +59,7 @@ func (record MFTrecord) containsAttribute(attributeName string) bool {
 	return false
 }
 
-func (record MFTrecord) findAttribute(attributeName string) attributes.Attribute {
+func (record MFTrecord) FindAttribute(attributeName string) attributes.Attribute {
 	for _, attribute := range record.Attributes {
 		if attribute.FindType() == attributeName {
 			return attribute
@@ -69,7 +69,7 @@ func (record MFTrecord) findAttribute(attributeName string) attributes.Attribute
 }
 
 func (record MFTrecord) hasResidentDataAttr() bool {
-	attribute := record.findAttribute("DATA")
+	attribute := record.FindAttribute("DATA")
 	return attribute != nil && !attribute.IsNoNResident()
 }
 
@@ -96,8 +96,8 @@ func (record MFTrecord) ShowVCNs() {
 }
 
 func (record MFTrecord) ShowIndex() {
-	indexAttr := record.findAttribute("Index Root")
-	indexAlloc := record.findAttribute("Index Allocation")
+	indexAttr := record.FindAttribute("Index Root")
+	indexAlloc := record.FindAttribute("Index Allocation")
 
 	if indexAttr != nil {
 		idxRoot := indexAttr.(*MFTAttributes.IndexRoot)
@@ -143,13 +143,13 @@ func (record MFTrecord) ShowAttributes() {
 
 func (record MFTrecord) ShowTimestamps() {
 	var attr attributes.Attribute
-	attr = record.findAttribute("FileName")
+	attr = record.FindAttribute("FileName")
 	if attr != nil {
 		fnattr := attr.(*MFTAttributes.FNAttribute)
 		atime, ctime, mtime, mftime := fnattr.GetTimestamps()
 		fmt.Printf("FN a %s c %s m %s mftm %s ", atime, ctime, mtime, mftime)
 	}
-	attr = record.findAttribute("Standard Information")
+	attr = record.FindAttribute("Standard Information")
 	if attr != nil {
 		siattr := attr.(*MFTAttributes.SIAttribute)
 		atime, ctime, mtime, mftime := siattr.GetTimestamps()
@@ -161,7 +161,7 @@ func (record MFTrecord) getData(sectorsPerCluster uint8, disk string) []byte {
 
 	if record.hasResidentDataAttr() {
 
-		return record.findAttribute("DATA").(*MFTAttributes.DATA).Content
+		return record.FindAttribute("DATA").(*MFTAttributes.DATA).Content
 
 	} else {
 		runlist := record.getRunList()
@@ -209,7 +209,7 @@ func (record MFTrecord) ShowRunList() {
 }
 
 func (record MFTrecord) hasDataAttr() bool {
-	return record.findAttribute("DATA") != nil
+	return record.FindAttribute("DATA") != nil
 }
 
 func (record MFTrecord) ShowIsResident() {
@@ -226,27 +226,27 @@ func (record MFTrecord) ShowIsResident() {
 }
 
 func (record MFTrecord) ShowFNAModifiedTime() {
-	fnattr := record.findAttribute("FileName").(*MFTAttributes.FNAttribute)
+	fnattr := record.FindAttribute("FileName").(*MFTAttributes.FNAttribute)
 	fmt.Printf("%s ", fnattr.Mtime.ConvertToIsoTime())
 }
 
 func (record MFTrecord) ShowFNACreationTime() {
-	fnattr := record.findAttribute("FileName").(*MFTAttributes.FNAttribute)
+	fnattr := record.FindAttribute("FileName").(*MFTAttributes.FNAttribute)
 	fmt.Printf("%s ", fnattr.Crtime.ConvertToIsoTime())
 }
 
 func (record MFTrecord) ShowFNAMFTModifiedTime() {
-	fnattr := record.findAttribute("FileName").(*MFTAttributes.FNAttribute)
+	fnattr := record.FindAttribute("FileName").(*MFTAttributes.FNAttribute)
 	fmt.Printf("%s ", fnattr.MFTmtime.ConvertToIsoTime())
 }
 
 func (record MFTrecord) ShowFNAMFTAccessTime() {
-	fnattr := record.findAttribute("FileName").(*MFTAttributes.FNAttribute)
+	fnattr := record.FindAttribute("FileName").(*MFTAttributes.FNAttribute)
 	fmt.Printf("%s ", fnattr.Atime.ConvertToIsoTime())
 }
 
 func (record MFTrecord) CreateFileFromEntry(clusterPerSector uint8, disk string) {
-	fnattr := record.findAttribute("FileName").(*MFTAttributes.FNAttribute)
+	fnattr := record.FindAttribute("FileName").(*MFTAttributes.FNAttribute)
 
 	data := record.getData(clusterPerSector, disk)
 	utils.WriteFile(fnattr.Fname, data)
@@ -366,7 +366,8 @@ func (record *MFTrecord) Process(bs []byte) {
 							&fnattrIDXEntry)
 
 						fnattrIDXEntry.Fname =
-							utils.DecodeUTF16(bs[idxEntryOffset+16+66 : idxEntryOffset+16+66+2*uint16(fnattrIDXEntry.Nlen)])
+							utils.DecodeUTF16(bs[idxEntryOffset+16+66 : idxEntryOffset+16+
+								66+2*uint16(fnattrIDXEntry.Nlen)])
 						idxEntry.Fnattr = &fnattrIDXEntry
 
 					}
@@ -431,7 +432,7 @@ func (record *MFTrecord) Process(bs []byte) {
 
 func (record MFTrecord) ShowFileSize() {
 
-	attr := record.findAttribute("FileName")
+	attr := record.FindAttribute("FileName")
 	if attr != nil {
 		fnattr := attr.(*MFTAttributes.FNAttribute)
 		fmt.Printf(" allocated: %d (KB), real: %d (KB)",
@@ -457,7 +458,7 @@ func (record MFTrecord) ShowFileName() {
 func (record MFTrecord) GetBasicInfoFromRecord(file1 *os.File) {
 
 	s := fmt.Sprintf("%d;%d;%s", record.Entry, record.Seq, record.getType())
-	attr := record.findAttribute("FileName")
+	attr := record.FindAttribute("FileName")
 	if attr != nil {
 		fnattr := attr.(*MFTAttributes.FNAttribute)
 
