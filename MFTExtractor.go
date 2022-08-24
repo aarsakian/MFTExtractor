@@ -11,10 +11,10 @@ import (
 	"math"
 	"os"
 
-	ntfsLib "github.com/aarsakian/MFTExtractor/NTFS"
-
 	"github.com/aarsakian/MFTExtractor/MFT"
+	ntfsLib "github.com/aarsakian/MFTExtractor/NTFS"
 )
+import "github.com/aarsakian/MFTExtractor/tree"
 
 func checkErr(err error, msg string) {
 	if err != nil {
@@ -101,7 +101,9 @@ func main() {
 
 	bs := make([]byte, 1024) //byte array to hold MFT entries
 
-	for i := 0; i <= int(fsize.Size()); i += 1024 {
+	var records []MFT.MFTrecord
+
+	for i := 0; i < int(fsize.Size()); i += 1024 {
 		_, err := file.ReadAt(bs, int64(i))
 		// fmt.Printf("\n I read %s and out is %d\n",hex.Dump(bs[20:22]), readEndian(bs[20:22]).(uint16))
 		if err != nil {
@@ -160,6 +162,8 @@ func main() {
 				record.ShowIndex()
 			}
 
+			records = append(records, record)
+
 			if int(record.Entry) == *MFTSelectedEntry {
 				break
 			}
@@ -167,4 +171,14 @@ func main() {
 		}
 
 	}
+	t := tree.Tree{}
+
+	for _, record := range records {
+		if record.Entry < 5 {
+			continue
+		}
+		t.BuildTree(record)
+	}
+	t.Show()
+
 } //ends for
