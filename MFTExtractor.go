@@ -131,7 +131,7 @@ func main() {
 
 			}
 			if *showFileName {
-				record.ShowFileName()
+				record.ShowFileName("ANY")
 			}
 
 			if *showAttributes {
