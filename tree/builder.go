@@ -53,9 +53,15 @@ func (t Tree) Show() {
 }
 
 func (n Node) Show() {
+	fmt.Printf("\n Parent is")
+	n.record.ShowFileName("LONG")
+	for _, node := range n.children {
+		node.record.ShowFileName("LONG")
+
+	}
 
 	for _, node := range n.children {
-		fmt.Printf("%d has children %d \n", n.record.Entry, node.record.Entry)
+
 		node.Show()
 
 	}
