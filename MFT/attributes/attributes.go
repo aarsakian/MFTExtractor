@@ -66,6 +66,16 @@ type ATRrecordNoNResident struct {
 
 }
 
+type Reparse struct {
+	Flags                 uint32
+	Size                  uint16
+	Unused                [2]byte
+	TargetNameOffset      int16
+	TargetLen             uint16
+	TargetPrintNameOffset int16
+	TargetPrintNameLen    uint16
+}
+
 type RunList struct {
 	Offset int64
 	Length uint64
@@ -251,6 +261,10 @@ func (attrHeader AttributeHeader) IsFileName() bool {
 
 func (attrHeader AttributeHeader) IsData() bool {
 	return attrHeader.GetType() == "DATA"
+}
+
+func (attrHeader AttributeHeader) IsReparse() bool {
+	return attrHeader.GetType() == "Reparse Point"
 }
 
 func (attrHeader AttributeHeader) IsObject() bool {
