@@ -56,9 +56,9 @@ func (t Tree) Show() {
 
 func (n Node) Show() {
 	fmt.Printf("\n Parent is")
-	n.record.ShowFileName("LONG")
+	n.record.ShowFileName("Win32")
 	for _, node := range n.children {
-		node.record.ShowFileName("LONG")
+		node.record.ShowFileName("Win32")
 
 	}
 
