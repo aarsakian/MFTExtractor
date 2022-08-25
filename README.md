@@ -5,24 +5,38 @@ MFTExtractor
 
 Still In progress but the majority of MFT attributes are parsed.
 
-
+a tool to explore $MFT and its attributes
 
 Usage information  type: MFTExtractor  -h
 
-Dependencies: [go-sqlite3](https://github.com/mattn/go-sqlite3] and [gorp](https://github.com/coopernurse/gorp)
+  -MFT string
+    	absolute path to the MFT file (default "MFT file")
+  -attributes string
+    	show attributes
+  -entry int
+    	select a particular MFT entry (default -1)
+  -export string
+    	export resident files (default "None")
+  -fileName string
+    	show the name of the filename attribute of each MFT record choices: Any, Win32, Dos
+  -filesize
+    	show file size of a record holding a file
+  -fromEntry int
+    	select entry to start parsing
+  -index
+    	show index structures
+  -physicalDrive string
+    	use physical drive information for extraction of non resident files
+  -resident
+    	check whether entry is resident
+  -runlist
+    	show runlist of MFT record attributes
+  -structure
+    	reconstrut entries tree
+  -timestamps
+    	show all timestamps
+  -toEntry int
+    	select entry to end parsing (default 4294967295)
+  -vcns
+    	show the vncs of non resident attributes
 
-
-OUTPUT  (txt) is saved at the current directory as MFToutput.txt if -db argument is selected an mftsqlite file appears too.
-
-####Explanation of OUTPUT
-
-MFT Entry number;Sequence Number;MFT flag;Standard Information;offset;Created Time;Accessed Time;Modified Time;MFT modified Time;File Name;offset;Access Time;Created Time;Modified Time;Filename;Parent MFT entry;Parent sequence number;Filename Flag;
-
-Rest MFT attributes: Some of them are described below (experimental)
-
-Data Attr;True->Resident;
-
-Index Root Type;size in clusters;nodeheader offset;nodeheader used entry list;
-
-Attribute List:offset;Attribute Type;Attribute length;starting VCN;MFT record number;Attrribute file reference;Attribute Name;Attribute id;
-			     
