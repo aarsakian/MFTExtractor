@@ -133,10 +133,13 @@ func (record MFTrecord) getVCNs() (uint64, uint64) {
 
 }
 
-func (record MFTrecord) ShowAttributes() {
+func (record MFTrecord) ShowAttributes(attrType string) {
 	fmt.Printf("%d %d %s ", record.Entry, record.Seq, record.getType())
-	for _, attribute := range record.Attributes {
-		fmt.Printf("%s ", attribute.FindType())
+	fnAttributes := utils.Filter(record.Attributes, func(attribute MFTAttributes.Attribute) bool {
+		return attribute.FindType() == attrType
+	})
+	for _, attribute := range fnAttributes {
+		attribute.ShowInfo()
 	}
 
 }
