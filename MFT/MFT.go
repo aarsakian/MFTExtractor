@@ -101,12 +101,12 @@ func (record MFTrecord) ShowIndex() {
 
 	if indexAttr != nil {
 		idxRoot := indexAttr.(*MFTAttributes.IndexRoot)
+
 		for _, idxEntry := range idxRoot.IndexEntries {
 			if idxEntry.Fnattr == nil {
 				continue
 			}
-			fmt.Printf("file ref %d idx name %s flags %d vcn %d", idxEntry.ParRef,
-				idxEntry.Fnattr.Fname, idxEntry.Flags, idxEntry.ChildVCN)
+			idxEntry.ShowInfo()
 		}
 
 	}
@@ -134,7 +134,7 @@ func (record MFTrecord) getVCNs() (uint64, uint64) {
 }
 
 func (record MFTrecord) ShowAttributes(attrType string) {
-	fmt.Printf("%d %d %s ", record.Entry, record.Seq, record.getType())
+	fmt.Printf("\n %d %d %s ", record.Entry, record.Seq, record.getType())
 	fnAttributes := utils.Filter(record.Attributes, func(attribute MFTAttributes.Attribute) bool {
 		return attribute.FindType() == attrType
 	})
@@ -158,6 +158,10 @@ func (record MFTrecord) ShowTimestamps() {
 		atime, ctime, mtime, mftime := siattr.GetTimestamps()
 		fmt.Printf("SI a %s c %s m %s mftm %s ", atime, ctime, mtime, mftime)
 	}
+}
+
+func (record MFTrecord) showInfo() {
+	fmt.Printf("record %d type %s\n", record.Entry, record.getType())
 }
 
 func (record MFTrecord) getData(sectorsPerCluster uint8, disk string) []byte {
@@ -211,12 +215,12 @@ func (record MFTrecord) ShowRunList() {
 
 }
 
-func (record MFTrecord) hasDataAttr() bool {
-	return record.FindAttribute("DATA") != nil
+func (record MFTrecord) hasAttr(attrName string) bool {
+	return record.FindAttribute(attrName) != nil
 }
 
 func (record MFTrecord) ShowIsResident() {
-	if record.hasDataAttr() {
+	if record.hasAttr("DATA") {
 		if record.hasResidentDataAttr() {
 			fmt.Printf("Resident")
 		} else {
@@ -265,7 +269,7 @@ func (record *MFTrecord) Process(bs []byte) {
 	}
 
 	ReadPtr := record.AttrOff //offset to first attribute
-	fmt.Printf("\n Processing $MFT entry %d ", record.Entry)
+	//fmt.Printf("\n Processing $MFT entry %d ", record.Entry)
 	var attributes []MFTAttributes.Attribute
 	for ReadPtr < 1024 {
 
