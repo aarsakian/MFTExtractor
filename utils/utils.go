@@ -87,12 +87,12 @@ func DetermineClusterOffsetLength(val byte) (uint64, uint64) {
 
 		clusterLen, err = strconv.ParseUint(val1[1:2], 8, 8)
 		if err != nil {
-			fmt.Printf("error finding cluster length %s", err)
+			//fmt.Printf("error finding cluster length %s", err)
 		}
 
 		clusterOffs, err = strconv.ParseUint(val1[0:1], 8, 8)
 		if err != nil {
-			fmt.Printf("error finding cluster offset %s", err)
+			//fmt.Printf("error finding cluster offset %s", err)
 		}
 
 	}
