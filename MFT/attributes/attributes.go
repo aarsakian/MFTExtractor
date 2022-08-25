@@ -1,6 +1,10 @@
 package attributes
 
-import "github.com/aarsakian/MFTExtractor/utils"
+import (
+	"fmt"
+
+	"github.com/aarsakian/MFTExtractor/utils"
+)
 
 var NameSpaceFlags = map[uint8]string{
 	0: "POSIX", 1: "Win32", 2: "Dos", 3: "Win32 & Dos",
@@ -28,6 +32,7 @@ type Attribute interface {
 	SetHeader(header *AttributeHeader)
 	GetHeader() AttributeHeader
 	IsNoNResident() bool
+	ShowInfo()
 }
 
 type AttributeHeader struct {
@@ -48,11 +53,6 @@ type ATRrecordResident struct {
 	IDxflag       uint16 //22-24
 }
 
-type DATA struct {
-	Content []byte
-	Header  *AttributeHeader
-}
-
 type ATRrecordNoNResident struct {
 	StartVcn     uint64   //16-24
 	LastVcn      uint64   //24-32
@@ -70,25 +70,6 @@ type RunList struct {
 	Offset int64
 	Length uint64
 	Next   *RunList
-}
-
-type FNAttribute struct {
-	ParRef      uint64
-	ParSeq      uint16
-	Crtime      utils.WindowsTime
-	Mtime       utils.WindowsTime //WindowsTime
-	MFTmtime    utils.WindowsTime //WindowsTime
-	Atime       utils.WindowsTime //WindowsTime
-	AllocFsize  uint64
-	RealFsize   uint64
-	Flags       uint32 //hIDden Read Only? check Reparse
-	Reparse     uint32
-	Nlen        uint8  //length of name
-	Nspace      uint8  //format of name
-	Fname       string //special string type without nulls
-	HexFlag     bool
-	UnicodeHack bool
-	Header      *AttributeHeader
 }
 
 type ObjectID struct { //unique guID
@@ -168,93 +149,6 @@ type VolumeInfo struct {
 	Header *AttributeHeader
 }
 
-type SIAttribute struct {
-	Crtime   utils.WindowsTime
-	Mtime    utils.WindowsTime
-	MFTmtime utils.WindowsTime
-	Atime    utils.WindowsTime
-	Dos      uint32
-	Maxver   uint32
-	Ver      uint32
-	ClassID  uint32
-	OwnID    uint32
-	SecID    uint32
-	Quota    uint64
-	Usn      uint64
-	Header   *AttributeHeader
-}
-
-func (fnattr *FNAttribute) SetHeader(header *AttributeHeader) {
-	fnattr.Header = header
-}
-
-func (fnattr FNAttribute) GetHeader() AttributeHeader {
-	return *fnattr.Header
-}
-
-func (fnattr FNAttribute) FindType() string {
-	return fnattr.Header.GetType()
-}
-
-func (fnAttr FNAttribute) GetType() string {
-	return RecordTypes[fnAttr.Flags]
-}
-
-func (fnAttr FNAttribute) GetFileNameType() string {
-	return NameSpaceFlags[fnAttr.Nspace]
-}
-
-func (fnAttr FNAttribute) GetTimestamps() (string, string, string, string) {
-	atime := fnAttr.Atime.ConvertToIsoTime()
-	ctime := fnAttr.Crtime.ConvertToIsoTime()
-	mtime := fnAttr.Mtime.ConvertToIsoTime()
-	mftime := fnAttr.MFTmtime.ConvertToIsoTime()
-	return atime, ctime, mtime, mftime
-}
-
-func (fnAttr FNAttribute) IsNoNResident() bool {
-	return fnAttr.Header.IsNoNResident()
-}
-
-func (siattr *SIAttribute) SetHeader(header *AttributeHeader) {
-	siattr.Header = header
-}
-
-func (siattr SIAttribute) GetHeader() AttributeHeader {
-	return *siattr.Header
-}
-
-func (siattr SIAttribute) FindType() string {
-	return siattr.Header.GetType()
-}
-
-func (siattr SIAttribute) IsNoNResident() bool {
-	return siattr.Header.IsNoNResident() // always resident
-}
-
-func (siattr SIAttribute) GetTimestamps() (string, string, string, string) {
-	atime := siattr.Atime.ConvertToIsoTime()
-	ctime := siattr.Crtime.ConvertToIsoTime()
-	mtime := siattr.Mtime.ConvertToIsoTime()
-	mftime := siattr.MFTmtime.ConvertToIsoTime()
-	return atime, ctime, mtime, mftime
-}
-
-func (data *DATA) SetHeader(header *AttributeHeader) {
-	data.Header = header
-}
-
-func (data DATA) GetHeader() AttributeHeader {
-	return *data.Header
-}
-
-func (data DATA) FindType() string {
-	return data.Header.GetType()
-}
-func (data DATA) IsNoNResident() bool {
-	return data.Header.IsNoNResident()
-}
-
 func (objectId *ObjectID) SetHeader(header *AttributeHeader) {
 	objectId.Header = header
 }
@@ -269,6 +163,10 @@ func (objectId ObjectID) FindType() string {
 
 func (objectId ObjectID) IsNoNResident() bool {
 	return objectId.Header.IsNoNResident()
+}
+
+func (objectId ObjectID) ShowInfo() {
+
 }
 
 func (idxAllocation IndexAllocation) SetHeader(header *AttributeHeader) {
@@ -287,6 +185,10 @@ func (idxAllocation IndexAllocation) IsNoNResident() bool {
 	return idxAllocation.Header.IsNoNResident()
 }
 
+func (idxAllocation IndexAllocation) ShowInfo() {
+
+}
+
 func (volInfo *VolumeInfo) SetHeader(header *AttributeHeader) {
 	volInfo.Header = header
 }
@@ -301,6 +203,10 @@ func (volInfo VolumeInfo) IsNoNResident() bool {
 
 func (volInfo VolumeInfo) FindType() string {
 	return volInfo.Header.GetType()
+}
+
+func (volinfo VolumeInfo) ShowInfo() {
+
 }
 
 func (volName *VolumeName) SetHeader(header *AttributeHeader) {
@@ -319,6 +225,10 @@ func (volName VolumeName) IsNoNResident() bool {
 	return volName.Header.IsNoNResident()
 }
 
+func (volName VolumeName) ShowInfo() {
+
+}
+
 func (attrListEntries *AttributeListEntries) SetHeader(header *AttributeHeader) {
 	attrListEntries.Header = header
 }
@@ -335,6 +245,13 @@ func (attrListEntries AttributeListEntries) IsNoNResident() bool {
 	return attrListEntries.Header.IsNoNResident()
 }
 
+func (attrListEntries AttributeListEntries) ShowInfo() {
+	for _, attrList := range attrListEntries.Entries {
+		fmt.Printf("Attr List startVCN %d name %s \n", attrList.StartVcn, attrList.Name)
+	}
+
+}
+
 func (idxRoot *IndexRoot) SetHeader(header *AttributeHeader) {
 	idxRoot.Header = header
 }
@@ -349,6 +266,10 @@ func (idxRoot IndexRoot) IsNoNResident() bool {
 
 func (idxRoot IndexRoot) FindType() string {
 	return idxRoot.Header.GetType()
+}
+
+func (idxRoot IndexRoot) ShowInfo() {
+
 }
 
 func (attrHeader AttributeHeader) GetType() string {
