@@ -134,7 +134,7 @@ func (record MFTrecord) getVCNs() (uint64, uint64) {
 }
 
 func (record MFTrecord) ShowAttributes(attrType string) {
-	fmt.Printf("\n %d %d %s ", record.Entry, record.Seq, record.getType())
+	//fmt.Printf("\n %d %d %s ", record.Entry, record.Seq, record.getType())
 	fnAttributes := utils.Filter(record.Attributes, func(attribute MFTAttributes.Attribute) bool {
 		return attribute.FindType() == attrType
 	})
@@ -300,6 +300,10 @@ func (record *MFTrecord) Process(bs []byte) {
 				fnattr.SetHeader(&attrHeader)
 				attributes = append(attributes, fnattr)
 
+			} else if attrHeader.IsReparse() {
+				var reparse *MFTAttributes.Reparse = new(MFTAttributes.Reparse)
+				utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+
+					atrRecordResident.OffsetContent+16], reparse)
 			} else if attrHeader.IsData() {
 				data := &MFTAttributes.DATA{Content: bs[ReadPtr+
 					atrRecordResident.OffsetContent : ReadPtr +
