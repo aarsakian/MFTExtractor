@@ -174,6 +174,7 @@ func main() {
 	}
 	t := tree.Tree{}
 
+	fmt.Printf("Building tree from MFT records \n")
 	for _, record := range records {
 		if record.Entry < 5 {
 			continue
