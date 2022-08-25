@@ -57,7 +57,7 @@ func main() {
 	inputfile := flag.String("MFT", "MFT file", "absolute path to the MFT file")
 	exportFiles := flag.String("export", "None", "export resident files")
 	MFTSelectedEntry := flag.Int("entry", -1, "select a particular MFT entry")
-	showFileName := flag.Bool("fileName", false, "show the name of the filename attribute of each MFT record")
+	showFileName := flag.String("fileName", "", "show the name of the filename attribute of each MFT record choices: Any, Win32, Dos")
 	isResident := flag.Bool("resident", false, "check whether entry is resident")
 	fromMFTEntry := flag.Int("fromEntry", 0, "select entry to start parsing")
 	ToMFTEntry := flag.Int("toEntry", math.MaxUint32, "select entry to end parsing")
@@ -68,6 +68,7 @@ func main() {
 	showTimestamps := flag.Bool("timestamps", false, "show all timestamps")
 	showIndex := flag.Bool("index", false, "show index structures")
 	physicalDrive := flag.String("physicalDrive", "", "use physical drive information for extraction of non resident files")
+	showFSStructure := flag.Bool("structure", false, "reconstrut entries tree")
 
 	flag.Parse() //ready to parse
 
@@ -105,7 +106,7 @@ func main() {
 
 	for i := 0; i < int(fsize.Size()); i += 1024 {
 		_, err := file.ReadAt(bs, int64(i))
-		// fmt.Printf("\n I read %s and out is %d\n",hex.Dump(bs[20:22]), readEndian(bs[20:22]).(uint16))
+
 		if err != nil {
 			fmt.Printf("error reading file --->%s", err)
 			return
@@ -130,8 +131,8 @@ func main() {
 				record.CreateFileFromEntry(ntfs.SectorsPerCluster, *physicalDrive)
 
 			}
-			if *showFileName {
-				record.ShowFileName("ANY")
+			if *showFileName != "" {
+				record.ShowFileName(*showFileName)
 			}
 
 			if *showAttributes != "" {
@@ -179,6 +180,8 @@ func main() {
 		}
 		t.BuildTree(record)
 	}
-	t.Show()
+	if *showFSStructure {
+		t.Show()
+	}
 
 } //ends for
