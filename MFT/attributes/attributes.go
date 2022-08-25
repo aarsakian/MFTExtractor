@@ -1,6 +1,8 @@
 package attributes
 
 import (
+	"fmt"
+
 	"github.com/aarsakian/MFTExtractor/utils"
 )
 
@@ -128,6 +130,11 @@ type VolumeInfo struct {
 	Flags  uint16 //see table 13.22
 	F2     uint32
 	Header *AttributeHeader
+}
+
+func (idxEntry IndexEntry) ShowInfo() {
+	fmt.Printf("file ref %d idx name %s flags %d vcn %d\n", idxEntry.ParRef,
+		idxEntry.Fnattr.Fname, idxEntry.Flags, idxEntry.ChildVCN)
 }
 
 func (objectId *ObjectID) SetHeader(header *AttributeHeader) {
