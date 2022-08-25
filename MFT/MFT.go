@@ -313,6 +313,7 @@ func (record *MFTrecord) Process(bs []byte) {
 
 				attrLen := uint16(0)
 				var attrListEntries *MFTAttributes.AttributeListEntries = new(MFTAttributes.AttributeListEntries)
+
 				for atrRecordResident.OffsetContent+24+attrLen < uint16(attrHeader.AttrLen) {
 					var attrList MFTAttributes.AttributeList
 					utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent+attrLen:ReadPtr+
@@ -320,7 +321,7 @@ func (record *MFTrecord) Process(bs []byte) {
 
 					attrList.Name = utils.NoNull(bs[ReadPtr+atrRecordResident.OffsetContent+attrLen+
 						uint16(attrList.Nameoffset) : ReadPtr+atrRecordResident.OffsetContent+
-						attrLen+uint16(attrList.Nameoffset)+uint16(attrList.Namelen)])
+						attrLen+uint16(attrList.Nameoffset)+2*uint16(attrList.Namelen)])
 					//   runlist=bs[ReadPtr+atrRecordResident.OffsetContent+attrList.len:uint32(ReadPtr)+atrRecordResident.Len]
 					attrListEntries.Entries = append(attrListEntries.Entries, attrList)
 					attrLen += attrList.Len
@@ -452,9 +453,9 @@ func (record MFTrecord) ShowFileName(fileNameSyntax string) {
 		for _, attr := range fnAttributes {
 
 			fnattr := attr.(*MFTAttributes.FNAttribute)
-			if fileNameSyntax == "LONG" && fnattr.GetFileNameType() == "Win32 & Dos" {
+			if fileNameSyntax == "Win32" && fnattr.GetFileNameType() == "Win32 & Dos" {
 				fmt.Printf(" %s ", fnattr.Fname)
-			} else if fileNameSyntax == "SHORT" && fnattr.GetFileNameType() == "Dos" {
+			} else if fileNameSyntax == fnattr.GetFileNameType() { //Dos
 				fmt.Printf(" %s ", fnattr.Fname)
 			} else if fileNameSyntax == "ANY" {
 				fmt.Printf(" %s ", fnattr.Fname)
