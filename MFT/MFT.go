@@ -269,7 +269,7 @@ func (record *MFTrecord) Process(bs []byte) {
 	}
 
 	ReadPtr := record.AttrOff //offset to first attribute
-	//fmt.Printf("\n Processing $MFT entry %d ", record.Entry)
+	fmt.Printf("\n Processing $MFT entry %d ", record.Entry)
 	var attributes []MFTAttributes.Attribute
 	for ReadPtr < 1024 {
 
@@ -326,7 +326,6 @@ func (record *MFTrecord) Process(bs []byte) {
 					var attrList MFTAttributes.AttributeList
 					utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent+attrLen:ReadPtr+
 						atrRecordResident.OffsetContent+attrLen+24], &attrList)
-
 					attrList.Name = utils.NoNull(bs[ReadPtr+atrRecordResident.OffsetContent+attrLen+
 						uint16(attrList.Nameoffset) : ReadPtr+atrRecordResident.OffsetContent+
 						attrLen+uint16(attrList.Nameoffset)+2*uint16(attrList.Namelen)])
