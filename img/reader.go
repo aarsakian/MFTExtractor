@@ -7,7 +7,7 @@ import (
 type DiskReader interface {
 	CreateHandler()
 	CloseHandler()
-	ReadFile(int64, uint32) []byte
+	ReadFile(int64, []byte)
 	GetDiskSize() int64
 }
 

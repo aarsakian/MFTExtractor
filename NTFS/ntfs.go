@@ -24,13 +24,15 @@ func Parse(drive string) NTFS {
 	length := uint32(512)
 
 	hD := img.GetHandler(drive)
-	data := hD.ReadFile(offset, length)
-	fmt.Printf("%d", data)
+	buffer := make([]byte, length)
+	fmt.Printf("before %x\n", buffer)
+	hD.ReadFile(offset, buffer)
+	fmt.Printf("%x\n", buffer)
 	//"\\\\.\\PHYSICALDRIVE" + fmt.Sprintf("%d", driveNumber))
 
 	defer hD.CloseHandler()
 	var ntfs NTFS
-	utils.Unmarshal(data, &ntfs)
-	fmt.Printf("%s", data)
+	utils.Unmarshal(buffer, &ntfs)
+
 	return ntfs
 }
