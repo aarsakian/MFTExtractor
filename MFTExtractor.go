@@ -55,7 +55,7 @@ func main() {
 
 	//	save2DB := flag.Bool("db", false, "bool if set an sqlite file will be created, each table will corresponed to an MFT attribute")
 	inputfile := flag.String("MFT", "MFT file", "absolute path to the MFT file")
-	exportFiles := flag.String("export", "None", "export resident files")
+	exportFiles := flag.Bool("export", false, "export  files")
 	MFTSelectedEntry := flag.Int("entry", -1, "select a particular MFT entry")
 	showFileName := flag.String("fileName", "", "show the name of the filename attribute of each MFT record choices: Any, Win32, Dos")
 	isResident := flag.Bool("resident", false, "check whether entry is resident")
@@ -126,8 +126,9 @@ func main() {
 
 			record.Process(bs)
 
-			if *exportFiles != "None" && *physicalDrive != "" {
+			if *exportFiles && *physicalDrive != "" {
 				ntfs := ntfsLib.Parse(*physicalDrive)
+				fmt.Printf("ntfs.SectorsPerCluster %d", ntfs.SectorsPerCluster)
 				record.CreateFileFromEntry(ntfs.SectorsPerCluster, *physicalDrive)
 
 			}
