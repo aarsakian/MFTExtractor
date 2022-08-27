@@ -184,9 +184,10 @@ func (record MFTrecord) getData(sectorsPerCluster uint8, disk string) []byte {
 				break
 			}
 			fmt.Printf("extracting data from %d len %d \n", offset, runlist.Length)
-			data := hD.ReadFile(offset,
-				uint32(runlist.Length*8*512))
-			dataRuns = append(dataRuns, data)
+			buffer := make([]byte, uint32(runlist.Length*8*512))
+			hD.ReadFile(offset, buffer)
+
+			dataRuns = append(dataRuns, buffer)
 
 			if runlist.Next == nil {
 				break
