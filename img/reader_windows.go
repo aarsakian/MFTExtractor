@@ -21,7 +21,7 @@ type WindowsReader struct {
 	fd     windows.Handle
 }
 
-func (winreader WindowsReader) CreateHandler() {
+func (winreader *WindowsReader) CreateHandler() {
 	file_ptr, _ := windows.UTF16PtrFromString(winreader.a_file)
 	var templateHandle windows.Handle
 	fd, err := windows.CreateFile(file_ptr, windows.FILE_READ_DATA,
@@ -33,7 +33,7 @@ func (winreader WindowsReader) CreateHandler() {
 	winreader.fd = fd
 }
 
-func (winreader WindowsReader) CloseHandlerW() {
+func (winreader WindowsReader) CloseHandler() {
 	windows.Close(winreader.fd)
 }
 
@@ -44,20 +44,19 @@ func (winreader WindowsReader) GetDiskSize() int64 {
 
 	var junk *uint32
 	var inBuffer *byte
-	err := windows.DeviceIoControl(winreader.fD, IOCTL_DISK_GET_DRIVE_GEOMETRY,
+	err := windows.DeviceIoControl(winreader.fd, IOCTL_DISK_GET_DRIVE_GEOMETRY,
 		inBuffer, 0, (*byte)(unsafe.Pointer(&disk_geometry)), nByte_DISK_GEOMETRY, junk, nil)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	return disk_geometry.Cylinders * int64(disk_geometry.TracksPerCylinder)
-	*int64(disk_geometry.SectorsPerTrack) * int64(disk_geometry.BytesPerSector)
+	return disk_geometry.Cylinders * int64(disk_geometry.TracksPerCylinder) *
+		int64(disk_geometry.SectorsPerTrack) * int64(disk_geometry.BytesPerSector)
 }
 
-func (winreader WindowsReader) ReadFile(buf_pointer int64, bytesRead uint32) []byte {
+func (winreader WindowsReader) ReadFile(buf_pointer int64, buffer []byte) []byte {
 
-	buffer := make([]byte, bytesToRead)
-	largeInteger := utils.NewLargeInteger(offset)
+	largeInteger := utils.NewLargeInteger(buf_pointer)
 	var bytesRead uint32
 
 	newLowOffset, err := windows.SetFilePointer(winreader.fd, largeInteger.LowPart,
