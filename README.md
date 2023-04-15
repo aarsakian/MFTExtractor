@@ -3,7 +3,7 @@ MFTExtractor
 
 ###A Parser  of Master File Table written  in go.
 
-Still In progress but the majority of MFT attributes are parsed.
+
 
 a tool to explore $MFT and its attributes
 
@@ -33,7 +33,7 @@ Usage information  type: MFTExtractor  -h
   -index
     	show index structures
 
-  -physicalDrive string
+  -physicalDrive string (offset of volume is hardcoded for the moment)
     	use physical drive information for extraction of non resident files
 
   -resident
@@ -49,7 +49,7 @@ Usage information  type: MFTExtractor  -h
     	show all timestamps
 
   -toEntry int
-    	select entry to end parsing (default 4294967295)
+    	select entry to end parsing 
 
   -vcns
     	show the vncs of non resident attributes
