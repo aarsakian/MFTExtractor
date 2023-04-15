@@ -19,16 +19,18 @@ type NTFS struct {
 	MFTMirrOffset     uint64   //56-64
 }
 
-func Parse(drive string) NTFS {
-	offset := int64(124769275 * 512)
+func (ntfs NTFS) GetSectorsPerCluster() uint8 {
+	return ntfs.SectorsPerCluster
+}
+
+func Parse(drive int, partitionOffset uint32) NTFS {
+	offset := int64(partitionOffset * 512)
 	length := uint32(512)
 
-	hD := img.GetHandler("\\\\.\\PHYSICALDRIVE" + drive)
+	hD := img.GetHandler(fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", drive))
 	buffer := make([]byte, length)
-	fmt.Printf("before %x\n", buffer)
+
 	hD.ReadFile(offset, buffer)
-	fmt.Printf("%x\n", buffer)
-	//"\\\\.\\PHYSICALDRIVE" + fmt.Sprintf("%d", driveNumber))
 
 	defer hD.CloseHandler()
 	var ntfs NTFS
