@@ -11,9 +11,11 @@ import (
 	"math"
 	"os"
 
+	mbrLib "github.com/aarsakian/MFTExtractor/MBR"
 	"github.com/aarsakian/MFTExtractor/MFT"
 	ntfsLib "github.com/aarsakian/MFTExtractor/NTFS"
 )
+
 import "github.com/aarsakian/MFTExtractor/tree"
 
 func checkErr(err error, msg string) {
@@ -67,7 +69,8 @@ func main() {
 	showAttributes := flag.String("attributes", "", "show attributes")
 	showTimestamps := flag.Bool("timestamps", false, "show all timestamps")
 	showIndex := flag.Bool("index", false, "show index structures")
-	physicalDrive := flag.String("physicalDrive", "", "use physical drive information for extraction of non resident files")
+	physicalDrive := flag.Int("physicalDrive", -1, "select disk drive number for extraction of non resident files")
+	partitionNum := flag.Int("partitionNumber", -1, "select partition number")
 	showFSStructure := flag.Bool("structure", false, "reconstrut entries tree")
 
 	flag.Parse() //ready to parse
@@ -126,10 +129,14 @@ func main() {
 
 			record.Process(bs)
 
-			if *exportFiles && *physicalDrive != "" {
-				ntfs := ntfsLib.Parse(*physicalDrive)
-				fmt.Printf("ntfs.SectorsPerCluster %d", ntfs.SectorsPerCluster)
-				record.CreateFileFromEntry(ntfs.SectorsPerCluster, *physicalDrive)
+			if *exportFiles && *physicalDrive != -1 && *partitionNum != -1 {
+				mbr := mbrLib.Parse(*physicalDrive)
+				partitionOffset := mbr.GetPartitionOffset(*partitionNum)
+
+				ntfs := ntfsLib.Parse(*physicalDrive, partitionOffset)
+				sectorsPerCluster := ntfs.GetSectorsPerCluster()
+
+				record.CreateFileFromEntry(sectorsPerCluster, *physicalDrive, partitionOffset)
 
 			}
 			if *showFileName != "" {
