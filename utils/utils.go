@@ -194,6 +194,20 @@ func Unmarshal(data []byte, v interface{}) error {
 			field.SetBool(false)
 			idx += 1
 		case reflect.Array:
+			arrT := reflect.ArrayOf(field.Len(), reflect.TypeOf(data[0])) //create array type to hold the slice
+			arr := reflect.New(arrT).Elem()                               //initialize and access array
+			var end int
+			if idx+field.Len() > len(data) { //determine end
+				end = len(data)
+			} else {
+				end = idx + field.Len()
+			}
+			for idx, val := range data[idx:end] {
+
+				arr.Index(idx).Set(reflect.ValueOf(val))
+			}
+
+			field.Set(arr)
 			idx += field.Len()
 
 		}
