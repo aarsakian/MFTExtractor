@@ -1,3 +1,5 @@
+//go:build !windows
+
 package img
 
 import (
@@ -19,7 +21,7 @@ func (unixreader UnixReader) CreateHandler() {
 	unixreader.fd = fd
 }
 
-func (unixreader UnixReader) ReadFile(buf_pointer int64, buffer []byte) {
+func (unixreader UnixReader) ReadFile(buf_pointer int64, buffer []byte) []byte {
 
 	unix.Seek(unixreader.fd, buf_pointer, unix.SEEK_SET)
 	_, err := unix.Read(unixreader.fd, buffer)
@@ -27,7 +29,7 @@ func (unixreader UnixReader) ReadFile(buf_pointer int64, buffer []byte) {
 	if err != nil {
 		log.Fatal("error reading", err)
 	}
-
+	return []byte{}
 }
 
 func (unixreader UnixReader) CloseHandler() {
