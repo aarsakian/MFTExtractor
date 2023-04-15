@@ -20,10 +20,10 @@ type NTFS struct {
 }
 
 func Parse(drive string) NTFS {
-	offset := int64(0)
+	offset := int64(124769275 * 512)
 	length := uint32(512)
 
-	hD := img.GetHandler(drive)
+	hD := img.GetHandler("\\\\.\\PHYSICALDRIVE" + drive)
 	buffer := make([]byte, length)
 	fmt.Printf("before %x\n", buffer)
 	hD.ReadFile(offset, buffer)

@@ -2,6 +2,17 @@ package attributes
 
 import "github.com/aarsakian/MFTExtractor/utils"
 
+var RecordTypes = map[uint32]string{
+	1: "Read Only", 2: "Hidden", 4: "System",
+	32: "Archive", 64: "Device", 128: "Normal", 256: "Temporary", 512: "Sparse file",
+	1024: "Reparse", 2048: "Compressed", 4096: "Offline",
+	8192:  "Content  is not being indexed for faster searches",
+	16384: "Encrypted"}
+
+var NameSpaceFlags = map[uint8]string{
+	0: "POSIX", 1: "Win32", 2: "Dos", 3: "Win32 & Dos",
+}
+
 type FNAttribute struct {
 	ParRef      uint64
 	ParSeq      uint16
