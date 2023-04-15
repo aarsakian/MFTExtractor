@@ -7,7 +7,7 @@ import (
 type DiskReader interface {
 	CreateHandler()
 	CloseHandler()
-	ReadFile(int64, []byte)
+	ReadFile(int64, []byte) []byte
 	GetDiskSize() int64
 }
 
@@ -16,10 +16,10 @@ func GetHandler(pathToDisk string) DiskReader {
 	var dr DiskReader
 	switch os {
 	case "windows":
-		//dr = WindowsReader{pathToDisk: pathToDisk}
+		dr = &WindowsReader{a_file: pathToDisk}
 
 	case "linux":
-		dr = UnixReader{pathToDisk: pathToDisk}
+		//	dr = UnixReader{pathToDisk: pathToDisk}
 
 	}
 	dr.CreateHandler()
