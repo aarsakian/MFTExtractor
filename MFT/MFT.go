@@ -62,6 +62,7 @@ func (record MFTrecord) containsAttribute(attributeName string) bool {
 func (record MFTrecord) FindAttribute(attributeName string) attributes.Attribute {
 	for _, attribute := range record.Attributes {
 		if attribute.FindType() == attributeName {
+
 			return attribute
 		}
 	}
