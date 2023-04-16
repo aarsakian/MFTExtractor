@@ -23,14 +23,26 @@ func (ntfs NTFS) GetSectorsPerCluster() uint8 {
 	return ntfs.SectorsPerCluster
 }
 
+func (ntfs NTFS) GetMFTEntry(hD img.DiskReader, partitionOffset uint32, recordOffset int) []byte {
+	length := uint32(1024) // len of MFT record
+	physicalOffset := int64(ntfs.MFTOffset)*int64(ntfs.SectorsPerCluster)*512 +
+		int64(partitionOffset)*512 + int64(recordOffset)
+	buffer := make([]byte, length)
+
+	hD.ReadFile(physicalOffset, buffer)
+	return buffer
+
+
+}
+
 func Parse(drive int, partitionOffset uint32) NTFS {
-	offset := int64(partitionOffset * 512)
+	physicalOffset := int64(partitionOffset * 512)
 	length := uint32(512)
 
 	hD := img.GetHandler(fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", drive))
 	buffer := make([]byte, length)
 
-	hD.ReadFile(offset, buffer)
+	hD.ReadFile(physicalOffset, buffer)
 
 	defer hD.CloseHandler()
 	var ntfs NTFS
