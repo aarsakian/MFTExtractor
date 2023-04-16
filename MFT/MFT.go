@@ -207,9 +207,9 @@ func (record MFTrecord) ShowRunList() {
 	totalSize := 0
 	for (MFTAttributes.RunList{}) != runlist {
 		totalSize += int(runlist.Length)
-		fmt.Printf(" offs. %d sector len %d ", runlist.Offset*8, runlist.Length*8)
+		fmt.Printf(" offs. %d cl len %d cl \n", runlist.Offset*8, runlist.Length*8)
 		if runlist.Next == nil {
-			fmt.Printf("total size %d clusters", totalSize)
+			fmt.Printf("total size %d clusters\n", totalSize)
 			break
 		}
 		runlist = *runlist.Next
@@ -445,13 +445,19 @@ func (record *MFTrecord) Process(bs []byte) {
 
 func (record MFTrecord) ShowFileSize() {
 
+	allocated, real := record.GetFileSize()
+	fmt.Printf(" logical: %d (KB), physical: %d (KB)",
+		allocated/1024, real/1024)
+
+}
+
+func (record MFTrecord) GetFileSize() (logical int64, physical int64) {
 	attr := record.FindAttribute("FileName")
 	if attr != nil {
 		fnattr := attr.(*MFTAttributes.FNAttribute)
-		fmt.Printf(" allocated: %d (KB), real: %d (KB)",
-			fnattr.AllocFsize/1024, fnattr.RealFsize/1024)
+		return int64(fnattr.AllocFsize), int64(fnattr.RealFsize)
 	}
-
+	return 0, 0
 }
 
 func (record MFTrecord) ShowFileName(fileNameSyntax string) {
