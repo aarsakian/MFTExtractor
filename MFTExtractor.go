@@ -16,7 +16,10 @@ import (
 	ntfsLib "github.com/aarsakian/MFTExtractor/NTFS"
 )
 
-import "github.com/aarsakian/MFTExtractor/tree"
+import (
+	"github.com/aarsakian/MFTExtractor/img"
+	"github.com/aarsakian/MFTExtractor/tree"
+)
 
 func checkErr(err error, msg string) {
 	if err != nil {
@@ -56,7 +59,7 @@ func main() {
 	//defer dbmap.Db.Close()
 
 	//	save2DB := flag.Bool("db", false, "bool if set an sqlite file will be created, each table will corresponed to an MFT attribute")
-	inputfile := flag.String("MFT", "MFT file", "absolute path to the MFT file")
+	inputfile := flag.String("MFT", "Disk MFT", "absolute path to the MFT file")
 	exportFiles := flag.Bool("export", false, "export  files")
 	MFTSelectedEntry := flag.Int("entry", -1, "select a particular MFT entry")
 	showFileName := flag.String("fileName", "", "show the name of the filename attribute of each MFT record choices: Any, Win32, Dos")
@@ -75,11 +78,43 @@ func main() {
 
 	flag.Parse() //ready to parse
 
-	//err := dbmap.TruncateTables()
-	//checkErr(err, "TruncateTables failed")
+	var file *os.File
+	var err error
 
-	//	fmt.Println(*inputfile, os.Args[1])
-	file, err := os.Open(*inputfile) //
+	var partitionOffset uint32
+	var sectorsPerCluster uint8
+
+	var ntfs ntfsLib.NTFS
+	var hd img.DiskReader
+
+	var MFTsize int64
+
+	var record MFT.MFTrecord
+
+	bs := make([]byte, 1024) //byte array to hold MFT entries
+
+	if *physicalDrive != -1 && *partitionNum != -1 {
+		mbr := mbrLib.Parse(*physicalDrive)
+		partitionOffset = mbr.GetPartitionOffset(*partitionNum)
+
+		ntfs = ntfsLib.Parse(*physicalDrive, partitionOffset)
+		sectorsPerCluster = ntfs.GetSectorsPerCluster()
+
+	}
+
+	if *inputfile == "Disk MFT" {
+		if *physicalDrive != -1 && *partitionNum != -1 {
+			hd = img.GetHandler(fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", *physicalDrive))
+			bs = ntfs.GetMFTEntry(hd, partitionOffset, 0)
+			record.Process(bs)
+		}
+
+	} else {
+
+		file, err = os.Open(*inputfile)
+		defer file.Close()
+
+	}
 
 	if err != nil {
 		// handle the error here
@@ -87,32 +122,42 @@ func main() {
 		return
 	}
 
-	// get the file size
-	fsize, err := file.Stat() //file descriptor
-	if err != nil {
-		return
-	}
 	// read the file
-	file1, err := os.OpenFile("MFToutput.csv", os.O_RDWR|os.O_CREATE, 0666)
+	//file1, err = os.OpenFile("MFToutput.csv", os.O_RDWR|os.O_CREATE, 0666)
 
 	if err != nil {
 		// handle the error here
 		fmt.Printf("err %s", err)
 		return
 	}
-	defer file.Close()
-	defer file1.Close()
 
-	bs := make([]byte, 1024) //byte array to hold MFT entries
+	//	defer file1.Close()
 
 	var records []MFT.MFTrecord
 
-	for i := 0; i < int(fsize.Size()); i += 1024 {
-		_, err := file.ReadAt(bs, int64(i))
-
+	if *inputfile == "Disk MFT" {
+		MFTsize, _ = record.GetFileSize()
+	} else {
+		// get the file size
+		fsize, err := file.Stat() //file descriptor
 		if err != nil {
-			fmt.Printf("error reading file --->%s", err)
+			fmt.Printf("error getting the file size\n")
 			return
+		}
+		MFTsize = fsize.Size()
+	}
+
+	for i := 0; i < int(MFTsize); i += 1024 {
+		if *inputfile == "Disk MFT" {
+			if *physicalDrive != -1 && *partitionNum != -1 && i > 0 {
+				bs = ntfs.GetMFTEntry(hd, partitionOffset, i)
+			}
+		} else {
+			_, err = file.ReadAt(bs, int64(i))
+			if err != nil {
+				fmt.Printf("error reading file --->%s", err)
+				return
+			}
 		}
 
 		if i/1024 > *ToMFTEntry {
@@ -125,16 +170,10 @@ func main() {
 		}
 
 		if string(bs[:4]) == "FILE" {
-			var record MFT.MFTrecord
 
 			record.Process(bs)
 
 			if *exportFiles && *physicalDrive != -1 && *partitionNum != -1 {
-				mbr := mbrLib.Parse(*physicalDrive)
-				partitionOffset := mbr.GetPartitionOffset(*partitionNum)
-
-				ntfs := ntfsLib.Parse(*physicalDrive, partitionOffset)
-				sectorsPerCluster := ntfs.GetSectorsPerCluster()
 
 				record.CreateFileFromEntry(sectorsPerCluster, *physicalDrive, partitionOffset)
 
