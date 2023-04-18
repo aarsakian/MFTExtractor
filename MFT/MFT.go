@@ -202,17 +202,37 @@ func (record MFTrecord) getData(sectorsPerCluster uint8, disk int, partitionOffs
 
 }
 
-func (record MFTrecord) ShowRunList() {
+func (record MFTrecord) GetRunListTotalSizeAndOffsets() map[int]int {
 	runlist := record.getRunList()
-	totalSize := 0
+
+	offsetLenMap := map[int]int{}
 	for (MFTAttributes.RunList{}) != runlist {
-		totalSize += int(runlist.Length)
-		fmt.Printf(" offs. %d cl len %d cl \n", runlist.Offset*8, runlist.Length*8)
+		offsetLenMap[int(runlist.Offset)] = int(runlist.Length)
+
 		if runlist.Next == nil {
-			fmt.Printf("total size %d clusters\n", totalSize)
 			break
 		}
 		runlist = *runlist.Next
+	}
+	return offsetLenMap
+}
+
+func (record MFTrecord) GetTotalRunlistSize() int {
+	offsetLenMap := record.GetRunListTotalSizeAndOffsets()
+	totalSize := 0
+	for _, length := range offsetLenMap {
+		totalSize += int(length)
+	}
+	return totalSize
+
+}
+
+func (record MFTrecord) ShowRunList() {
+	offsetLenMap := record.GetRunListTotalSizeAndOffsets()
+	totalSize := 0
+	for offset, length := range offsetLenMap {
+		totalSize += int(length)
+		fmt.Printf(" offs. %d cl len %d cl \n", offset*8, length*8)
 	}
 
 }
