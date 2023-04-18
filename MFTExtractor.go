@@ -136,7 +136,7 @@ func main() {
 	var records []MFT.MFTrecord
 
 	if *inputfile == "Disk MFT" {
-		MFTsize, _ = record.GetFileSize()
+		MFTsize = int64(record.GetTotalRunlistSize() * 512 * int(ntfs.SectorsPerCluster))
 	} else {
 		// get the file size
 		fsize, err := file.Stat() //file descriptor
