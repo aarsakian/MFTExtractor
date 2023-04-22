@@ -202,7 +202,7 @@ func (record MFTrecord) getData(sectorsPerCluster uint8, disk int, partitionOffs
 
 }
 
-func (record MFTrecord) GetRunListTotalSizeAndOffsets() map[int]int {
+func (record MFTrecord) GetRunListSizesAndOffsets() map[int]int {
 	runlist := record.getRunList()
 
 	offsetLenMap := map[int]int{}
@@ -218,7 +218,7 @@ func (record MFTrecord) GetRunListTotalSizeAndOffsets() map[int]int {
 }
 
 func (record MFTrecord) GetTotalRunlistSize() int {
-	offsetLenMap := record.GetRunListTotalSizeAndOffsets()
+	offsetLenMap := record.GetRunListSizesAndOffsets()
 	totalSize := 0
 	for _, length := range offsetLenMap {
 		totalSize += int(length)
@@ -228,7 +228,7 @@ func (record MFTrecord) GetTotalRunlistSize() int {
 }
 
 func (record MFTrecord) ShowRunList() {
-	offsetLenMap := record.GetRunListTotalSizeAndOffsets()
+	offsetLenMap := record.GetRunListSizesAndOffsets()
 	totalSize := 0
 	for offset, length := range offsetLenMap {
 		totalSize += int(length)
@@ -291,7 +291,7 @@ func (record *MFTrecord) Process(bs []byte) {
 	}
 
 	ReadPtr := record.AttrOff //offset to first attribute
-	fmt.Printf("\n Processing $MFT entry %d ", record.Entry)
+	fmt.Printf("Processing $MFT entry %d \n", record.Entry)
 	var attributes []MFTAttributes.Attribute
 	for ReadPtr < 1024 {
 
