@@ -107,6 +107,8 @@ func main() {
 			hd = img.GetHandler(fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", *physicalDrive))
 			bs = ntfs.GetMFTEntry(hd, partitionOffset, 0)
 			record.Process(bs)
+			runlistOffsetsAndSizes := record.GetRunListSizesAndOffsets()
+			ntfs.MFTrunlistOffsetsAndSizes = &runlistOffsetsAndSizes
 		}
 
 	} else {
@@ -137,6 +139,7 @@ func main() {
 
 	if *inputfile == "Disk MFT" {
 		MFTsize = int64(record.GetTotalRunlistSize() * 512 * int(ntfs.SectorsPerCluster))
+
 	} else {
 		// get the file size
 		fsize, err := file.Stat() //file descriptor
@@ -148,17 +151,6 @@ func main() {
 	}
 
 	for i := 0; i < int(MFTsize); i += 1024 {
-		if *inputfile == "Disk MFT" {
-			if *physicalDrive != -1 && *partitionNum != -1 && i > 0 {
-				bs = ntfs.GetMFTEntry(hd, partitionOffset, i)
-			}
-		} else {
-			_, err = file.ReadAt(bs, int64(i))
-			if err != nil {
-				fmt.Printf("error reading file --->%s", err)
-				return
-			}
-		}
 
 		if i/1024 > *ToMFTEntry {
 			break
@@ -167,6 +159,19 @@ func main() {
 		if *MFTSelectedEntry != -1 && i/1024 != *MFTSelectedEntry ||
 			*fromMFTEntry > i/1024 || i/1024 > *ToMFTEntry {
 			continue
+		}
+
+		if *inputfile == "Disk MFT" {
+			if *physicalDrive != -1 && *partitionNum != -1 && i > 0 {
+				bs = ntfs.GetMFTEntry(hd, partitionOffset, i)
+			}
+		} else {
+			_, err = file.ReadAt(bs, int64(i))
+
+			if err != nil {
+				fmt.Printf("error reading file --->%s", err)
+				return
+			}
 		}
 
 		if string(bs[:4]) == "FILE" {
