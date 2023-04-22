@@ -68,7 +68,7 @@ func (winreader WindowsReader) ReadFile(buf_pointer int64, buffer []byte) []byte
 
 	err = windows.ReadFile(winreader.fd, buffer, &bytesRead, nil)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalln("error reading win32 api file", err)
 	}
 	return buffer
 }
