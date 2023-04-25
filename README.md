@@ -7,7 +7,7 @@ MFTExtractor
 
 Using this tool you can explore $MFT and its attributes. You can selectively extract information about an entry or a range of entries. In addition, you can export the contents of the file if you have mounted the evidence and provide its physical drive order and partition number by using the respective parameters. 
 
-**New**  you can now explore $MFT by providing physicalDrive and partitionNumber (Not fully supported yet).
+**New**  you can now explore $MFT by providing physicalDrive and partitionNumber.
 
 Usage information  type: MFTExtractor  -h
 
@@ -21,7 +21,7 @@ Usage information  type: MFTExtractor  -h
         select a particular MFT entry (default -1)
         
   -export
-        export  files
+        export  files (files exported to 8.3 format).
         
   -fileName string
         show the name of the filename attribute of each MFT record choices: Any, Win32, Dos
