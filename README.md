@@ -1,13 +1,14 @@
 MFTExtractor
 ============
 
-### A Parser  of Master File Table.
+### A Parser  of ~~Master File Table~~  NTFS file system.
 
 
 
 Using this tool you can explore $MFT and its attributes. You can selectively extract information about an entry or a range of entries. In addition, you can export the contents of the file if you have mounted the evidence and provide its physical drive order and partition number by using the respective parameters. 
 
-**New**  you can now explore $MFT by providing physicalDrive and partitionNumber.
+**New**  you can now explore $MFT by providing physicalDrive and partitionNumber
+e.g. -physicalDrive 0 -partitionNumber 1 translates to \\\\.\\PHYSICALDRIVE0 D drive.
 
 Usage information  type: MFTExtractor  -h
 
