@@ -11,6 +11,7 @@ import (
 	"math"
 	"os"
 
+	gptLib "github.com/aarsakian/MFTExtractor/GPT"
 	mbrLib "github.com/aarsakian/MFTExtractor/MBR"
 	"github.com/aarsakian/MFTExtractor/MFT"
 	ntfsLib "github.com/aarsakian/MFTExtractor/NTFS"
@@ -95,8 +96,12 @@ func main() {
 
 	if *physicalDrive != -1 && *partitionNum != -1 {
 		mbr := mbrLib.Parse(*physicalDrive)
-		partitionOffset = mbr.GetPartitionOffset(*partitionNum)
 
+		partitionOffset = mbr.GetPartitionOffset(*partitionNum)
+		if mbr.IsProtective() {
+
+			gptLib.Parse(*physicalDrive, partitionOffset)
+		}
 		ntfs = ntfsLib.Parse(*physicalDrive, partitionOffset)
 		sectorsPerCluster = ntfs.GetSectorsPerCluster()
 
