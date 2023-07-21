@@ -14,7 +14,7 @@ type GPT struct {
 	Partitions Partitions
 }
 type GPTHeader struct {
-	StartSignature     [4]byte
+	StartSignature     [8]byte
 	Revision           [4]byte
 	HeaderSize         uint32
 	HeaderCRC          uint32
@@ -41,11 +41,11 @@ type Partition struct {
 	Name              string
 }
 
-func Parse(drive int, partitionOffset uint32) GPT {
+func Parse(drive int) GPT {
 
 	var gpt GPT
 
-	physicalOffset := int64(partitionOffset * 512)
+	physicalOffset := int64(512) // gpt always starts at 512
 	length := uint32(512)
 
 	hD := img.GetHandler(fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", drive))
@@ -79,4 +79,8 @@ func (gpt *GPT) GetPartitions(data []byte) {
 		partitions[idx] = partition
 	}
 	gpt.Partitions = partitions
+}
+
+func (gpt GPT) GetPartitionOffset(partitionNum int) uint64 {
+	return gpt.Partitions[partitionNum].StartLBA
 }
