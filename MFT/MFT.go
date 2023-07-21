@@ -165,7 +165,7 @@ func (record MFTrecord) showInfo() {
 	fmt.Printf("record %d type %s\n", record.Entry, record.getType())
 }
 
-func (record MFTrecord) getData(sectorsPerCluster uint8, disk int, partitionOffset uint32) []byte {
+func (record MFTrecord) getData(sectorsPerCluster uint8, disk int, partitionOffset uint64) []byte {
 
 	if record.hasResidentDataAttr() {
 
@@ -274,7 +274,7 @@ func (record MFTrecord) ShowFNAMFTAccessTime() {
 	fmt.Printf("%s ", fnattr.Atime.ConvertToIsoTime())
 }
 
-func (record MFTrecord) CreateFileFromEntry(clusterPerSector uint8, disk int, partitionOffset uint32) {
+func (record MFTrecord) CreateFileFromEntry(clusterPerSector uint8, disk int, partitionOffset uint64) {
 	fnattr := record.FindAttribute("FileName").(*MFTAttributes.FNAttribute)
 
 	data := record.getData(clusterPerSector, disk, partitionOffset)
