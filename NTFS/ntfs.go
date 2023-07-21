@@ -24,7 +24,7 @@ func (ntfs NTFS) GetSectorsPerCluster() uint8 {
 	return ntfs.SectorsPerCluster
 }
 
-func (ntfs NTFS) GetMFTEntry(hD img.DiskReader, partitionOffset uint32,
+func (ntfs NTFS) GetMFTEntry(hD img.DiskReader, partitionOffset uint64,
 	recordOffset int) []byte {
 
 	length := uint32(1024) // len of MFT record
@@ -53,7 +53,7 @@ func (ntfs NTFS) GetMFTEntry(hD img.DiskReader, partitionOffset uint32,
 
 }
 
-func Parse(drive int, partitionOffset uint32) NTFS {
+func Parse(drive int, partitionOffset uint64) NTFS {
 	physicalOffset := int64(partitionOffset * 512)
 	length := uint32(512)
 
