@@ -82,7 +82,7 @@ func main() {
 	var file *os.File
 	var err error
 
-	var partitionOffset uint32
+	var partitionOffset uint64
 	var sectorsPerCluster uint8
 
 	var ntfs ntfsLib.NTFS
@@ -97,10 +97,12 @@ func main() {
 	if *physicalDrive != -1 && *partitionNum != -1 {
 		mbr := mbrLib.Parse(*physicalDrive)
 
-		partitionOffset = mbr.GetPartitionOffset(*partitionNum)
 		if mbr.IsProtective() {
 
-			gptLib.Parse(*physicalDrive, partitionOffset)
+			gpt := gptLib.Parse(*physicalDrive)
+			partitionOffset = gpt.GetPartitionOffset(*partitionNum)
+		} else {
+			partitionOffset = uint64(mbr.GetPartitionOffset(*partitionNum))
 		}
 		ntfs = ntfsLib.Parse(*physicalDrive, partitionOffset)
 		sectorsPerCluster = ntfs.GetSectorsPerCluster()
