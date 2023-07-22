@@ -70,7 +70,7 @@ func main() {
 
 		sectorsPerCluster = ntfs.GetSectorsPerCluster()
 
-		hd = img.GetHandler(disk.GetPhysicalPath())
+		hd = disk.GetHandler()
 		bs = ntfs.GetMFTEntry(hd, partitionOffset, 0)
 		record.Process(bs)
 		runlistOffsetsAndSizes := record.GetRunListSizesAndOffsets()
