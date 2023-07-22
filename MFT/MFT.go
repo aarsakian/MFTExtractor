@@ -12,6 +12,8 @@ import (
 	"github.com/aarsakian/MFTExtractor/utils"
 )
 
+var RecordSize = 1024
+
 var IndexEntryFlags = map[string]string{
 	"00000001": "Child Node exists",
 	"00000002": "Last Entry in list",
@@ -28,7 +30,8 @@ var MFTflags = map[uint16]string{
 	0: "File Unallocted", 1: "File Allocated", 2: "Folder Unalloc", 3: "Folder Allocated",
 }
 
-type MFTrecord struct {
+// MFT Record
+type Record struct {
 	Signature          string //0-3
 	UpdateSeqArrOffset uint16 //4-5      offset values are relative to the start of the entry.
 	UpdateSeqArrSize   uint16 //6-7
@@ -50,7 +53,7 @@ type MFTrecord struct {
 
 }
 
-func (record MFTrecord) containsAttribute(attributeName string) bool {
+func (record Record) containsAttribute(attributeName string) bool {
 	for _, attribute := range record.Attributes {
 		if attribute.FindType() == attributeName {
 			return true
@@ -59,7 +62,7 @@ func (record MFTrecord) containsAttribute(attributeName string) bool {
 	return false
 }
 
-func (record MFTrecord) FindAttribute(attributeName string) attributes.Attribute {
+func (record Record) FindAttribute(attributeName string) attributes.Attribute {
 	for _, attribute := range record.Attributes {
 		if attribute.FindType() == attributeName {
 
@@ -69,16 +72,16 @@ func (record MFTrecord) FindAttribute(attributeName string) attributes.Attribute
 	return nil
 }
 
-func (record MFTrecord) hasResidentDataAttr() bool {
+func (record Record) hasResidentDataAttr() bool {
 	attribute := record.FindAttribute("DATA")
 	return attribute != nil && !attribute.IsNoNResident()
 }
 
-func (record MFTrecord) getType() string {
+func (record Record) getType() string {
 	return MFTflags[record.Flags]
 }
 
-func (record MFTrecord) getRunList() MFTAttributes.RunList {
+func (record Record) getRunList() MFTAttributes.RunList {
 	for _, attribute := range record.Attributes {
 		if attribute.IsNoNResident() &&
 			attribute.GetHeader().ATRrecordNoNResident.RunList != nil {
@@ -88,7 +91,7 @@ func (record MFTrecord) getRunList() MFTAttributes.RunList {
 	return MFTAttributes.RunList{}
 }
 
-func (record MFTrecord) ShowVCNs() {
+func (record Record) ShowVCNs() {
 	startVCN, lastVCN := record.getVCNs()
 	if startVCN != 0 || lastVCN != 0 {
 		fmt.Printf(" startVCN %d endVCN %d", startVCN, lastVCN)
@@ -96,7 +99,7 @@ func (record MFTrecord) ShowVCNs() {
 
 }
 
-func (record MFTrecord) ShowIndex() {
+func (record Record) ShowIndex() {
 	indexAttr := record.FindAttribute("Index Root")
 	indexAlloc := record.FindAttribute("Index Allocation")
 
@@ -123,7 +126,7 @@ func (record MFTrecord) ShowIndex() {
 
 }
 
-func (record MFTrecord) getVCNs() (uint64, uint64) {
+func (record Record) getVCNs() (uint64, uint64) {
 	for _, attribute := range record.Attributes {
 		if attribute.IsNoNResident() {
 			return attribute.GetHeader().ATRrecordNoNResident.StartVcn,
@@ -134,7 +137,7 @@ func (record MFTrecord) getVCNs() (uint64, uint64) {
 
 }
 
-func (record MFTrecord) ShowAttributes(attrType string) {
+func (record Record) ShowAttributes(attrType string) {
 	//fmt.Printf("\n %d %d %s ", record.Entry, record.Seq, record.getType())
 	fnAttributes := utils.Filter(record.Attributes, func(attribute MFTAttributes.Attribute) bool {
 		return attribute.FindType() == attrType
@@ -145,7 +148,7 @@ func (record MFTrecord) ShowAttributes(attrType string) {
 
 }
 
-func (record MFTrecord) ShowTimestamps() {
+func (record Record) ShowTimestamps() {
 	var attr attributes.Attribute
 	attr = record.FindAttribute("FileName")
 	if attr != nil {
@@ -161,11 +164,11 @@ func (record MFTrecord) ShowTimestamps() {
 	}
 }
 
-func (record MFTrecord) showInfo() {
+func (record Record) showInfo() {
 	fmt.Printf("record %d type %s\n", record.Entry, record.getType())
 }
 
-func (record MFTrecord) getData(sectorsPerCluster uint8, disk int, partitionOffset uint64) []byte {
+func (record Record) getData(sectorsPerCluster uint8, disk int, partitionOffset uint64) []byte {
 
 	if record.hasResidentDataAttr() {
 
@@ -202,7 +205,7 @@ func (record MFTrecord) getData(sectorsPerCluster uint8, disk int, partitionOffs
 
 }
 
-func (record MFTrecord) GetRunListSizesAndOffsets() map[int]int {
+func (record Record) GetRunListSizesAndOffsets() map[int]int {
 	runlist := record.getRunList()
 
 	offsetLenMap := map[int]int{}
@@ -217,7 +220,7 @@ func (record MFTrecord) GetRunListSizesAndOffsets() map[int]int {
 	return offsetLenMap
 }
 
-func (record MFTrecord) GetTotalRunlistSize() int {
+func (record Record) GetTotalRunlistSize() int {
 	offsetLenMap := record.GetRunListSizesAndOffsets()
 	totalSize := 0
 	for _, length := range offsetLenMap {
@@ -227,7 +230,7 @@ func (record MFTrecord) GetTotalRunlistSize() int {
 
 }
 
-func (record MFTrecord) ShowRunList() {
+func (record Record) ShowRunList() {
 	offsetLenMap := record.GetRunListSizesAndOffsets()
 	totalSize := 0
 	for offset, length := range offsetLenMap {
@@ -237,11 +240,11 @@ func (record MFTrecord) ShowRunList() {
 
 }
 
-func (record MFTrecord) hasAttr(attrName string) bool {
+func (record Record) hasAttr(attrName string) bool {
 	return record.FindAttribute(attrName) != nil
 }
 
-func (record MFTrecord) ShowIsResident() {
+func (record Record) ShowIsResident() {
 	if record.hasAttr("DATA") {
 		if record.hasResidentDataAttr() {
 			fmt.Printf("Resident")
@@ -254,27 +257,27 @@ func (record MFTrecord) ShowIsResident() {
 	}
 }
 
-func (record MFTrecord) ShowFNAModifiedTime() {
+func (record Record) ShowFNAModifiedTime() {
 	fnattr := record.FindAttribute("FileName").(*MFTAttributes.FNAttribute)
 	fmt.Printf("%s ", fnattr.Mtime.ConvertToIsoTime())
 }
 
-func (record MFTrecord) ShowFNACreationTime() {
+func (record Record) ShowFNACreationTime() {
 	fnattr := record.FindAttribute("FileName").(*MFTAttributes.FNAttribute)
 	fmt.Printf("%s ", fnattr.Crtime.ConvertToIsoTime())
 }
 
-func (record MFTrecord) ShowFNAMFTModifiedTime() {
+func (record Record) ShowFNAMFTModifiedTime() {
 	fnattr := record.FindAttribute("FileName").(*MFTAttributes.FNAttribute)
 	fmt.Printf("%s ", fnattr.MFTmtime.ConvertToIsoTime())
 }
 
-func (record MFTrecord) ShowFNAMFTAccessTime() {
+func (record Record) ShowFNAMFTAccessTime() {
 	fnattr := record.FindAttribute("FileName").(*MFTAttributes.FNAttribute)
 	fmt.Printf("%s ", fnattr.Atime.ConvertToIsoTime())
 }
 
-func (record MFTrecord) CreateFileFromEntry(clusterPerSector uint8, disk int, partitionOffset uint64) {
+func (record Record) CreateFileFromEntry(clusterPerSector uint8, disk int, partitionOffset uint64) {
 	fnattr := record.FindAttribute("FileName").(*MFTAttributes.FNAttribute)
 
 	data := record.getData(clusterPerSector, disk, partitionOffset)
@@ -282,7 +285,7 @@ func (record MFTrecord) CreateFileFromEntry(clusterPerSector uint8, disk int, pa
 
 }
 
-func (record *MFTrecord) Process(bs []byte) {
+func (record *Record) Process(bs []byte) {
 
 	utils.Unmarshal(bs, record)
 
@@ -463,7 +466,7 @@ func (record *MFTrecord) Process(bs []byte) {
 	record.Attributes = attributes
 }
 
-func (record MFTrecord) ShowFileSize() {
+func (record Record) ShowFileSize() {
 
 	allocated, real := record.GetFileSize()
 	fmt.Printf(" logical: %d (KB), physical: %d (KB)",
@@ -471,7 +474,7 @@ func (record MFTrecord) ShowFileSize() {
 
 }
 
-func (record MFTrecord) GetFileSize() (logical int64, physical int64) {
+func (record Record) GetFileSize() (logical int64, physical int64) {
 	attr := record.FindAttribute("FileName")
 	if attr != nil {
 		fnattr := attr.(*MFTAttributes.FNAttribute)
@@ -480,7 +483,7 @@ func (record MFTrecord) GetFileSize() (logical int64, physical int64) {
 	return 0, 0
 }
 
-func (record MFTrecord) ShowFileName(fileNameSyntax string) {
+func (record Record) ShowFileName(fileNameSyntax string) {
 	fnAttributes := utils.Filter(record.Attributes, func(attribute MFTAttributes.Attribute) bool {
 		return attribute.FindType() == "FileName"
 	})
@@ -501,7 +504,7 @@ func (record MFTrecord) ShowFileName(fileNameSyntax string) {
 
 }
 
-func (record MFTrecord) GetBasicInfoFromRecord(file1 *os.File) {
+func (record Record) GetBasicInfoFromRecord(file1 *os.File) {
 
 	s := fmt.Sprintf("%d;%d;%s", record.Entry, record.Seq, record.getType())
 	attr := record.FindAttribute("FileName")
