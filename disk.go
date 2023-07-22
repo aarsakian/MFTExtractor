@@ -6,6 +6,7 @@ import (
 	gptLib "github.com/aarsakian/MFTExtractor/GPT"
 	mbrLib "github.com/aarsakian/MFTExtractor/MBR"
 	ntfsLib "github.com/aarsakian/MFTExtractor/NTFS"
+	"github.com/aarsakian/MFTExtractor/img"
 )
 
 type Disk struct {
@@ -20,6 +21,10 @@ type Partition interface {
 
 func (disk Disk) GetPhysicalPath() string {
 	return fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", disk.physicalDriveNum)
+}
+
+func (disk Disk) GetHandler() img.DiskReader {
+	return img.GetHandler(disk.GetPhysicalPath())
 }
 
 func (disk Disk) GetPartition() Partition {
