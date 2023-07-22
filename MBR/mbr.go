@@ -3,6 +3,7 @@ package MBR
 import (
 	"fmt"
 
+	ntfsLib "github.com/aarsakian/MFTExtractor/NTFS"
 	"github.com/aarsakian/MFTExtractor/img"
 	"github.com/aarsakian/MFTExtractor/utils"
 )
@@ -25,15 +26,23 @@ type Partition struct {
 
 }
 
+func (partition Partition) GetOffset() uint64 {
+	return uint64(partition.StartLBA)
+}
+
+func (partition Partition) LocateFileSystem(physicalDriveNum int) ntfsLib.NTFS {
+	return ntfsLib.Parse(physicalDriveNum, uint64(partition.StartLBA))
+}
+
 func (mbr MBR) IsProtective() bool {
 	return mbr.Partitions[0].Type == 0xEE // 1st partition flag
 }
 
-func (mbr MBR) GetPartitionOffset(partitionNum int) uint32 {
-	return mbr.Partitions[partitionNum].StartLBA
+func (mbr MBR) GetPartition(partitionNum int) Partition {
+	return mbr.Partitions[partitionNum]
 }
 
-func GetPartitions(data []byte) Partitions {
+func LocatePartitions(data []byte) Partitions {
 	pos := 0
 	var partitions Partitions
 	for pos < len(data) {
@@ -59,7 +68,7 @@ func Parse(drive int) MBR {
 	defer hD.CloseHandler()
 
 	utils.Unmarshal(buffer, &mbr)
-	mbr.Partitions = GetPartitions(buffer[446:510])
+	mbr.Partitions = LocatePartitions(buffer[446:510])
 
 	return mbr
 }
