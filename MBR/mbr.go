@@ -1,4 +1,4 @@
-package mbr
+package MBR
 
 import (
 	"fmt"
