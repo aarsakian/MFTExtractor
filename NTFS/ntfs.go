@@ -55,12 +55,17 @@ func (ntfs *NTFS) ProcessFirstRecord(hD img.DiskReader, partitionOffset uint64) 
 }
 
 func (ntfs *NTFS) ProcessRecords(data []byte) {
+
+	records := make([]MFT.Record, len(data)/MFT.RecordSize)
 	var record MFT.Record
 	for i := 0; i < len(data); i += MFT.RecordSize {
-
+		if utils.Hexify(data[i:i+4]) == "00000000" { //zero area skip
+			continue
+		}
 		record.Process(data[i : i+MFT.RecordSize])
-		ntfs.MFTRecords = append(ntfs.MFTRecords, record) //copies values
+		records[i/MFT.RecordSize] = record
 	}
+	ntfs.MFTRecords = append(ntfs.MFTRecords, records...)
 }
 
 func (ntfs NTFS) GetMFTEntry(hD img.DiskReader, partitionOffset uint64,
