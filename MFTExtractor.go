@@ -59,7 +59,7 @@ func main() {
 
 	var MFTsize int64
 
-	var record MFT.MFTrecord
+	var record MFT.Record
 
 	bs := make([]byte, 1024) //byte array to hold MFT entries
 
@@ -72,12 +72,12 @@ func main() {
 		sectorsPerCluster = ntfs.GetSectorsPerCluster()
 
 		hd = physicalDisk.GetHandler()
-		bs = ntfs.GetMFTEntry(hd, partitionOffset, 0)
-		record.Process(bs)
-		runlistOffsetsAndSizes := record.GetRunListSizesAndOffsets()
-		ntfs.MFTrunlistOffsetsAndSizes = &runlistOffsetsAndSizes
 
-		MFTsize = int64(record.GetTotalRunlistSize() * 512 * int(ntfs.SectorsPerCluster))
+		ntfs.ProcessFirstRecord(hd, partitionOffset)
+		// fill buffer before parsing the record
+		MFTAreaBuf := ntfs.CollectMFTArea(hd, partitionOffset)
+		ntfs.ProcessRecords(MFTAreaBuf)
+
 	}
 
 	if *inputfile != "Disk MFT" {
@@ -99,7 +99,7 @@ func main() {
 
 	}
 
-	var records []MFT.MFTrecord
+	var records []MFT.Record
 
 	for i := 0; i < int(MFTsize); i += 1024 {
 
