@@ -1,4 +1,4 @@
-package main
+package disk
 
 import (
 	"fmt"
@@ -10,8 +10,8 @@ import (
 )
 
 type Disk struct {
-	physicalDriveNum int
-	partitionNum     int
+	PhysicalDriveNum int
+	PartitionNum     int
 }
 
 type Partition interface {
@@ -20,7 +20,7 @@ type Partition interface {
 }
 
 func (disk Disk) GetPhysicalPath() string {
-	return fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", disk.physicalDriveNum)
+	return fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", disk.PhysicalDriveNum)
 }
 
 func (disk Disk) GetHandler() img.DiskReader {
@@ -29,13 +29,13 @@ func (disk Disk) GetHandler() img.DiskReader {
 
 func (disk Disk) GetPartition() Partition {
 
-	mbr := mbrLib.Parse(disk.physicalDriveNum)
+	mbr := mbrLib.Parse(disk.PhysicalDriveNum)
 
 	if mbr.IsProtective() {
 
-		gpt := gptLib.Parse(disk.physicalDriveNum)
-		return gpt.GetPartition(disk.partitionNum)
+		gpt := gptLib.Parse(disk.PhysicalDriveNum)
+		return gpt.GetPartition(disk.PartitionNum)
 	} else {
-		return mbr.GetPartition(disk.partitionNum)
+		return mbr.GetPartition(disk.PartitionNum)
 	}
 }
