@@ -3,6 +3,7 @@ package gpt
 import (
 	"fmt"
 
+	ntfsLib "github.com/aarsakian/MFTExtractor/NTFS"
 	"github.com/aarsakian/MFTExtractor/img"
 	"github.com/aarsakian/MFTExtractor/utils"
 )
@@ -64,12 +65,12 @@ func Parse(drive int) GPT {
 	buffer = make([]byte, partitionArraySize)
 	hD.ReadFile(int64(header.PartitionsStartLBA*512), buffer)
 
-	gpt.GetPartitions(buffer)
+	gpt.LocatePartitions(buffer)
 	return gpt
 
 }
 
-func (gpt *GPT) GetPartitions(data []byte) {
+func (gpt *GPT) LocatePartitions(data []byte) {
 
 	partitions := make([]Partition, gpt.Header.NofPartitions)
 
@@ -81,6 +82,14 @@ func (gpt *GPT) GetPartitions(data []byte) {
 	gpt.Partitions = partitions
 }
 
-func (gpt GPT) GetPartitionOffset(partitionNum int) uint64 {
-	return gpt.Partitions[partitionNum].StartLBA
+func (gpt GPT) GetPartition(partitionNum int) Partition {
+	return gpt.Partitions[partitionNum]
+}
+
+func (partition Partition) GetOffset() uint64 {
+	return partition.StartLBA
+}
+
+func (partition Partition) LocateFileSystem(physicalDriveNum int) ntfsLib.NTFS {
+	return ntfsLib.Parse(physicalDriveNum, uint64(partition.StartLBA))
 }

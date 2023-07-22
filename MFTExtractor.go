@@ -11,13 +11,8 @@ import (
 	"math"
 	"os"
 
-	gptLib "github.com/aarsakian/MFTExtractor/GPT"
-	mbrLib "github.com/aarsakian/MFTExtractor/MBR"
 	"github.com/aarsakian/MFTExtractor/MFT"
 	ntfsLib "github.com/aarsakian/MFTExtractor/NTFS"
-)
-
-import (
 	"github.com/aarsakian/MFTExtractor/img"
 	"github.com/aarsakian/MFTExtractor/tree"
 )
@@ -27,33 +22,6 @@ func checkErr(err error, msg string) {
 		log.Fatalln(msg, err)
 	}
 }
-
-/*func initDb() *gorp.DbMap {
-	// connect to db using standard Go database/sql API
-	// use whatever database/sql driver you wish
-	db, err := sql.Open("sqlite3", "./mft.sqlite")
-	checkErr(err, "sql.Open failed")
-
-	// construct a gorp DbMap
-	dbmap := &gorp.DbMap{Db: db, Dialect: gorp.SqliteDialect{}}
-
-	// add a table, setting the table name to 'posts' and
-	// specifying that the ID property is an auto incrementing PK
-	dbmap.AddTableWithName(MFTrecord{}, "MFTrecord").SetKeys(false, "Entry")
-	dbmap.AddTableWithName(ATRrecordResIDent{}, "ATRrecordResIDent").SetKeys(true, "AttrID")
-	dbmap.AddTableWithName(ATRrecordNoNResIDent{}, "ATRrecordNoNResIDent").SetKeys(true, "AttrID")
-	dbmap.AddTableWithName(FNAttribute{}, "FNAttribute")
-	dbmap.AddTableWithName(SIAttribute{}, "SIAttribute")
-	dbmap.AddTableWithName(ObjectID{}, "ObjectID")
-	dbmap.AddTableWithName(VolumeInfo{}, "VolumeInfo")
-	dbmap.AddTableWithName(VolumeName{}, "VolumeName")
-	// create the table. in a production system you'd generally
-	// use a migration tool, or create the tables via scripts
-	err = dbmap.CreateTablesIfNotExists()
-	checkErr(err, "Create tables failed")
-
-	return dbmap
-}*/
 
 func main() {
 	//dbmap := initDb()
@@ -95,67 +63,42 @@ func main() {
 	bs := make([]byte, 1024) //byte array to hold MFT entries
 
 	if *physicalDrive != -1 && *partitionNum != -1 {
-		mbr := mbrLib.Parse(*physicalDrive)
+		disk := Disk{*physicalDrive, *partitionNum}
+		partition := disk.GetPartition()
 
-		if mbr.IsProtective() {
+		ntfs = partition.LocateFileSystem(*physicalDrive)
 
-			gpt := gptLib.Parse(*physicalDrive)
-			partitionOffset = gpt.GetPartitionOffset(*partitionNum)
-		} else {
-			partitionOffset = uint64(mbr.GetPartitionOffset(*partitionNum))
-		}
-		ntfs = ntfsLib.Parse(*physicalDrive, partitionOffset)
 		sectorsPerCluster = ntfs.GetSectorsPerCluster()
 
+		hd = img.GetHandler(disk.GetPhysicalPath())
+		bs = ntfs.GetMFTEntry(hd, partitionOffset, 0)
+		record.Process(bs)
+		runlistOffsetsAndSizes := record.GetRunListSizesAndOffsets()
+		ntfs.MFTrunlistOffsetsAndSizes = &runlistOffsetsAndSizes
+
+		MFTsize = int64(record.GetTotalRunlistSize() * 512 * int(ntfs.SectorsPerCluster))
 	}
 
-	if *inputfile == "Disk MFT" {
-		if *physicalDrive != -1 && *partitionNum != -1 {
-			hd = img.GetHandler(fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", *physicalDrive))
-			bs = ntfs.GetMFTEntry(hd, partitionOffset, 0)
-			record.Process(bs)
-			runlistOffsetsAndSizes := record.GetRunListSizesAndOffsets()
-			ntfs.MFTrunlistOffsetsAndSizes = &runlistOffsetsAndSizes
-		}
-
-	} else {
+	if *inputfile != "Disk MFT" {
 
 		file, err = os.Open(*inputfile)
+		if err != nil {
+			// handle the error here
+			fmt.Printf("err %s for reading the MFT ", err)
+			return
+		}
 		defer file.Close()
 
-	}
-
-	if err != nil {
-		// handle the error here
-		fmt.Printf("err %s for reading the MFT ", err)
-		return
-	}
-
-	// read the file
-	//file1, err = os.OpenFile("MFToutput.csv", os.O_RDWR|os.O_CREATE, 0666)
-
-	if err != nil {
-		// handle the error here
-		fmt.Printf("err %s", err)
-		return
-	}
-
-	//	defer file1.Close()
-
-	var records []MFT.MFTrecord
-
-	if *inputfile == "Disk MFT" {
-		MFTsize = int64(record.GetTotalRunlistSize() * 512 * int(ntfs.SectorsPerCluster))
-
-	} else {
-		// get the file size
 		fsize, err := file.Stat() //file descriptor
 		if err != nil {
 			fmt.Printf("error getting the file size\n")
 			return
 		}
 		MFTsize = fsize.Size()
+
 	}
+
+	var records []MFT.MFTrecord
 
 	for i := 0; i < int(MFTsize); i += 1024 {
 
