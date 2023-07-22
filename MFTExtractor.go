@@ -11,6 +11,7 @@ import (
 	"math"
 	"os"
 
+	disk "github.com/aarsakian/MFTExtractor/Disk"
 	"github.com/aarsakian/MFTExtractor/MFT"
 	ntfsLib "github.com/aarsakian/MFTExtractor/NTFS"
 	"github.com/aarsakian/MFTExtractor/img"
@@ -63,14 +64,14 @@ func main() {
 	bs := make([]byte, 1024) //byte array to hold MFT entries
 
 	if *physicalDrive != -1 && *partitionNum != -1 {
-		disk := Disk{*physicalDrive, *partitionNum}
-		partition := disk.GetPartition()
-
+		physicalDisk := disk.Disk{PhysicalDriveNum: *physicalDrive, PartitionNum: *partitionNum}
+		partition := physicalDisk.GetPartition()
+		partitionOffset = partition.GetOffset()
 		ntfs = partition.LocateFileSystem(*physicalDrive)
 
 		sectorsPerCluster = ntfs.GetSectorsPerCluster()
 
-		hd = disk.GetHandler()
+		hd = physicalDisk.GetHandler()
 		bs = ntfs.GetMFTEntry(hd, partitionOffset, 0)
 		record.Process(bs)
 		runlistOffsetsAndSizes := record.GetRunListSizesAndOffsets()
