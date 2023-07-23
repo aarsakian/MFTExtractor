@@ -68,6 +68,16 @@ func (ntfs *NTFS) ProcessRecords(data []byte) {
 	ntfs.MFTRecords = append(ntfs.MFTRecords, records...)
 }
 
+func (ntfs NTFS) LocateRecordsByExtension(extension string) []MFT.Record {
+	var records []MFT.Record
+	for _, record := range ntfs.MFTRecords {
+		if record.HasFilenameExtension(extension) {
+			records = append(records, record)
+		}
+	}
+	return records
+}
+
 func (ntfs NTFS) GetMFTEntry(hD img.DiskReader, partitionOffset uint64,
 	recordOffset int) []byte {
 
