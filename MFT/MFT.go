@@ -240,6 +240,17 @@ func (record Record) ShowRunList() {
 
 }
 
+func (record Record) HasFilenameExtension(extension string) bool {
+	if record.hasAttr("FileName") {
+		fnattr := record.FindAttribute("FileName").(*MFTAttributes.FNAttribute)
+		if strings.HasSuffix(fnattr.Fname, extension) {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (record Record) hasAttr(attrName string) bool {
 	return record.FindAttribute(attrName) != nil
 }
