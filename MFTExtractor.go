@@ -45,6 +45,7 @@ func main() {
 	physicalDrive := flag.Int("physicalDrive", -1, "select disk drive number for extraction of non resident files")
 	partitionNum := flag.Int("partitionNumber", -1, "select partition number")
 	showFSStructure := flag.Bool("structure", false, "reconstrut entries tree")
+	fileExtension := flag.String("extension", "", "search MFT records by extension")
 
 	flag.Parse() //ready to parse
 
@@ -77,6 +78,9 @@ func main() {
 		// fill buffer before parsing the record
 		MFTAreaBuf := ntfs.CollectMFTArea(hd, partitionOffset)
 		ntfs.ProcessRecords(MFTAreaBuf)
+		if *fileExtension != "" {
+			ntfs.LocateRecordsByExtension(*fileExtension)
+		}
 
 	}
 
