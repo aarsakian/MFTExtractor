@@ -176,7 +176,11 @@ func (record Record) getData(sectorsPerCluster uint8, disk int, partitionOffset 
 
 	} else {
 		runlist := record.getRunList()
-		var dataRuns [][]byte
+		lsize, _ := record.GetFileSize()
+
+		var dataRuns bytes.Buffer
+		dataRuns.Grow(int(lsize))
+
 		offset := int64(partitionOffset) * 512 // partition in bytes
 		hD := img.GetHandler(fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", disk))
 		diskSize := hD.GetDiskSize()
@@ -191,7 +195,7 @@ func (record Record) getData(sectorsPerCluster uint8, disk int, partitionOffset 
 			buffer := make([]byte, uint32(runlist.Length*8*512))
 			hD.ReadFile(offset, buffer)
 
-			dataRuns = append(dataRuns, buffer)
+			dataRuns.Write(buffer)
 
 			if runlist.Next == nil {
 				break
@@ -199,7 +203,7 @@ func (record Record) getData(sectorsPerCluster uint8, disk int, partitionOffset 
 
 			runlist = *runlist.Next
 		}
-		return bytes.Join(dataRuns, []byte(""))
+		return dataRuns.Bytes()
 
 	}
 
