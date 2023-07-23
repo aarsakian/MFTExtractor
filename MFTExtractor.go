@@ -78,7 +78,7 @@ func main() {
 		ntfs.ProcessFirstRecord(hd, partitionOffset)
 		// fill buffer before parsing the record
 		MFTAreaBuf := ntfs.CollectMFTArea(hd, partitionOffset)
-		ntfs.ProcessRecords(MFTAreaBuf)
+		ntfs.ProcessMFT(MFTAreaBuf)
 		if *fileExtension != "" {
 			ntfs.LocateRecordsByExtension(*fileExtension)
 		}
@@ -86,21 +86,8 @@ func main() {
 	}
 
 	if *inputfile != "Disk MFT" {
-
-		file, err = os.Open(*inputfile)
-		if err != nil {
-			// handle the error here
-			fmt.Printf("err %s for reading the MFT ", err)
-			return
-		}
-		defer file.Close()
-
-		fsize, err := file.Stat() //file descriptor
-		if err != nil {
-			fmt.Printf("error getting the file size\n")
-			return
-		}
-		MFTsize = fsize.Size()
+		mftTable := MFT.MFTTable{Filepath: *inputfile}
+		mftTable.Populate()
 
 	}
 
@@ -114,46 +101,7 @@ func main() {
 		ShowVCNs:       *showVCNs,
 		ShowIndex:      *showIndex,
 	}
-	var records []MFT.Record
 
-	for i := 0; i < int(MFTsize); i += 1024 {
-
-		if i/1024 > *ToMFTEntry {
-			break
-		}
-
-		if *MFTSelectedEntry != -1 && i/1024 != *MFTSelectedEntry ||
-			*fromMFTEntry > i/1024 || i/1024 > *ToMFTEntry {
-			continue
-		}
-
-		_, err = file.ReadAt(bs, int64(i))
-
-		if err != nil {
-			fmt.Printf("error reading file --->%s", err)
-			return
-		}
-
-		if string(bs[:4]) == "FILE" {
-
-			record.Process(bs)
-
-			if *exportFiles && *physicalDrive != -1 && *partitionNum != -1 {
-
-				record.CreateFileFromEntry(sectorsPerCluster, *physicalDrive, partitionOffset)
-
-			}
-			rp.Show(record)
-
-			records = append(records, record)
-
-			if int(record.Entry) == *MFTSelectedEntry {
-				break
-			}
-
-		}
-
-	}
 	t := tree.Tree{}
 
 	fmt.Printf("Building tree from MFT records \n")
