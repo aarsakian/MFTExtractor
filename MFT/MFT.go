@@ -30,6 +30,14 @@ var MFTflags = map[uint16]string{
 	0: "File Unallocted", 1: "File Allocated", 2: "Folder Unalloc", 3: "Folder Allocated",
 }
 
+//$MFT table points either to its file path or the buffer containing $MFT
+type MFTTable struct {
+	Records  []Record
+	Filepath string
+	Buff     *[]byte
+	Size     int64
+}
+
 // MFT Record
 type Record struct {
 	Signature          string //0-3
@@ -51,6 +59,76 @@ type Record struct {
 	Bitmap             bool
 	// fixupArray add the        UpdateSeqArrOffset to find is location
 
+}
+
+func (mfttable *MFTTable) Populate() {
+	file, err := os.Open(mfttable.Filepath)
+	if err != nil {
+		// handle the error here
+		fmt.Printf("err %s for reading the MFT ", err)
+		return
+	}
+	defer file.Close()
+
+	fsize, err := file.Stat() //file descriptor
+	if err != nil {
+		fmt.Printf("error getting the file size\n")
+		return
+	}
+	mfttable.Size = fsize.Size()
+
+	for i := 0; i < int(MFTsize); i += 1024 {
+
+		if i/1024 > *ToMFTEntry {
+			break
+		}
+
+		if *MFTSelectedEntry != -1 && i/1024 != *MFTSelectedEntry ||
+			*fromMFTEntry > i/1024 || i/1024 > *ToMFTEntry {
+			continue
+		}
+
+		_, err = file.ReadAt(bs, int64(i))
+
+		if err != nil {
+			fmt.Printf("error reading file --->%s", err)
+			return
+		}
+
+		if string(bs[:4]) == "FILE" {
+
+			record.Process(bs)
+
+			if *exportFiles && *physicalDrive != -1 && *partitionNum != -1 {
+
+				record.CreateFileFromEntry(sectorsPerCluster, *physicalDrive, partitionOffset)
+
+			}
+			rp.Show(record)
+
+			records = append(records, record)
+
+			if int(record.Entry) == *MFTSelectedEntry {
+				break
+			}
+
+		}
+	}
+
+}
+
+func (mfttable *MFTTable) ProcessRecords() {
+	data := *mfttable.Buff
+	records := make([]Record, len(data)/RecordSize)
+	var record Record
+	for i := 0; i < len(data); i += RecordSize {
+		if utils.Hexify(data[i:i+4]) == "00000000" { //zero area skip
+			continue
+		}
+		record.Process(data[i : i+RecordSize])
+		records[i/RecordSize] = record
+	}
+	mfttable.Records = append(mfttable.Records, records...)
 }
 
 func (record Record) containsAttribute(attributeName string) bool {

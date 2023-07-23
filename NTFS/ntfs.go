@@ -20,7 +20,7 @@ type NTFS struct {
 	MFTOffset                 uint64       //48-56
 	MFTMirrOffset             uint64       //56-64
 	MFTrunlistOffsetsAndSizes *map[int]int //points to $MFT
-	MFTRecords                []MFT.Record
+	MFTTable                  *MFT.MFTTable
 	MFTSize                   int
 }
 
@@ -47,30 +47,23 @@ func (ntfs NTFS) CollectMFTArea(hD img.DiskReader, partitionOffset uint64) []byt
 func (ntfs *NTFS) ProcessFirstRecord(hD img.DiskReader, partitionOffset uint64) {
 	bs := ntfs.GetMFTEntry(hD, partitionOffset, 0)
 	ntfs.ProcessRecords(bs)
-	firstRecord := ntfs.MFTRecords[0]
+	firstRecord := ntfs.MFTRecorsds[0]
 	runlistOffsetsAndSizes := firstRecord.GetRunListSizesAndOffsets()
 	ntfs.MFTrunlistOffsetsAndSizes = &runlistOffsetsAndSizes
 
-	ntfs.MFTSize = int(firstRecord.GetTotalRunlistSize() * int(ntfs.BytesPerSector) * int(ntfs.SectorsPerCluster))
+	ntfs.MFTTable.Size = int(firstRecord.GetTotalRunlistSize() * int(ntfs.BytesPerSector) * int(ntfs.SectorsPerCluster))
 }
 
-func (ntfs *NTFS) ProcessRecords(data []byte) {
-
-	records := make([]MFT.Record, len(data)/MFT.RecordSize)
-	var record MFT.Record
-	for i := 0; i < len(data); i += MFT.RecordSize {
-		if utils.Hexify(data[i:i+4]) == "00000000" { //zero area skip
-			continue
-		}
-		record.Process(data[i : i+MFT.RecordSize])
-		records[i/MFT.RecordSize] = record
-	}
-	ntfs.MFTRecords = append(ntfs.MFTRecords, records...)
+func (ntfs *NTFS) ProcessMFT(data []byte) {
+	var mfttable *MFT.MFTTable = new(MFT.MFTTable)
+	mfttable.Buff = &data
+	mfttable.ProcessRecords()
+	ntfs.MFTTable = mfttable
 }
 
 func (ntfs NTFS) LocateRecordsByExtension(extension string) []MFT.Record {
 	var records []MFT.Record
-	for _, record := range ntfs.MFTRecords {
+	for _, record := range ntfs.MFTTable.Records {
 		if record.HasFilenameExtension(extension) {
 			records = append(records, record)
 		}
