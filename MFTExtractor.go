@@ -14,6 +14,7 @@ import (
 	disk "github.com/aarsakian/MFTExtractor/Disk"
 	"github.com/aarsakian/MFTExtractor/MFT"
 	ntfsLib "github.com/aarsakian/MFTExtractor/NTFS"
+	reporter "github.com/aarsakian/MFTExtractor/Reporter"
 	"github.com/aarsakian/MFTExtractor/img"
 	"github.com/aarsakian/MFTExtractor/tree"
 )
@@ -103,6 +104,16 @@ func main() {
 
 	}
 
+	rp := reporter.Reporter{
+		ShowFileName:   *showFileName,
+		ShowAttributes: *showAttributes,
+		ShowTimestamps: *showTimestamps,
+		IsResident:     *isResident,
+		ShowRunList:    *showRunList,
+		ShowFileSize:   *showFileSize,
+		ShowVCNs:       *showVCNs,
+		ShowIndex:      *showIndex,
+	}
 	var records []MFT.Record
 
 	for i := 0; i < int(MFTsize); i += 1024 {
@@ -116,17 +127,11 @@ func main() {
 			continue
 		}
 
-		if *inputfile == "Disk MFT" {
-			if *physicalDrive != -1 && *partitionNum != -1 && i > 0 {
-				bs = ntfs.GetMFTEntry(hd, partitionOffset, i)
-			}
-		} else {
-			_, err = file.ReadAt(bs, int64(i))
+		_, err = file.ReadAt(bs, int64(i))
 
-			if err != nil {
-				fmt.Printf("error reading file --->%s", err)
-				return
-			}
+		if err != nil {
+			fmt.Printf("error reading file --->%s", err)
+			return
 		}
 
 		if string(bs[:4]) == "FILE" {
@@ -138,37 +143,7 @@ func main() {
 				record.CreateFileFromEntry(sectorsPerCluster, *physicalDrive, partitionOffset)
 
 			}
-			if *showFileName != "" {
-				record.ShowFileName(*showFileName)
-			}
-
-			if *showAttributes != "" {
-				record.ShowAttributes(*showAttributes)
-			}
-
-			if *showTimestamps {
-				record.ShowTimestamps()
-			}
-
-			if *isResident {
-				record.ShowIsResident()
-			}
-
-			if *showRunList {
-				record.ShowRunList()
-			}
-
-			if *showFileSize {
-				record.ShowFileSize()
-			}
-
-			if *showVCNs {
-				record.ShowVCNs()
-			}
-
-			if *showIndex {
-				record.ShowIndex()
-			}
+			rp.Show(record)
 
 			records = append(records, record)
 
