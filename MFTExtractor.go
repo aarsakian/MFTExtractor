@@ -9,14 +9,15 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"os"
 
 	disk "github.com/aarsakian/MFTExtractor/Disk"
 	"github.com/aarsakian/MFTExtractor/MFT"
 	ntfsLib "github.com/aarsakian/MFTExtractor/NTFS"
-	reporter "github.com/aarsakian/MFTExtractor/Reporter"
 	"github.com/aarsakian/MFTExtractor/img"
 	"github.com/aarsakian/MFTExtractor/tree"
+)
+import (
+	reporter "github.com/aarsakian/MFTExtractor/Reporter"
 )
 
 func checkErr(err error, msg string) {
@@ -35,8 +36,8 @@ func main() {
 	MFTSelectedEntry := flag.Int("entry", -1, "select a particular MFT entry")
 	showFileName := flag.String("fileName", "", "show the name of the filename attribute of each MFT record choices: Any, Win32, Dos")
 	isResident := flag.Bool("resident", false, "check whether entry is resident")
-	fromMFTEntry := flag.Int("fromEntry", 0, "select entry to start parsing")
-	ToMFTEntry := flag.Int("toEntry", math.MaxUint32, "select entry to end parsing")
+	fromMFTEntry := flag.Int("fromEntry", -1, "select entry to start parsing")
+	toMFTEntry := flag.Int("toEntry", math.MaxUint32, "select entry to end parsing")
 	showRunList := flag.Bool("runlist", false, "show runlist of MFT record attributes")
 	showFileSize := flag.Bool("filesize", false, "show file size of a record holding a file")
 	showVCNs := flag.Bool("vcns", false, "show the vncs of non resident attributes")
@@ -50,28 +51,28 @@ func main() {
 
 	flag.Parse() //ready to parse
 
-	var file *os.File
-	var err error
-
 	var partitionOffset uint64
-	var sectorsPerCluster uint8
 
 	var ntfs ntfsLib.NTFS
 	var hd img.DiskReader
+	var records []MFT.Record
 
-	var MFTsize int64
-
-	var record MFT.Record
-
-	bs := make([]byte, 1024) //byte array to hold MFT entries
+	rp := reporter.Reporter{
+		ShowFileName:   *showFileName,
+		ShowAttributes: *showAttributes,
+		ShowTimestamps: *showTimestamps,
+		IsResident:     *isResident,
+		ShowRunList:    *showRunList,
+		ShowFileSize:   *showFileSize,
+		ShowVCNs:       *showVCNs,
+		ShowIndex:      *showIndex,
+	}
 
 	if *physicalDrive != -1 && *partitionNum != -1 {
 		physicalDisk := disk.Disk{PhysicalDriveNum: *physicalDrive, PartitionNum: *partitionNum}
 		partition := physicalDisk.GetPartition()
 		partitionOffset = partition.GetOffset()
 		ntfs = partition.LocateFileSystem(*physicalDrive)
-
-		sectorsPerCluster = ntfs.GetSectorsPerCluster()
 
 		hd = physicalDisk.GetHandler()
 
@@ -87,20 +88,17 @@ func main() {
 
 	if *inputfile != "Disk MFT" {
 		mftTable := MFT.MFTTable{Filepath: *inputfile}
-		mftTable.Populate()
+		mftTable.Populate(*MFTSelectedEntry, *fromMFTEntry, *toMFTEntry)
+		rp.Show(mftTable.Records)
 
 	}
 
-	rp := reporter.Reporter{
-		ShowFileName:   *showFileName,
-		ShowAttributes: *showAttributes,
-		ShowTimestamps: *showTimestamps,
-		IsResident:     *isResident,
-		ShowRunList:    *showRunList,
-		ShowFileSize:   *showFileSize,
-		ShowVCNs:       *showVCNs,
-		ShowIndex:      *showIndex,
-	}
+	/*if *exportFiles && *physicalDrive != -1 && *partitionNum != -1 {
+		exp := exporter.Exporter{Disk: *physicalDrive, PartitionOffset: partititionOffset,
+			SectorsPerCluster: sectorsPerCluster}
+		exp.ExportData(records)
+
+	}*/
 
 	t := tree.Tree{}
 
