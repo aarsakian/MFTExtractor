@@ -1,6 +1,10 @@
 package reporter
 
-import "github.com/aarsakian/MFTExtractor/MFT"
+import (
+	"fmt"
+
+	"github.com/aarsakian/MFTExtractor/MFT"
+)
 
 type Reporter struct {
 	ShowFileName   string
@@ -13,36 +17,43 @@ type Reporter struct {
 	ShowIndex      bool
 }
 
-func (rp Reporter) Show(record MFT.Record) {
-	if rp.ShowFileName != "" {
-		record.ShowFileName(rp.ShowFileName)
+func (rp Reporter) Show(records []MFT.Record) {
+	for _, record := range records {
+		if rp.ShowFileName != "" {
+			record.ShowFileName(rp.ShowFileName)
+		}
+
+		if rp.ShowAttributes != "" {
+			record.ShowAttributes(rp.ShowAttributes)
+		}
+
+		if rp.ShowTimestamps {
+			record.ShowTimestamps()
+		}
+
+		if rp.IsResident {
+			record.ShowIsResident()
+		}
+
+		if rp.ShowRunList {
+			record.ShowRunList()
+		}
+
+		if rp.ShowFileSize {
+			record.ShowFileSize()
+		}
+
+		if rp.ShowVCNs {
+			record.ShowVCNs()
+		}
+
+		if rp.ShowIndex {
+
+			record.ShowIndex()
+		}
+
+		fmt.Printf("\n")
+
 	}
 
-	if rp.ShowAttributes != "" {
-		record.ShowAttributes(rp.ShowAttributes)
-	}
-
-	if rp.ShowTimestamps {
-		record.ShowTimestamps()
-	}
-
-	if rp.IsResident {
-		record.ShowIsResident()
-	}
-
-	if rp.ShowRunList {
-		record.ShowRunList()
-	}
-
-	if rp.ShowFileSize {
-		record.ShowFileSize()
-	}
-
-	if rp.ShowVCNs {
-		record.ShowVCNs()
-	}
-
-	if rp.ShowIndex {
-		record.ShowIndex()
-	}
 }
