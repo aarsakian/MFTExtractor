@@ -3,12 +3,12 @@ package MFT
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"os"
 	"strings"
 
 	"github.com/aarsakian/MFTExtractor/MFT/attributes"
 	MFTAttributes "github.com/aarsakian/MFTExtractor/MFT/attributes"
-	"github.com/aarsakian/MFTExtractor/img"
 	"github.com/aarsakian/MFTExtractor/utils"
 )
 
@@ -32,10 +32,10 @@ var MFTflags = map[uint16]string{
 
 //$MFT table points either to its file path or the buffer containing $MFT
 type MFTTable struct {
-	Records  []Record
-	Filepath string
-	Buff     *[]byte
-	Size     int64
+	Records                []Record
+	Filepath               string
+	Size                   int
+	RunlistOffsetsAndSizes *map[int]int //points to $MFT
 }
 
 // MFT Record
@@ -61,7 +61,7 @@ type Record struct {
 
 }
 
-func (mfttable *MFTTable) Populate() {
+func (mfttable *MFTTable) Populate(MFTSelectedEntry int, fromMFTEntry int, ToMFTEntry int) {
 	file, err := os.Open(mfttable.Filepath)
 	if err != nil {
 		// handle the error here
@@ -75,16 +75,32 @@ func (mfttable *MFTTable) Populate() {
 		fmt.Printf("error getting the file size\n")
 		return
 	}
-	mfttable.Size = fsize.Size()
+	mfttable.Size = int(fsize.Size())
 
-	for i := 0; i < int(MFTsize); i += 1024 {
+	var buf bytes.Buffer
+	// collect data of $MFT
 
-		if i/1024 > *ToMFTEntry {
+	bs := make([]byte, RecordSize)
+	// find buffer size
+	totalRecords := int(mfttable.Size) / RecordSize
+	if fromMFTEntry != -1 {
+		totalRecords -= fromMFTEntry
+	}
+	if ToMFTEntry != math.MaxUint32 {
+		totalRecords -= ToMFTEntry
+	}
+	if MFTSelectedEntry != -1 {
+		totalRecords = 1
+	}
+	buf.Grow(totalRecords * RecordSize)
+	for i := 0; i < int(mfttable.Size); i += 1024 {
+
+		if i/1024 > ToMFTEntry {
 			break
 		}
 
-		if *MFTSelectedEntry != -1 && i/1024 != *MFTSelectedEntry ||
-			*fromMFTEntry > i/1024 || i/1024 > *ToMFTEntry {
+		if MFTSelectedEntry != -1 && i/1024 != MFTSelectedEntry ||
+			fromMFTEntry > i/1024 {
 			continue
 		}
 
@@ -94,31 +110,19 @@ func (mfttable *MFTTable) Populate() {
 			fmt.Printf("error reading file --->%s", err)
 			return
 		}
+		buf.Write(bs)
 
-		if string(bs[:4]) == "FILE" {
-
-			record.Process(bs)
-
-			if *exportFiles && *physicalDrive != -1 && *partitionNum != -1 {
-
-				record.CreateFileFromEntry(sectorsPerCluster, *physicalDrive, partitionOffset)
-
-			}
-			rp.Show(record)
-
-			records = append(records, record)
-
-			if int(record.Entry) == *MFTSelectedEntry {
-				break
-			}
-
+		if i == MFTSelectedEntry {
+			break
 		}
+
 	}
+	mfttable.ProcessRecords(buf.Bytes())
 
 }
 
-func (mfttable *MFTTable) ProcessRecords() {
-	data := *mfttable.Buff
+func (mfttable *MFTTable) ProcessRecords(data []byte) {
+
 	records := make([]Record, len(data)/RecordSize)
 	var record Record
 	for i := 0; i < len(data); i += RecordSize {
@@ -150,7 +154,7 @@ func (record Record) FindAttribute(attributeName string) attributes.Attribute {
 	return nil
 }
 
-func (record Record) hasResidentDataAttr() bool {
+func (record Record) HasResidentDataAttr() bool {
 	attribute := record.FindAttribute("DATA")
 	return attribute != nil && !attribute.IsNoNResident()
 }
@@ -159,7 +163,7 @@ func (record Record) getType() string {
 	return MFTflags[record.Flags]
 }
 
-func (record Record) getRunList() MFTAttributes.RunList {
+func (record Record) GetRunList() MFTAttributes.RunList {
 	for _, attribute := range record.Attributes {
 		if attribute.IsNoNResident() &&
 			attribute.GetHeader().ATRrecordNoNResident.RunList != nil {
@@ -246,49 +250,13 @@ func (record Record) showInfo() {
 	fmt.Printf("record %d type %s\n", record.Entry, record.getType())
 }
 
-func (record Record) getData(sectorsPerCluster uint8, disk int, partitionOffset uint64) []byte {
-
-	if record.hasResidentDataAttr() {
-
-		return record.FindAttribute("DATA").(*MFTAttributes.DATA).Content
-
-	} else {
-		runlist := record.getRunList()
-		lsize, _ := record.GetFileSize()
-
-		var dataRuns bytes.Buffer
-		dataRuns.Grow(int(lsize))
-
-		offset := int64(partitionOffset) * 512 // partition in bytes
-		hD := img.GetHandler(fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", disk))
-		diskSize := hD.GetDiskSize()
-
-		for (MFTAttributes.RunList{}) != runlist {
-			offset += runlist.Offset * int64(sectorsPerCluster) * 512
-			if offset > diskSize {
-				fmt.Printf("skipped offset %d exceeds disk size! exiting", offset)
-				break
-			}
-			//	fmt.Printf("extracting data from %d len %d \n", offset, runlist.Length)
-			buffer := make([]byte, uint32(runlist.Length*8*512))
-			hD.ReadFile(offset, buffer)
-
-			dataRuns.Write(buffer)
-
-			if runlist.Next == nil {
-				break
-			}
-
-			runlist = *runlist.Next
-		}
-		return dataRuns.Bytes()
-
-	}
+func (record Record) GetResidentData() []byte {
+	return record.FindAttribute("DATA").(*MFTAttributes.DATA).Content
 
 }
 
 func (record Record) GetRunListSizesAndOffsets() map[int]int {
-	runlist := record.getRunList()
+	runlist := record.GetRunList()
 
 	offsetLenMap := map[int]int{}
 	for (MFTAttributes.RunList{}) != runlist {
@@ -323,7 +291,7 @@ func (record Record) ShowRunList() {
 }
 
 func (record Record) HasFilenameExtension(extension string) bool {
-	if record.hasAttr("FileName") {
+	if record.HasAttr("FileName") {
 		fnattr := record.FindAttribute("FileName").(*MFTAttributes.FNAttribute)
 		if strings.HasSuffix(fnattr.Fname, extension) {
 			return true
@@ -333,13 +301,13 @@ func (record Record) HasFilenameExtension(extension string) bool {
 	return false
 }
 
-func (record Record) hasAttr(attrName string) bool {
+func (record Record) HasAttr(attrName string) bool {
 	return record.FindAttribute(attrName) != nil
 }
 
 func (record Record) ShowIsResident() {
-	if record.hasAttr("DATA") {
-		if record.hasResidentDataAttr() {
+	if record.HasAttr("DATA") {
+		if record.HasResidentDataAttr() {
 			fmt.Printf("Resident")
 		} else {
 			fmt.Printf("NoN Resident")
@@ -368,14 +336,6 @@ func (record Record) ShowFNAMFTModifiedTime() {
 func (record Record) ShowFNAMFTAccessTime() {
 	fnattr := record.FindAttribute("FileName").(*MFTAttributes.FNAttribute)
 	fmt.Printf("%s ", fnattr.Atime.ConvertToIsoTime())
-}
-
-func (record Record) CreateFileFromEntry(clusterPerSector uint8, disk int, partitionOffset uint64) {
-	fnattr := record.FindAttribute("FileName").(*MFTAttributes.FNAttribute)
-
-	data := record.getData(clusterPerSector, disk, partitionOffset)
-	utils.WriteFile(fnattr.Fname, data)
-
 }
 
 func (record *Record) Process(bs []byte) {
@@ -574,6 +534,22 @@ func (record Record) GetFileSize() (logical int64, physical int64) {
 		return int64(fnattr.AllocFsize), int64(fnattr.RealFsize)
 	}
 	return 0, 0
+}
+
+func (record Record) GetFname() map[string]string {
+	var fnames map[string]string
+	fnAttributes := utils.Filter(record.Attributes, func(attribute MFTAttributes.Attribute) bool {
+		return attribute.FindType() == "FileName"
+	})
+
+	for _, attr := range fnAttributes {
+		fnattr := attr.(*MFTAttributes.FNAttribute)
+		fnames[fnattr.GetFileNameType()] = fnattr.Fname
+
+	}
+
+	return fnames
+
 }
 
 func (record Record) ShowFileName(fileNameSyntax string) {
