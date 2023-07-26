@@ -10,18 +10,16 @@ import (
 )
 
 type NTFS struct {
-	JumpInstruction           [3]byte //0-3
-	Signature                 string  //4 bytes NTFS 3-7
-	NotUsed1                  [4]byte
-	BytesPerSector            uint16       // 11-13
-	SectorsPerCluster         uint8        //13
-	NotUsed2                  [26]byte     //13-39
-	TotalSectors              uint64       //39-47
-	MFTOffset                 uint64       //48-56
-	MFTMirrOffset             uint64       //56-64
-	MFTrunlistOffsetsAndSizes *map[int]int //points to $MFT
-	MFTTable                  *MFT.MFTTable
-	MFTSize                   int
+	JumpInstruction   [3]byte //0-3
+	Signature         string  //4 bytes NTFS 3-7
+	NotUsed1          [4]byte
+	BytesPerSector    uint16   // 11-13
+	SectorsPerCluster uint8    //13
+	NotUsed2          [26]byte //13-39
+	TotalSectors      uint64   //39-47
+	MFTOffset         uint64   //48-56
+	MFTMirrOffset     uint64   //56-64
+	MFTTable          *MFT.MFTTable
 }
 
 func (ntfs NTFS) GetSectorsPerCluster() uint8 {
@@ -31,11 +29,11 @@ func (ntfs NTFS) GetSectorsPerCluster() uint8 {
 func (ntfs NTFS) CollectMFTArea(hD img.DiskReader, partitionOffset uint64) []byte {
 	var buf bytes.Buffer
 
-	buf.Grow(ntfs.MFTSize) // allow for MFT size
+	buf.Grow(int(ntfs.MFTTable.Size)) // allow for MFT size
 
 	partitionOffsetB := int64(partitionOffset) * int64(ntfs.BytesPerSector)
 
-	for offset, clustr := range *ntfs.MFTrunlistOffsetsAndSizes {
+	for offset, clustr := range *ntfs.MFTTable.RunlistOffsetsAndSizes {
 		//inefficient since allocates memory for each round
 		tempBuffer := make([]byte, clustr*int(ntfs.SectorsPerCluster)*int(ntfs.BytesPerSector))
 		hD.ReadFile(partitionOffsetB+int64(offset)*int64(ntfs.SectorsPerCluster)*int64(ntfs.BytesPerSector), tempBuffer)
@@ -46,19 +44,21 @@ func (ntfs NTFS) CollectMFTArea(hD img.DiskReader, partitionOffset uint64) []byt
 
 func (ntfs *NTFS) ProcessFirstRecord(hD img.DiskReader, partitionOffset uint64) {
 	bs := ntfs.GetMFTEntry(hD, partitionOffset, 0)
-	ntfs.ProcessRecords(bs)
-	firstRecord := ntfs.MFTRecorsds[0]
-	runlistOffsetsAndSizes := firstRecord.GetRunListSizesAndOffsets()
-	ntfs.MFTrunlistOffsetsAndSizes = &runlistOffsetsAndSizes
 
-	ntfs.MFTTable.Size = int(firstRecord.GetTotalRunlistSize() * int(ntfs.BytesPerSector) * int(ntfs.SectorsPerCluster))
+	var mfttable *MFT.MFTTable = new(MFT.MFTTable)
+	ntfs.MFTTable = mfttable
+	ntfs.ProcessMFT(bs)
+	firstRecord := ntfs.MFTTable.Records[0]
+	runlistOffsetsAndSizes := firstRecord.GetRunListSizesAndOffsets()
+	mfttable.RunlistOffsetsAndSizes = &runlistOffsetsAndSizes
+
+	mfttable.Size = int(firstRecord.GetTotalRunlistSize() * int(ntfs.BytesPerSector) * int(ntfs.SectorsPerCluster))
 }
 
 func (ntfs *NTFS) ProcessMFT(data []byte) {
-	var mfttable *MFT.MFTTable = new(MFT.MFTTable)
-	mfttable.Buff = &data
-	mfttable.ProcessRecords()
-	ntfs.MFTTable = mfttable
+
+	ntfs.MFTTable.ProcessRecords(data)
+
 }
 
 func (ntfs NTFS) LocateRecordsByExtension(extension string) []MFT.Record {
@@ -81,7 +81,7 @@ func (ntfs NTFS) GetMFTEntry(hD img.DiskReader, partitionOffset uint64,
 	offsetedRecord := recordOffset
 	lengthB := 0
 	if offsetedRecord > 0 {
-		for offset, len := range *ntfs.MFTrunlistOffsetsAndSizes {
+		for offset, len := range *ntfs.MFTTable.RunlistOffsetsAndSizes {
 			lengthB += len * int(ntfs.SectorsPerCluster) * 512
 			if offsetedRecord >= lengthB { // more than the available clusters in the contiguous area
 				mftOffset = int64(offset * int(ntfs.SectorsPerCluster) * 512)
