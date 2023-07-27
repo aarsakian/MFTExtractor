@@ -3,6 +3,7 @@ package ntfs
 import (
 	"bytes"
 	"fmt"
+	"math"
 
 	"github.com/aarsakian/MFTExtractor/MFT"
 	"github.com/aarsakian/MFTExtractor/img"
@@ -47,7 +48,7 @@ func (ntfs *NTFS) ProcessFirstRecord(hD img.DiskReader, partitionOffset uint64) 
 
 	var mfttable *MFT.MFTTable = new(MFT.MFTTable)
 	ntfs.MFTTable = mfttable
-	ntfs.ProcessMFT(bs)
+	ntfs.MFTTable.ProcessRecords(bs)
 	firstRecord := ntfs.MFTTable.Records[0]
 	runlistOffsetsAndSizes := firstRecord.GetRunListSizesAndOffsets()
 	mfttable.RunlistOffsetsAndSizes = &runlistOffsetsAndSizes
@@ -55,9 +56,39 @@ func (ntfs *NTFS) ProcessFirstRecord(hD img.DiskReader, partitionOffset uint64) 
 	mfttable.Size = int(firstRecord.GetTotalRunlistSize() * int(ntfs.BytesPerSector) * int(ntfs.SectorsPerCluster))
 }
 
-func (ntfs *NTFS) ProcessMFT(data []byte) {
+func (ntfs *NTFS) ProcessMFT(data []byte, MFTSelectedEntry int,
+	fromMFTEntry int, toMFTEntry int) {
+	totalRecords := int(ntfs.MFTTable.Size) / MFT.RecordSize
+	var buf bytes.Buffer
+	if fromMFTEntry != -1 {
+		totalRecords -= fromMFTEntry
+	}
+	if toMFTEntry != math.MaxUint32 {
+		totalRecords -= toMFTEntry
+	}
+	if MFTSelectedEntry != -1 {
+		totalRecords = 1
+	}
+	buf.Grow(totalRecords * MFT.RecordSize)
+	for i := 0; i < int(ntfs.MFTTable.Size); i += ntfs.MFTTable.Size {
 
-	ntfs.MFTTable.ProcessRecords(data)
+		if i/ntfs.MFTTable.Size > toMFTEntry {
+			break
+		}
+
+		if MFTSelectedEntry != -1 && i/ntfs.MFTTable.Size != MFTSelectedEntry ||
+			fromMFTEntry > i/ntfs.MFTTable.Size {
+			continue
+		}
+
+		buf.Write(data[i : i+ntfs.MFTTable.Size])
+
+		if i == MFTSelectedEntry {
+			break
+		}
+
+	}
+	ntfs.MFTTable.ProcessRecords(buf.Bytes())
 
 }
 
