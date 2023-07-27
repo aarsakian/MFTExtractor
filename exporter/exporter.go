@@ -12,9 +12,9 @@ import (
 
 type Exporter struct {
 	location          string
-	sectorsPerCluster uint8
+	SectorsPerCluster uint8
 	Disk              int
-	partitionOffset   uint64
+	PartitionOffset   uint64
 }
 
 func (exp Exporter) ExportData(records []MFT.Record) {
@@ -32,12 +32,12 @@ func (exp Exporter) ExportData(records []MFT.Record) {
 			var dataRuns bytes.Buffer
 			dataRuns.Grow(int(lsize))
 
-			offset := int64(exp.partitionOffset) * 512 // partition in bytes
+			offset := int64(exp.PartitionOffset) * 512 // partition in bytes
 			hD := img.GetHandler(fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", exp.Disk))
 			diskSize := hD.GetDiskSize()
 
 			for (MFTAttributes.RunList{}) != runlist {
-				offset += runlist.Offset * int64(exp.sectorsPerCluster) * 512
+				offset += runlist.Offset * int64(exp.SectorsPerCluster) * 512
 				if offset > diskSize {
 					fmt.Printf("skipped offset %d exceeds disk size! exiting", offset)
 					break
