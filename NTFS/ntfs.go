@@ -63,6 +63,13 @@ func (ntfs *NTFS) ProcessMFT(data []byte, MFTSelectedEntry int,
 	if fromMFTEntry != -1 {
 		totalRecords -= fromMFTEntry
 	}
+	if fromMFTEntry > totalRecords {
+		panic("MFT start entry exceeds $MFT number of records")
+	}
+
+	if toMFTEntry != math.MaxUint32 && toMFTEntry > totalRecords {
+		panic("MFT end entry exceeds $MFT number of records")
+	}
 	if toMFTEntry != math.MaxUint32 {
 		totalRecords -= toMFTEntry
 	}
@@ -70,18 +77,18 @@ func (ntfs *NTFS) ProcessMFT(data []byte, MFTSelectedEntry int,
 		totalRecords = 1
 	}
 	buf.Grow(totalRecords * MFT.RecordSize)
-	for i := 0; i < int(ntfs.MFTTable.Size); i += ntfs.MFTTable.Size {
+	for i := 0; i < int(ntfs.MFTTable.Size); i += MFT.RecordSize {
 
-		if i/ntfs.MFTTable.Size > toMFTEntry {
+		if i/MFT.RecordSize > toMFTEntry {
 			break
 		}
 
-		if MFTSelectedEntry != -1 && i/ntfs.MFTTable.Size != MFTSelectedEntry ||
-			fromMFTEntry > i/ntfs.MFTTable.Size {
+		if MFTSelectedEntry != -1 && i/MFT.RecordSize != MFTSelectedEntry ||
+			fromMFTEntry > i/MFT.RecordSize {
 			continue
 		}
 
-		buf.Write(data[i : i+ntfs.MFTTable.Size])
+		buf.Write(data[i : i+MFT.RecordSize])
 
 		if i == MFTSelectedEntry {
 			break
