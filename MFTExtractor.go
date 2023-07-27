@@ -13,6 +13,7 @@ import (
 	disk "github.com/aarsakian/MFTExtractor/Disk"
 	"github.com/aarsakian/MFTExtractor/MFT"
 	ntfsLib "github.com/aarsakian/MFTExtractor/NTFS"
+	"github.com/aarsakian/MFTExtractor/exporter"
 	"github.com/aarsakian/MFTExtractor/img"
 	"github.com/aarsakian/MFTExtractor/tree"
 )
@@ -32,7 +33,7 @@ func main() {
 
 	//	save2DB := flag.Bool("db", false, "bool if set an sqlite file will be created, each table will corresponed to an MFT attribute")
 	inputfile := flag.String("MFT", "Disk MFT", "absolute path to the MFT file")
-	//	exportFiles := flag.Bool("export", false, "export  files")
+	exportFiles := flag.Bool("export", false, "export  files")
 	MFTSelectedEntry := flag.Int("entry", -1, "select a particular MFT entry")
 	showFileName := flag.String("fileName", "", "show the name of the filename attribute of each MFT record choices: Any, Win32, Dos")
 	isResident := flag.Bool("resident", false, "check whether entry is resident")
@@ -79,26 +80,28 @@ func main() {
 		ntfs.ProcessFirstRecord(hd, partitionOffset)
 		// fill buffer before parsing the record
 		MFTAreaBuf := ntfs.CollectMFTArea(hd, partitionOffset)
-		ntfs.ProcessMFT(MFTAreaBuf)
+		ntfs.ProcessMFT(MFTAreaBuf, *MFTSelectedEntry, *fromMFTEntry, *toMFTEntry)
 		if *fileExtension != "" {
 			ntfs.LocateRecordsByExtension(*fileExtension)
 		}
+		records = ntfs.MFTTable.Records
 
 	}
 
 	if *inputfile != "Disk MFT" {
 		mftTable := MFT.MFTTable{Filepath: *inputfile}
 		mftTable.Populate(*MFTSelectedEntry, *fromMFTEntry, *toMFTEntry)
-		rp.Show(mftTable.Records)
-
+		records = mftTable.Records
 	}
+	rp.Show(records)
 
-	/*if *exportFiles && *physicalDrive != -1 && *partitionNum != -1 {
-		exp := exporter.Exporter{Disk: *physicalDrive, PartitionOffset: partititionOffset,
+	if *exportFiles && *physicalDrive != -1 && *partitionNum != -1 {
+		sectorsPerCluster := ntfs.GetSectorsPerCluster()
+		exp := exporter.Exporter{Disk: *physicalDrive, PartitionOffset: partitionOffset,
 			SectorsPerCluster: sectorsPerCluster}
 		exp.ExportData(records)
 
-	}*/
+	}
 
 	t := tree.Tree{}
 
