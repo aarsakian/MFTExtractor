@@ -56,7 +56,7 @@ func (exp Exporter) ExportData(records []MFT.Record) {
 			}
 			data = dataRuns.Bytes()
 		}
-		exp.CreateFile(record.GetFname()["win32"], data)
+		exp.CreateFile(record.GetFnames()["win32"], data)
 
 	}
 
