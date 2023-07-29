@@ -126,13 +126,14 @@ func (mfttable *MFTTable) ProcessRecords(data []byte) {
 	records := make([]Record, len(data)/RecordSize)
 	var record Record
 	for i := 0; i < len(data); i += RecordSize {
+
 		if utils.Hexify(data[i:i+4]) == "00000000" { //zero area skip
 			continue
 		}
 		record.Process(data[i : i+RecordSize])
 		records[i/RecordSize] = record
 	}
-	mfttable.Records = append(mfttable.Records, records...)
+	mfttable.Records = records
 }
 
 func (record Record) containsAttribute(attributeName string) bool {
@@ -536,12 +537,12 @@ func (record Record) GetFileSize() (logical int64, physical int64) {
 	return 0, 0
 }
 
-func (record Record) GetFname() map[string]string {
-	var fnames map[string]string
+func (record Record) GetFnames() map[string]string {
+
 	fnAttributes := utils.Filter(record.Attributes, func(attribute MFTAttributes.Attribute) bool {
 		return attribute.FindType() == "FileName"
 	})
-
+	fnames := make(map[string]string, len(fnAttributes))
 	for _, attr := range fnAttributes {
 		fnattr := attr.(*MFTAttributes.FNAttribute)
 		fnames[fnattr.GetFileNameType()] = fnattr.Fname
@@ -553,24 +554,15 @@ func (record Record) GetFname() map[string]string {
 }
 
 func (record Record) ShowFileName(fileNameSyntax string) {
-	fnAttributes := utils.Filter(record.Attributes, func(attribute MFTAttributes.Attribute) bool {
-		return attribute.FindType() == "FileName"
-	})
-	if len(fnAttributes) != 0 {
-		for _, attr := range fnAttributes {
 
-			fnattr := attr.(*MFTAttributes.FNAttribute)
-			if fileNameSyntax == "Win32" && fnattr.GetFileNameType() == "Win32 & Dos" {
-				fmt.Printf(" %s ", fnattr.Fname)
-			} else if fileNameSyntax == fnattr.GetFileNameType() { //Dos
-				fmt.Printf(" %s ", fnattr.Fname)
-			} else if fileNameSyntax == "ANY" {
-				fmt.Printf(" %s ", fnattr.Fname)
-			}
+	fnames := record.GetFnames()
+	for ftype, fname := range fnames {
+		if ftype == fileNameSyntax {
+			fmt.Printf(" %s ", fname)
+		} else {
+			fmt.Printf(" %s ", fname)
 		}
-
 	}
-
 }
 
 func (record Record) GetBasicInfoFromRecord(file1 *os.File) {
