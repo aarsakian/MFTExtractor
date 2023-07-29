@@ -19,6 +19,9 @@ type Reporter struct {
 
 func (rp Reporter) Show(records []MFT.Record) {
 	for _, record := range records {
+		if record.Signature == "" { //empty record
+			continue
+		}
 		if rp.ShowFileName != "" {
 			record.ShowFileName(rp.ShowFileName)
 		}
