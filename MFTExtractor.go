@@ -33,7 +33,7 @@ func main() {
 
 	//	save2DB := flag.Bool("db", false, "bool if set an sqlite file will be created, each table will corresponed to an MFT attribute")
 	inputfile := flag.String("MFT", "Disk MFT", "absolute path to the MFT file")
-	exportFiles := flag.Bool("export", false, "export  files")
+	exportLocation := flag.String("export", "", "the path to export  files")
 	MFTSelectedEntry := flag.Int("entry", -1, "select a particular MFT entry")
 	showFileName := flag.String("fileName", "", "show the name of the filename attribute of each MFT record choices: Any, Win32, Dos")
 	isResident := flag.Bool("resident", false, "check whether entry is resident")
@@ -82,9 +82,10 @@ func main() {
 		MFTAreaBuf := ntfs.CollectMFTArea(hd, partitionOffset)
 		ntfs.ProcessMFT(MFTAreaBuf, *MFTSelectedEntry, *fromMFTEntry, *toMFTEntry)
 		if *fileExtension != "" {
-			ntfs.LocateRecordsByExtension(*fileExtension)
+			records = ntfs.FilterRecordsByExtension(*fileExtension)
+		} else {
+			records = ntfs.MFTTable.Records
 		}
-		records = ntfs.MFTTable.Records
 
 	}
 
@@ -95,10 +96,10 @@ func main() {
 	}
 	rp.Show(records)
 
-	if *exportFiles && *physicalDrive != -1 && *partitionNum != -1 {
+	if *exportLocation != "" && *physicalDrive != -1 && *partitionNum != -1 {
 		sectorsPerCluster := ntfs.GetSectorsPerCluster()
 		exp := exporter.Exporter{Disk: *physicalDrive, PartitionOffset: partitionOffset,
-			SectorsPerCluster: sectorsPerCluster}
+			SectorsPerCluster: sectorsPerCluster, Location: *exportLocation}
 		exp.ExportData(records)
 
 	}
