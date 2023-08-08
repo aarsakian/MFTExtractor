@@ -20,12 +20,15 @@ Usage information  type: MFTExtractor  -h
         
   -entry int
         select a particular MFT entry (default -1)
+
+  -extension 
+      filter records by extension
         
   -export
-        export  files (files exported to 8.3 format).
+        select location to export  files (files exported to POSIX or Win32 format)
         
   -fileName string
-        show the name of the filename attribute of each MFT record choices: Any, Win32, Dos
+        show the name of the filename attribute of each MFT record choices: any, Win32, Dos
         
   -filesize
         show file size of a record holding a file
