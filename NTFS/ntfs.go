@@ -99,13 +99,12 @@ func (ntfs *NTFS) ProcessMFT(data []byte, MFTSelectedEntry int,
 
 }
 
-func (ntfs NTFS) LocateRecordsByExtension(extension string) []MFT.Record {
-	var records []MFT.Record
-	for _, record := range ntfs.MFTTable.Records {
-		if record.HasFilenameExtension(extension) {
-			records = append(records, record)
-		}
-	}
+func (ntfs NTFS) FilterRecordsByExtension(extension string) []MFT.Record {
+
+	records := utils.Filter(ntfs.MFTTable.Records, func(record MFT.Record) bool {
+		return record.HasFilenameExtension(extension)
+	})
+
 	return records
 }
 
