@@ -3,6 +3,8 @@ package exporter
 import (
 	"bytes"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/aarsakian/MFTExtractor/MFT"
 	MFTAttributes "github.com/aarsakian/MFTExtractor/MFT/attributes"
@@ -11,7 +13,7 @@ import (
 )
 
 type Exporter struct {
-	location          string
+	Location          string
 	SectorsPerCluster uint8
 	Disk              int
 	PartitionOffset   uint64
@@ -56,14 +58,19 @@ func (exp Exporter) ExportData(records []MFT.Record) {
 			}
 			data = dataRuns.Bytes()
 		}
-		exp.CreateFile(record.GetFnames()["win32"], data)
+		exp.CreateFile(record.GetFname(), data)
 
 	}
 
 }
 
 func (exp Exporter) CreateFile(fname string, data []byte) {
+	fullpath := filepath.Join(exp.Location, fname)
 
-	utils.WriteFile(fname, data)
+	err := os.MkdirAll(exp.Location, 0750)
+	if err != nil && !os.IsExist(err) {
+		fmt.Println(err)
+	}
+	utils.WriteFile(fullpath, data)
 
 }
