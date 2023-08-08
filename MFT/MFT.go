@@ -553,6 +553,20 @@ func (record Record) GetFnames() map[string]string {
 
 }
 
+func (record Record) GetFname() string {
+	fnames := record.GetFnames()
+	for ftype, fname := range fnames {
+		if ftype == "POSIX" {
+			return fname
+		} else if ftype == "Win32" {
+			return fname
+		} else {
+			return fname
+		}
+	}
+	return "NA"
+}
+
 func (record Record) ShowFileName(fileNameSyntax string) {
 
 	fnames := record.GetFnames()
