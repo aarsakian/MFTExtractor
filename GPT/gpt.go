@@ -1,10 +1,7 @@
 package gpt
 
 import (
-	"fmt"
-
 	ntfsLib "github.com/aarsakian/MFTExtractor/NTFS"
-	"github.com/aarsakian/MFTExtractor/img"
 	"github.com/aarsakian/MFTExtractor/utils"
 )
 
@@ -42,35 +39,19 @@ type Partition struct {
 	Name              string
 }
 
-func Parse(drive int) GPT {
-
-	var gpt GPT
-
-	physicalOffset := int64(512) // gpt always starts at 512
-	length := uint32(512)
-
-	hD := img.GetHandler(fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", drive))
-	buffer := make([]byte, length)
-
-	hD.ReadFile(physicalOffset, buffer)
-
-	defer hD.CloseHandler()
+func (gpt *GPT) ParseHeader(buffer []byte) {
 
 	var header GPTHeader
 	utils.Unmarshal(buffer, &header)
 	gpt.Header = &header
 
-	partitionArraySize := header.PartitionSize * header.NofPartitions
-
-	buffer = make([]byte, partitionArraySize)
-	hD.ReadFile(int64(header.PartitionsStartLBA*512), buffer)
-
-	gpt.LocatePartitions(buffer)
-	return gpt
-
 }
 
-func (gpt *GPT) LocatePartitions(data []byte) {
+func (gpt GPT) GetPartitionArraySize() uint32 {
+	return gpt.Header.PartitionSize * gpt.Header.NofPartitions
+}
+
+func (gpt *GPT) ParsePartitions(data []byte) {
 
 	partitions := make([]Partition, gpt.Header.NofPartitions)
 

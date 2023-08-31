@@ -1,10 +1,7 @@
 package MBR
 
 import (
-	"fmt"
-
 	ntfsLib "github.com/aarsakian/MFTExtractor/NTFS"
-	"github.com/aarsakian/MFTExtractor/img"
 	"github.com/aarsakian/MFTExtractor/utils"
 )
 
@@ -54,21 +51,9 @@ func LocatePartitions(data []byte) Partitions {
 	return partitions
 }
 
-func Parse(drive int) MBR {
-	var mbr MBR
-
-	offset := int64(0)
-	length := uint32(512) // MBR always at first sector
-
-	hD := img.GetHandler(fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", drive))
-	buffer := make([]byte, length)
-
-	hD.ReadFile(offset, buffer) // read 1st sector
-
-	defer hD.CloseHandler()
+func (mbr *MBR) Parse(buffer []byte) {
 
 	utils.Unmarshal(buffer, &mbr)
 	mbr.Partitions = LocatePartitions(buffer[446:510])
 
-	return mbr
 }
