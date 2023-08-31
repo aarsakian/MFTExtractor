@@ -1,7 +1,7 @@
 package main
 
 import (
-	"C"
+	//"C"
 
 	//"database/sql"
 
@@ -9,6 +9,11 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"path"
+	"strings"
+
+	ewfLib "github.com/aarsakian/EWF_Reader/ewf"
+	"github.com/aarsakian/EWF_Reader/ewf/utils"
 
 	disk "github.com/aarsakian/MFTExtractor/Disk"
 	"github.com/aarsakian/MFTExtractor/MFT"
@@ -16,8 +21,7 @@ import (
 	"github.com/aarsakian/MFTExtractor/exporter"
 	"github.com/aarsakian/MFTExtractor/img"
 	"github.com/aarsakian/MFTExtractor/tree"
-)
-import (
+
 	reporter "github.com/aarsakian/MFTExtractor/Reporter"
 )
 
@@ -33,6 +37,7 @@ func main() {
 
 	//	save2DB := flag.Bool("db", false, "bool if set an sqlite file will be created, each table will corresponed to an MFT attribute")
 	inputfile := flag.String("MFT", "Disk MFT", "absolute path to the MFT file")
+	evidencefile := flag.String("evidence", "", "path to image file")
 	exportLocation := flag.String("export", "", "the path to export  files")
 	MFTSelectedEntry := flag.Int("entry", -1, "select a particular MFT entry")
 	showFileName := flag.String("fileName", "", "show the name of the filename attribute of each MFT record choices: Any, Win32, Dos")
@@ -87,6 +92,22 @@ func main() {
 			records = ntfs.MFTTable.Records
 		}
 
+	}
+
+	if *evidencefile != "" {
+		extension := path.Ext(*evidencefile)
+		if strings.ToLower(extension) == ".e01" {
+			var ewf_image ewfLib.EWF_Image
+			filenames := utils.FindEvidenceFiles(*evidencefile)
+
+			ewf_image.ParseEvidence(filenames)
+
+			physicalDisk := disk.Disk{Image: &ewf_image, PartitionNum: *partitionNum}
+			partition := physicalDisk.GetPartition()
+			partitionOffset = partition.GetOffset()
+			ntfs = partition.LocateFileSystem(*physicalDrive)
+
+		}
 	}
 
 	if *inputfile != "Disk MFT" {
