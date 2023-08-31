@@ -1,2 +1,4 @@
+github.com/aarsakian/EWF_Reader v0.0.0-20230830145827-dfd08b7e1b8e h1:ePCjBdVRHUQT+feEM1dJCKdNHwCy6M++HMNggne0V0g=
+github.com/aarsakian/EWF_Reader v0.0.0-20230830145827-dfd08b7e1b8e/go.mod h1:d6erJYcE1G79EhLFO1lTgteghLoEYyn3B4MEsTR2Hpo=
 golang.org/x/sys v0.0.0-20220319134239-a9b59b0215f8 h1:OH54vjqzRWmbJ62fjuhxy7AxFFgoHN0/DPc/UrL8cAs=
 golang.org/x/sys v0.0.0-20220319134239-a9b59b0215f8/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
