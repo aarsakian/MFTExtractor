@@ -13,14 +13,14 @@ import (
 	"strings"
 
 	ewfLib "github.com/aarsakian/EWF_Reader/ewf"
-	"github.com/aarsakian/EWF_Reader/ewf/utils"
 
 	disk "github.com/aarsakian/MFTExtractor/Disk"
+	ntfsLib "github.com/aarsakian/MFTExtractor/FS/NTFS"
 	"github.com/aarsakian/MFTExtractor/MFT"
-	ntfsLib "github.com/aarsakian/MFTExtractor/NTFS"
 	"github.com/aarsakian/MFTExtractor/exporter"
 	"github.com/aarsakian/MFTExtractor/img"
 	"github.com/aarsakian/MFTExtractor/tree"
+	"github.com/aarsakian/MFTExtractor/utils"
 
 	reporter "github.com/aarsakian/MFTExtractor/Reporter"
 )
@@ -53,14 +53,15 @@ func main() {
 	physicalDrive := flag.Int("physicalDrive", -1, "select disk drive number for extraction of non resident files")
 	partitionNum := flag.Int("partitionNumber", -1, "select partition number")
 	showFSStructure := flag.Bool("structure", false, "reconstrut entries tree")
-	fileExtension := flag.String("extension", "", "search MFT records by extension")
+	listPartitions := flag.Bool("listpartitions", false, "list partitions")
+	//fileExtension := flag.String("extension", "", "search MFT records by extension")
 
 	flag.Parse() //ready to parse
 
 	var partitionOffset uint64
 
 	var ntfs ntfsLib.NTFS
-	var hd img.DiskReader
+	var hD img.DiskReader
 	var records []MFT.Record
 
 	rp := reporter.Reporter{
@@ -75,22 +76,30 @@ func main() {
 	}
 
 	if *physicalDrive != -1 && *partitionNum != -1 {
-		physicalDisk := disk.Disk{PhysicalDriveNum: *physicalDrive, PartitionNum: *partitionNum}
-		partition := physicalDisk.GetPartition()
-		partitionOffset = partition.GetOffset()
-		ntfs = partition.LocateFileSystem(*physicalDrive)
+		physicalDisk := disk.Disk{PhysicalDriveNum: *physicalDrive}
+		physicalDisk.Populate()
+		if *listPartitions {
+			physicalDisk.ListPartitions()
+		}
+		partition := physicalDisk.GetSelectedPartition(*partitionNum)
 
-		hd = physicalDisk.GetHandler()
+		partitionOffsetB := int64(partition.GetOffset() * 512)
+		length := uint32(512)
+		buffer := make([]byte, length)
 
-		ntfs.ProcessFirstRecord(hd, partitionOffset)
-		// fill buffer before parsing the record
-		MFTAreaBuf := ntfs.CollectMFTArea(hd, partitionOffset)
-		ntfs.ProcessMFT(MFTAreaBuf, *MFTSelectedEntry, *fromMFTEntry, *toMFTEntry)
-		if *fileExtension != "" {
+		hD = img.GetHandler(fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", *physicalDrive))
+		hD.ReadFile(partitionOffsetB, buffer)
+		defer hD.CloseHandler()
+
+		fs := partition.LocateFileSystem(buffer)
+
+		fs.Process(hD, partitionOffsetB, *MFTSelectedEntry, *fromMFTEntry, *toMFTEntry)
+
+		/*if *fileExtension != "" {
 			records = ntfs.FilterRecordsByExtension(*fileExtension)
 		} else {
 			records = ntfs.MFTTable.Records
-		}
+		}*/
 
 	}
 
@@ -102,10 +111,15 @@ func main() {
 
 			ewf_image.ParseEvidence(filenames)
 
-			physicalDisk := disk.Disk{Image: &ewf_image, PartitionNum: *partitionNum}
-			partition := physicalDisk.GetPartition()
+			physicalDisk := disk.Disk{Image: &ewf_image}
+			physicalDisk.Populate()
+			partition := physicalDisk.GetSelectedPartition(*partitionNum)
 			partitionOffset = partition.GetOffset()
-			ntfs = partition.LocateFileSystem(*physicalDrive)
+
+			length := uint32(512)
+			buffer := make([]byte, length)
+
+			partition.LocateFileSystem(buffer)
 
 		}
 	}
