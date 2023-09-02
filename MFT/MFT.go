@@ -30,7 +30,7 @@ var MFTflags = map[uint16]string{
 	0: "File Unallocted", 1: "File Allocated", 2: "Folder Unalloc", 3: "Folder Allocated",
 }
 
-//$MFT table points either to its file path or the buffer containing $MFT
+// $MFT table points either to its file path or the buffer containing $MFT
 type MFTTable struct {
 	Records                []Record
 	Filepath               string
@@ -121,6 +121,14 @@ func (mfttable *MFTTable) Populate(MFTSelectedEntry int, fromMFTEntry int, ToMFT
 
 }
 
+func (mfttable *MFTTable) DetermineClusterOffsetLength() {
+	firstRecord := mfttable.Records[0]
+	runlistOffsetsAndSizes := firstRecord.GetRunListSizesAndOffsets()
+	mfttable.RunlistOffsetsAndSizes = &runlistOffsetsAndSizes
+
+	mfttable.Size = int(firstRecord.GetTotalRunlistSize())
+
+}
 func (mfttable *MFTTable) ProcessRecords(data []byte) {
 
 	records := make([]Record, len(data)/RecordSize)
