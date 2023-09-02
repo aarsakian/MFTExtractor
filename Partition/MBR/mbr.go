@@ -1,7 +1,10 @@
 package MBR
 
 import (
-	ntfsLib "github.com/aarsakian/MFTExtractor/NTFS"
+	"fmt"
+
+	FS "github.com/aarsakian/MFTExtractor/FS"
+	ntfsLib "github.com/aarsakian/MFTExtractor/FS/NTFS"
 	"github.com/aarsakian/MFTExtractor/utils"
 )
 
@@ -27,8 +30,19 @@ func (partition Partition) GetOffset() uint64 {
 	return uint64(partition.StartLBA)
 }
 
-func (partition Partition) LocateFileSystem(physicalDriveNum int) ntfsLib.NTFS {
-	return ntfsLib.Parse(physicalDriveNum, uint64(partition.StartLBA))
+func (partition Partition) GetPartitionType() string {
+	return fmt.Sprintf("%x", partition.Type)
+}
+
+func (partition Partition) LocateFileSystem(buffer []byte) FS.FileSystem {
+	if partition.Type == 0x07 || partition.Type == 0x17 {
+		var ntfs ntfsLib.NTFS
+		ntfs.Parse(buffer)
+		return ntfs
+	} else {
+		return nil
+	}
+
 }
 
 func (mbr MBR) IsProtective() bool {

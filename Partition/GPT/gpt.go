@@ -1,9 +1,16 @@
 package gpt
 
 import (
-	ntfsLib "github.com/aarsakian/MFTExtractor/NTFS"
+	"fmt"
+
+	"github.com/aarsakian/MFTExtractor/FS"
+	ntfsLib "github.com/aarsakian/MFTExtractor/FS/NTFS"
 	"github.com/aarsakian/MFTExtractor/utils"
 )
+
+var PartitionTypeGuids = map[string]string{
+	"Basic Data": "",
+}
 
 type Partitions []Partition
 
@@ -39,6 +46,16 @@ type Partition struct {
 	Name              string
 }
 
+func (partition Partition) GetPartitionType() string {
+	return fmt.Sprintf("%x-%x-%x-%x-%x", utils.Bytereverse(partition.PartitionTypeGUID[0:4]),
+		utils.Bytereverse(partition.PartitionTypeGUID[4:6]), utils.Bytereverse(partition.PartitionTypeGUID[6:8]),
+		partition.PartitionTypeGUID[8:10], partition.PartitionTypeGUID[10:])
+}
+
+func (partition Partition) IdentifyType() string {
+	return PartitionTypeGuids[partition.GetPartitionType()]
+}
+
 func (gpt *GPT) ParseHeader(buffer []byte) {
 
 	var header GPTHeader
@@ -71,6 +88,8 @@ func (partition Partition) GetOffset() uint64 {
 	return partition.StartLBA
 }
 
-func (partition Partition) LocateFileSystem(physicalDriveNum int) ntfsLib.NTFS {
-	return ntfsLib.Parse(physicalDriveNum, uint64(partition.StartLBA))
+func (partition Partition) LocateFileSystem(buffer []byte) FS.FileSystem {
+	var ntfs ntfsLib.NTFS
+	ntfs.Parse(buffer)
+	return ntfs
 }
