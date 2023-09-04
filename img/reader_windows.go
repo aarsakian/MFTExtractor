@@ -54,7 +54,8 @@ func (winreader WindowsReader) GetDiskSize() int64 {
 		int64(disk_geometry.SectorsPerTrack) * int64(disk_geometry.BytesPerSector)
 }
 
-func (winreader WindowsReader) ReadFile(buf_pointer int64, buffer []byte) []byte {
+func (winreader WindowsReader) ReadFile(buf_pointer int64, length int) []byte {
+	buffer := make([]byte, length)
 
 	largeInteger := utils.NewLargeInteger(buf_pointer)
 	var bytesRead uint32

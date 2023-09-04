@@ -3,7 +3,6 @@ package disk
 import (
 	"fmt"
 
-	ewfLib "github.com/aarsakian/EWF_Reader/ewf"
 	"github.com/aarsakian/MFTExtractor/FS"
 	gptLib "github.com/aarsakian/MFTExtractor/Partition/GPT"
 	mbrLib "github.com/aarsakian/MFTExtractor/Partition/MBR"
@@ -11,18 +10,8 @@ import (
 )
 
 type Disk struct {
-	PhysicalDriveNum int
-	Image            *ewfLib.EWF_Image
-	MBR              *mbrLib.MBR
-	GPT              *gptLib.GPT
-}
-
-func (disk Disk) GetPhysicalPath() string {
-	return fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", disk.PhysicalDriveNum)
-}
-
-func (disk Disk) GetHandler() img.DiskReader {
-	return img.GetHandler(disk.GetPhysicalPath())
+	MBR *mbrLib.MBR
+	GPT *gptLib.GPT
 }
 
 func (disk Disk) hasProtectiveMBR() bool {
@@ -36,62 +25,40 @@ type Partition interface {
 	LocateFileSystem([]byte) FS.FileSystem
 }
 
-func (disk *Disk) populateMBR() {
+func (disk *Disk) populateMBR(hD img.DiskReader) {
 	var mbr mbrLib.MBR
 	physicalOffset := int64(0)
-	length := uint32(512) // MBR always at first sector
-	buffer := make([]byte, length)
-	if disk.Image != nil {
-		buffer = disk.Image.RetrieveData(physicalOffset, int64(length))
+	length := int(512) // MBR always at first sector
 
-	} else {
-		hD := img.GetHandler(disk.GetPhysicalPath())
-		hD.ReadFile(physicalOffset, buffer) // read 1st sector
-		defer hD.CloseHandler()
-	}
+	data := hD.ReadFile(physicalOffset, length) // read 1st sector
 
-	mbr.Parse(buffer)
+	mbr.Parse(data)
 
 	disk.MBR = &mbr
 
 }
 
-func (disk *Disk) populateGPT() {
+func (disk *Disk) populateGPT(hD img.DiskReader) {
 
 	physicalOffset := int64(512) // gpt always starts at 512
-	length := uint32(512)
-	buffer := make([]byte, length)
-	if disk.Image != nil {
-		buffer = disk.Image.RetrieveData(physicalOffset, int64(length))
-	} else {
-		hD := img.GetHandler(disk.GetPhysicalPath())
-		hD.ReadFile(physicalOffset, buffer)
-		defer hD.CloseHandler()
 
-	}
+	data := hD.ReadFile(physicalOffset, 512)
 
 	var gpt gptLib.GPT
-	gpt.ParseHeader(buffer)
-	length = gpt.GetPartitionArraySize()
-	buffer = make([]byte, length)
+	gpt.ParseHeader(data)
+	length := gpt.GetPartitionArraySize()
 
-	if disk.Image != nil {
-		buffer = disk.Image.RetrieveData(physicalOffset, int64(length))
-	} else {
-		hD := img.GetHandler(disk.GetPhysicalPath())
-		hD.ReadFile(int64(gpt.Header.PartitionsStartLBA*512), buffer)
-		defer hD.CloseHandler()
-	}
+	data = hD.ReadFile(int64(gpt.Header.PartitionsStartLBA*512), int(length))
 
-	gpt.ParsePartitions(buffer)
+	gpt.ParsePartitions(data)
 
 	disk.GPT = &gpt
 }
 
-func (disk *Disk) Populate() {
-	disk.populateMBR()
+func (disk *Disk) Populate(hD img.DiskReader) {
+	disk.populateMBR(hD)
 	if disk.hasProtectiveMBR() {
-		disk.populateGPT()
+		disk.populateGPT(hD)
 	}
 }
 
