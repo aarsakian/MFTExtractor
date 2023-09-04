@@ -19,7 +19,7 @@ type Exporter struct {
 	PartitionOffset   uint64
 }
 
-func (exp Exporter) ExportData(records []MFT.Record) {
+func (exp Exporter) ExportData(records []MFT.Record, hD img.DiskReader) {
 	var data []byte
 	for _, record := range records {
 		if !record.HasAttr("DATA") {
@@ -35,7 +35,7 @@ func (exp Exporter) ExportData(records []MFT.Record) {
 			dataRuns.Grow(int(lsize))
 
 			offset := int64(exp.PartitionOffset) * 512 // partition in bytes
-			hD := img.GetHandler(fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", exp.Disk))
+
 			diskSize := hD.GetDiskSize()
 
 			for (MFTAttributes.RunList{}) != runlist {
@@ -45,10 +45,10 @@ func (exp Exporter) ExportData(records []MFT.Record) {
 					break
 				}
 				//	fmt.Printf("extracting data from %d len %d \n", offset, runlist.Length)
-				buffer := make([]byte, uint32(runlist.Length*8*512))
-				hD.ReadFile(offset, buffer)
 
-				dataRuns.Write(buffer)
+				data := hD.ReadFile(offset, int(runlist.Length*8*512))
+
+				dataRuns.Write(data)
 
 				if runlist.Next == nil {
 					break
