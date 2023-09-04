@@ -12,15 +12,12 @@ import (
 	"path"
 	"strings"
 
-	ewfLib "github.com/aarsakian/EWF_Reader/ewf"
-
 	disk "github.com/aarsakian/MFTExtractor/Disk"
 	ntfsLib "github.com/aarsakian/MFTExtractor/FS/NTFS"
 	"github.com/aarsakian/MFTExtractor/MFT"
 	"github.com/aarsakian/MFTExtractor/exporter"
 	"github.com/aarsakian/MFTExtractor/img"
 	"github.com/aarsakian/MFTExtractor/tree"
-	"github.com/aarsakian/MFTExtractor/utils"
 
 	reporter "github.com/aarsakian/MFTExtractor/Reporter"
 )
@@ -64,6 +61,8 @@ func main() {
 	var hD img.DiskReader
 	var records []MFT.Record
 
+	var physicalDisk disk.Disk
+
 	rp := reporter.Reporter{
 		ShowFileName:   *showFileName,
 		ShowAttributes: *showAttributes,
@@ -76,52 +75,43 @@ func main() {
 	}
 
 	if *physicalDrive != -1 && *partitionNum != -1 {
-		physicalDisk := disk.Disk{PhysicalDriveNum: *physicalDrive}
-		physicalDisk.Populate()
-		if *listPartitions {
-			physicalDisk.ListPartitions()
-		}
-		partition := physicalDisk.GetSelectedPartition(*partitionNum)
+		physicalDisk = disk.Disk{}
 
-		partitionOffsetB := int64(partition.GetOffset() * 512)
-		length := uint32(512)
-		buffer := make([]byte, length)
-
-		hD = img.GetHandler(fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", *physicalDrive))
-		hD.ReadFile(partitionOffsetB, buffer)
-		defer hD.CloseHandler()
-
-		fs := partition.LocateFileSystem(buffer)
-
-		fs.Process(hD, partitionOffsetB, *MFTSelectedEntry, *fromMFTEntry, *toMFTEntry)
-
-		/*if *fileExtension != "" {
-			records = ntfs.FilterRecordsByExtension(*fileExtension)
-		} else {
-			records = ntfs.MFTTable.Records
-		}*/
+		hD = img.GetHandler(fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", *physicalDrive), "physicalDrive")
 
 	}
 
 	if *evidencefile != "" {
 		extension := path.Ext(*evidencefile)
 		if strings.ToLower(extension) == ".e01" {
-			var ewf_image ewfLib.EWF_Image
-			filenames := utils.FindEvidenceFiles(*evidencefile)
 
-			ewf_image.ParseEvidence(filenames)
-
-			physicalDisk := disk.Disk{Image: &ewf_image}
-			physicalDisk.Populate()
-			partition := physicalDisk.GetSelectedPartition(*partitionNum)
-			partitionOffset = partition.GetOffset()
-
-			length := uint32(512)
-			buffer := make([]byte, length)
-
-			partition.LocateFileSystem(buffer)
+			physicalDisk = disk.Disk{}
+			hD = img.GetHandler(*evidencefile, "image")
 
 		}
+
+	}
+
+	if *evidencefile != "" && *partitionNum != -1 || *physicalDrive != -1 && *partitionNum != -1 {
+		physicalDisk.Populate(hD)
+		if *listPartitions {
+			physicalDisk.ListPartitions()
+		}
+		partition := physicalDisk.GetSelectedPartition(*partitionNum)
+
+		partitionOffsetB := int64(partition.GetOffset() * 512)
+
+		data := hD.ReadFile(partitionOffsetB, 512)
+
+		fs := partition.LocateFileSystem(data)
+
+		records = fs.Process(hD, partitionOffsetB, *MFTSelectedEntry, *fromMFTEntry, *toMFTEntry)
+		defer hD.CloseHandler()
+		/*if *fileExtension != "" {
+			records = ntfs.FilterRecordsByExtension(*fileExtension)
+		} else {
+			records = ntfs.MFTTable.Records
+		}*/
 	}
 
 	if *inputfile != "Disk MFT" {
@@ -135,21 +125,23 @@ func main() {
 		sectorsPerCluster := ntfs.GetSectorsPerCluster()
 		exp := exporter.Exporter{Disk: *physicalDrive, PartitionOffset: partitionOffset,
 			SectorsPerCluster: sectorsPerCluster, Location: *exportLocation}
-		exp.ExportData(records)
+		exp.ExportData(records, hD)
 
 	}
 
 	t := tree.Tree{}
 
 	fmt.Printf("Building tree from MFT records \n")
-	for _, record := range records {
-		if record.Entry < 5 {
-			continue
-		}
-		t.BuildTree(record)
-	}
+
 	if *showFSStructure {
+		for _, record := range records {
+			if record.Entry < 5 {
+				continue
+			}
+			t.BuildTree(record)
+		}
 		t.Show()
+
 	}
 
 } //ends for
