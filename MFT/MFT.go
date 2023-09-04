@@ -132,12 +132,14 @@ func (mfttable *MFTTable) DetermineClusterOffsetLength() {
 func (mfttable *MFTTable) ProcessRecords(data []byte) {
 
 	records := make([]Record, len(data)/RecordSize)
+
 	var record Record
 	for i := 0; i < len(data); i += RecordSize {
-
+		//fmt.Println("index ", i)
 		if utils.Hexify(data[i:i+4]) == "00000000" { //zero area skip
 			continue
 		}
+		fmt.Printf("Processing $MFT entry %d  out of %d records \n", record.Entry, len(records))
 		record.Process(data[i : i+RecordSize])
 		records[i/RecordSize] = record
 	}
@@ -266,10 +268,11 @@ func (record Record) GetResidentData() []byte {
 
 func (record Record) GetRunListSizesAndOffsets() map[int]int {
 	runlist := record.GetRunList()
-
+	offset := 0
 	offsetLenMap := map[int]int{}
 	for (MFTAttributes.RunList{}) != runlist {
-		offsetLenMap[int(runlist.Offset)] = int(runlist.Length)
+		offset += int(runlist.Offset)
+		offsetLenMap[offset] = int(runlist.Length)
 
 		if runlist.Next == nil {
 			break
@@ -356,7 +359,7 @@ func (record *Record) Process(bs []byte) {
 	}
 
 	ReadPtr := record.AttrOff //offset to first attribute
-	fmt.Printf("Processing $MFT entry %d \n", record.Entry)
+
 	var attributes []MFTAttributes.Attribute
 	for ReadPtr < 1024 {
 
