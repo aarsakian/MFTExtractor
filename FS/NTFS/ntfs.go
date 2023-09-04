@@ -26,34 +26,34 @@ func (ntfs NTFS) GetSectorsPerCluster() uint8 {
 	return ntfs.SectorsPerCluster
 }
 
-func (ntfs NTFS) Process(hD img.DiskReader, partitionOffsetB int64, MFTSelectedEntry int, fromMFTEntry int, toMFTEntry int) {
-	length := uint32(1024) // len of MFT record
+func (ntfs NTFS) Process(hD img.DiskReader, partitionOffsetB int64, MFTSelectedEntry int, fromMFTEntry int, toMFTEntry int) []MFT.Record {
+	length := int(1024) // len of MFT record
 
 	physicalOffset := partitionOffsetB + int64(ntfs.MFTOffset)*int64(ntfs.SectorsPerCluster)*int64(ntfs.BytesPerSector)
 
-	bs := make([]byte, length)
-	hD.ReadFile(physicalOffset, bs)
+	data := hD.ReadFile(physicalOffset, length)
 
 	var mfttable *MFT.MFTTable = new(MFT.MFTTable)
-	mfttable.ProcessRecords(bs)
+	mfttable.ProcessRecords(data)
 	mfttable.DetermineClusterOffsetLength()
 	ntfs.MFTTable = mfttable
 	// fill buffer before parsing the record
 
 	MFTAreaBuf := ntfs.CollectMFTArea(hD, partitionOffsetB)
 	ntfs.ProcessMFT(MFTAreaBuf, MFTSelectedEntry, fromMFTEntry, toMFTEntry)
+	return ntfs.MFTTable.Records
 }
 
 func (ntfs NTFS) CollectMFTArea(hD img.DiskReader, partitionOffsetB int64) []byte {
 	var buf bytes.Buffer
 
-	buf.Grow(int(ntfs.MFTTable.Size) * int(ntfs.BytesPerSector) * int(ntfs.SectorsPerCluster)) // allow for MFT size
-
-	for offset, clustr := range *ntfs.MFTTable.RunlistOffsetsAndSizes {
+	length := int(ntfs.MFTTable.Size) * int(ntfs.BytesPerSector) * int(ntfs.SectorsPerCluster) // allow for MFT size
+	buf.Grow(length)
+	for offset, clusters := range *ntfs.MFTTable.RunlistOffsetsAndSizes {
 		//inefficient since allocates memory for each round
-		tempBuffer := make([]byte, clustr*int(ntfs.SectorsPerCluster)*int(ntfs.BytesPerSector))
-		hD.ReadFile(partitionOffsetB+int64(offset)*int64(ntfs.SectorsPerCluster)*int64(ntfs.BytesPerSector), tempBuffer)
-		buf.Write(tempBuffer)
+
+		data := hD.ReadFile(partitionOffsetB+int64(offset)*int64(ntfs.SectorsPerCluster)*int64(ntfs.BytesPerSector), clusters*int(ntfs.BytesPerSector)*int(ntfs.SectorsPerCluster))
+		buf.Write(data)
 	}
 	return buf.Bytes()
 }
