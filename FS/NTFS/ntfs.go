@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"math"
 
-	"github.com/aarsakian/MFTExtractor/MFT"
+	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
 	"github.com/aarsakian/MFTExtractor/img"
 	"github.com/aarsakian/MFTExtractor/utils"
 )

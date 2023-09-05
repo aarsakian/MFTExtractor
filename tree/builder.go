@@ -3,8 +3,8 @@ package tree
 import (
 	"fmt"
 
-	"github.com/aarsakian/MFTExtractor/MFT"
-	MFTAttributes "github.com/aarsakian/MFTExtractor/MFT/attributes"
+	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
+	MFTAttributes "github.com/aarsakian/MFTExtractor/FS/NTFS/MFT/attributes"
 )
 
 /*Thus, a B-tree node is equivalent to a disk block, and a “pointer” value stored

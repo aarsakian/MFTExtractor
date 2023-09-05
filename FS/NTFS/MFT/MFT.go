@@ -7,8 +7,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/aarsakian/MFTExtractor/MFT/attributes"
-	MFTAttributes "github.com/aarsakian/MFTExtractor/MFT/attributes"
+	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT/attributes"
+	MFTAttributes "github.com/aarsakian/MFTExtractor/FS/NTFS/MFT/attributes"
 	"github.com/aarsakian/MFTExtractor/utils"
 )
 
