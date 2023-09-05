@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/aarsakian/MFTExtractor/MFT"
-	MFTAttributes "github.com/aarsakian/MFTExtractor/MFT/attributes"
+	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
+	MFTAttributes "github.com/aarsakian/MFTExtractor/FS/NTFS/MFT/attributes"
 	"github.com/aarsakian/MFTExtractor/img"
 	"github.com/aarsakian/MFTExtractor/utils"
 )
