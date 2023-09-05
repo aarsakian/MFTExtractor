@@ -14,7 +14,7 @@ import (
 
 	disk "github.com/aarsakian/MFTExtractor/Disk"
 	ntfsLib "github.com/aarsakian/MFTExtractor/FS/NTFS"
-	"github.com/aarsakian/MFTExtractor/MFT"
+	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
 	"github.com/aarsakian/MFTExtractor/exporter"
 	"github.com/aarsakian/MFTExtractor/img"
 	"github.com/aarsakian/MFTExtractor/tree"
