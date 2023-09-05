@@ -3,7 +3,7 @@ package reporter
 import (
 	"fmt"
 
-	"github.com/aarsakian/MFTExtractor/MFT"
+	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
 )
 
 type Reporter struct {
