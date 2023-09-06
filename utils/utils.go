@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -346,14 +345,16 @@ func FindEvidenceFiles(path_ string) []string {
 
 	_, fname := filepath.Split(path_)
 
-	Files, err := ioutil.ReadDir(basePath)
+	files, err := os.ReadDir(basePath)
 	if err != nil {
 		log.Fatal("ERR", err)
 	}
 	k := 0
-	filenames := make([]string, len(Files))
-
-	for _, finfo := range Files {
+	filenames := make([]string, len(files))
+	if len(files) == 0 {
+		log.Fatal(fmt.Printf("Directory %s does not contains files", basePath))
+	}
+	for _, finfo := range files {
 
 		if !finfo.IsDir() {
 
