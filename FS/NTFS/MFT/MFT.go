@@ -38,6 +38,8 @@ type MFTTable struct {
 	RunlistOffsetsAndSizes *map[int]int //points to $MFT
 }
 
+type Records []Record
+
 // MFT Record
 type Record struct {
 	Signature          string //0-3
@@ -310,6 +312,16 @@ func (record Record) HasFilenameExtension(extension string) bool {
 		}
 	}
 
+	return false
+}
+
+func (record Record) HasFilename(filename string) bool {
+	if record.HasAttr("FileName") {
+		fnattr := record.FindAttribute("FileName").(*MFTAttributes.FNAttribute)
+		if fnattr.Fname == filename {
+			return true
+		}
+	}
 	return false
 }
 
@@ -588,6 +600,21 @@ func (record Record) ShowFileName(fileNameSyntax string) {
 			fmt.Printf(" %s ", fname)
 		}
 	}
+}
+
+func (records Records) FilterByExtension(extension string) []Record {
+
+	return utils.Filter(records, func(record Record) bool {
+		return record.HasFilenameExtension(extension)
+	})
+
+}
+
+func (records Records) FilterByName(filename string) []Record {
+	return utils.Filter(records, func(record Record) bool {
+		return record.HasFilename(filename)
+	})
+
 }
 
 func (record Record) GetBasicInfoFromRecord(file1 *os.File) {

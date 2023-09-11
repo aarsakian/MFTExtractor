@@ -302,8 +302,8 @@ func (prevRunlist *RunList) Process(runlists []byte) {
 			clustersLen := utils.ReadEndianUInt(runlists[clusterPtr+1 : clusterPtr+
 				ClusterLenB+1])
 
-			clustersOff := utils.ReadEndianInt(runlists[clusterPtr+1+
-				ClusterLenB : clusterPtr+ClusterLenB+ClusterOffsB+1])
+			clustersOff := utils.ReadEndian(runlists[clusterPtr+1+
+				ClusterLenB : clusterPtr+ClusterLenB+ClusterOffsB+1]).(int64)
 
 			runlist := RunList{Offset: clustersOff, Length: clustersLen}
 
