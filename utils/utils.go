@@ -65,17 +65,6 @@ func ReadEndianUInt(barray []byte) uint64 {
 	return sum
 }
 
-func ReadEndianInt(barray []byte) int64 {
-	var sum int64
-	sum = 0
-	for index, val := range barray {
-		sum += int64(val) << int(index*8)
-
-	}
-
-	return sum
-}
-
 func DetermineClusterOffsetLength(val byte) (uint64, uint64) {
 
 	var err error
@@ -269,7 +258,44 @@ func WriteToCSV(file *os.File, data string) {
 	}
 }
 
-func readEndian(barray []byte) (val interface{}) {
+func ReadEndian(barray []byte) (val interface{}) {
+	//conversion function
+	//fmt.Println("before conversion----------------",barray)
+	//fmt.Printf("len%d ",len(barray))
+
+	switch len(barray) {
+	default:
+		var vale int64
+		binary.Read(bytes.NewBuffer(barray), binary.LittleEndian, &vale)
+		val = vale
+
+	case 4:
+		var vale int32
+		//   fmt.Println("barray",barray)
+		binary.Read(bytes.NewBuffer(barray), binary.LittleEndian, &vale)
+		val = vale
+	case 2:
+
+		var vale int16
+
+		binary.Read(bytes.NewBuffer(barray), binary.LittleEndian, &vale)
+		//   fmt.Println("after conversion vale----------------",barray,vale)
+		val = vale
+
+	case 1:
+
+		var vale int8
+
+		binary.Read(bytes.NewBuffer(barray), binary.LittleEndian, &vale)
+		//      fmt.Println("after conversion vale----------------",barray,vale)
+		val = vale
+
+	}
+
+	return val
+}
+
+func readEndianU(barray []byte) (val interface{}) {
 	//conversion function
 	//fmt.Println("before conversion----------------",barray)
 	//fmt.Printf("len%d ",len(barray))
@@ -318,9 +344,6 @@ func readEndian(barray []byte) (val interface{}) {
 		val = vale
 	}
 
-	//     b:=[]byte{0x18,0x2d}
-
-	//    fmt.Println("after conversion val",val)
 	return val
 }
 
