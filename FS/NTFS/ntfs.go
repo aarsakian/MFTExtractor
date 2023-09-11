@@ -102,15 +102,6 @@ func (ntfs *NTFS) ProcessMFT(data []byte, MFTSelectedEntry int,
 
 }
 
-func (ntfs NTFS) FilterRecordsByExtension(extension string) []MFT.Record {
-
-	records := utils.Filter(ntfs.MFTTable.Records, func(record MFT.Record) bool {
-		return record.HasFilenameExtension(extension)
-	})
-
-	return records
-}
-
 func (ntfs NTFS) GetMFTEntryOffset(
 	recordOffset int) int64 {
 
