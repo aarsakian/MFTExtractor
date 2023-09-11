@@ -37,7 +37,8 @@ func main() {
 	evidencefile := flag.String("evidence", "", "path to image file")
 	exportLocation := flag.String("export", "", "the path to export  files")
 	MFTSelectedEntry := flag.Int("entry", -1, "select a particular MFT entry")
-	showFileName := flag.String("fileName", "", "show the name of the filename attribute of each MFT record choices: Any, Win32, Dos")
+	showFileName := flag.String("showfilename", "", "show the name of the filename attribute of each MFT record choices: Any, Win32, Dos")
+	exportFile := flag.String("filename", "", "file to export")
 	isResident := flag.Bool("resident", false, "check whether entry is resident")
 	fromMFTEntry := flag.Int("fromEntry", -1, "select entry to start parsing")
 	toMFTEntry := flag.Int("toEntry", math.MaxUint32, "select entry to end parsing")
@@ -47,11 +48,11 @@ func main() {
 	showAttributes := flag.String("attributes", "", "show attributes")
 	showTimestamps := flag.Bool("timestamps", false, "show all timestamps")
 	showIndex := flag.Bool("index", false, "show index structures")
-	physicalDrive := flag.Int("physicalDrive", -1, "select disk drive number for extraction of non resident files")
-	partitionNum := flag.Int("partitionNumber", -1, "select partition number")
+	physicalDrive := flag.Int("physicaldrive", -1, "select disk drive number for extraction of non resident files")
+	partitionNum := flag.Int("partition", -1, "select partition number")
 	showFSStructure := flag.Bool("structure", false, "reconstrut entries tree")
 	listPartitions := flag.Bool("listpartitions", false, "list partitions")
-	//fileExtension := flag.String("extension", "", "search MFT records by extension")
+	fileExtension := flag.String("extension", "", "search MFT records by extension")
 
 	flag.Parse() //ready to parse
 
@@ -59,7 +60,7 @@ func main() {
 
 	var ntfs ntfsLib.NTFS
 	var hD img.DiskReader
-	var records []MFT.Record
+	var records MFT.Records
 
 	var physicalDisk disk.Disk
 
@@ -107,11 +108,11 @@ func main() {
 
 		records = fs.Process(hD, partitionOffsetB, *MFTSelectedEntry, *fromMFTEntry, *toMFTEntry)
 		defer hD.CloseHandler()
-		/*if *fileExtension != "" {
-			records = ntfs.FilterRecordsByExtension(*fileExtension)
-		} else {
-			records = ntfs.MFTTable.Records
-		}*/
+
+	}
+
+	if *fileExtension != "" {
+		records = records.FilterByExtension(*fileExtension)
 	}
 
 	if *inputfile != "Disk MFT" {
@@ -120,6 +121,10 @@ func main() {
 		records = mftTable.Records
 	}
 	rp.Show(records)
+
+	if *exportFile != "" {
+		records = records.FilterByName(*exportFile)
+	}
 
 	if *exportLocation != "" && *physicalDrive != -1 && *partitionNum != -1 {
 		sectorsPerCluster := ntfs.GetSectorsPerCluster()
