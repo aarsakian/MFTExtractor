@@ -14,19 +14,21 @@ import (
 
 type Exporter struct {
 	Location          string
-	SectorsPerCluster uint8
+	SectorsPerCluster int
 	Disk              int
 	PartitionOffset   uint64
 }
 
 func (exp Exporter) ExportData(records []MFT.Record, hD img.DiskReader) {
-	var data []byte
+
+	var retrievedData []byte
 	for _, record := range records {
+		fmt.Printf("about to export data to file %s", record.GetFname())
 		if !record.HasAttr("DATA") {
 			continue
 		}
 		if record.HasResidentDataAttr() {
-			data = record.GetResidentData()
+			retrievedData = record.GetResidentData()
 		} else {
 			runlist := record.GetRunList()
 			lsize, _ := record.GetFileSize()
@@ -34,7 +36,7 @@ func (exp Exporter) ExportData(records []MFT.Record, hD img.DiskReader) {
 			var dataRuns bytes.Buffer
 			dataRuns.Grow(int(lsize))
 
-			offset := int64(exp.PartitionOffset) * 512 // partition in bytes
+			offset := int64(exp.PartitionOffset) // partition in bytes
 
 			diskSize := hD.GetDiskSize()
 
@@ -56,9 +58,12 @@ func (exp Exporter) ExportData(records []MFT.Record, hD img.DiskReader) {
 
 				runlist = *runlist.Next
 			}
-			data = dataRuns.Bytes()
+			retrievedData = dataRuns.Bytes()
 		}
-		exp.CreateFile(record.GetFname(), data)
+
+		_, real := record.GetFileSize()
+
+		exp.CreateFile(record.GetFname(), retrievedData[:real])
 
 	}
 
