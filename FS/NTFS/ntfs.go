@@ -5,6 +5,7 @@ import (
 	"math"
 
 	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
+	MFTAttributes "github.com/aarsakian/MFTExtractor/FS/NTFS/MFT/attributes"
 	"github.com/aarsakian/MFTExtractor/img"
 	"github.com/aarsakian/MFTExtractor/utils"
 )
@@ -49,11 +50,25 @@ func (ntfs NTFS) CollectMFTArea(hD img.DiskReader, partitionOffsetB int64) []byt
 
 	length := int(ntfs.MFTTable.Size) * int(ntfs.BytesPerSector) * int(ntfs.SectorsPerCluster) // allow for MFT size
 	buf.Grow(length)
-	for offset, clusters := range *ntfs.MFTTable.RunlistOffsetsAndSizes {
+
+	runlist := ntfs.MFTTable.Records[0].GetRunList() // first record $MFT
+	offset := 0
+
+	for (MFTAttributes.RunList{}) != runlist {
+		offset += int(runlist.Offset)
+
+		clusters := int(runlist.Length)
+
 		//inefficient since allocates memory for each round
 
 		data := hD.ReadFile(partitionOffsetB+int64(offset)*int64(ntfs.SectorsPerCluster)*int64(ntfs.BytesPerSector), clusters*int(ntfs.BytesPerSector)*int(ntfs.SectorsPerCluster))
 		buf.Write(data)
+
+		if runlist.Next == nil {
+			break
+		}
+
+		runlist = *runlist.Next
 	}
 	return buf.Bytes()
 }
@@ -99,27 +114,6 @@ func (ntfs *NTFS) ProcessMFT(data []byte, MFTSelectedEntry int,
 
 	}
 	ntfs.MFTTable.ProcessRecords(buf.Bytes())
-
-}
-
-func (ntfs NTFS) GetMFTEntryOffset(
-	recordOffset int) int64 {
-
-	mftOffset := int64(ntfs.MFTOffset * uint64(ntfs.SectorsPerCluster) * uint64(ntfs.BytesPerSector))
-	offsetedRecord := recordOffset
-	lengthB := 0
-
-	for offset, len := range *ntfs.MFTTable.RunlistOffsetsAndSizes {
-		lengthB += len * int(ntfs.SectorsPerCluster) * 512
-		if offsetedRecord >= lengthB { // more than the available clusters in the contiguous area
-			mftOffset = int64(offset * int(ntfs.SectorsPerCluster) * 512)
-			offsetedRecord -= lengthB
-			break
-		}
-
-	}
-
-	return int64(mftOffset) + int64(offsetedRecord)
 
 }
 
