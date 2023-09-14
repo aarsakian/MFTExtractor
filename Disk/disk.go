@@ -23,6 +23,7 @@ type Partitions []Partition
 type Partition interface {
 	GetOffset() uint64
 	LocateFileSystem([]byte) FS.FileSystem
+	GetSectorsPerCluster() int
 }
 
 func (disk *Disk) populateMBR(hD img.DiskReader) {
