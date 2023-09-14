@@ -29,5 +29,5 @@ func (imgreader ImageReader) ReadFile(physicalOffset int64, length int) []byte {
 }
 
 func (imgreader ImageReader) GetDiskSize() int64 {
-	return 0
+	return int64(imgreader.fd.Chuncksize) * int64(imgreader.fd.NofChunks)
 }
