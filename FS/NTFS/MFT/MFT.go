@@ -32,10 +32,9 @@ var MFTflags = map[uint16]string{
 
 // $MFT table points either to its file path or the buffer containing $MFT
 type MFTTable struct {
-	Records                []Record
-	Filepath               string
-	Size                   int
-	RunlistOffsetsAndSizes *map[int]int //points to $MFT
+	Records  []Record
+	Filepath string
+	Size     int
 }
 
 type Records []Record
@@ -125,8 +124,6 @@ func (mfttable *MFTTable) Populate(MFTSelectedEntry int, fromMFTEntry int, ToMFT
 
 func (mfttable *MFTTable) DetermineClusterOffsetLength() {
 	firstRecord := mfttable.Records[0]
-	runlistOffsetsAndSizes := firstRecord.GetRunListSizesAndOffsets()
-	mfttable.RunlistOffsetsAndSizes = &runlistOffsetsAndSizes
 
 	mfttable.Size = int(firstRecord.GetTotalRunlistSize())
 
@@ -268,38 +265,32 @@ func (record Record) GetResidentData() []byte {
 
 }
 
-func (record Record) GetRunListSizesAndOffsets() map[int]int {
+func (record Record) GetTotalRunlistSize() int {
 	runlist := record.GetRunList()
-	offset := 0
-	offsetLenMap := map[int]int{}
+	totalSize := 0
+
 	for (MFTAttributes.RunList{}) != runlist {
-		offset += int(runlist.Offset)
-		offsetLenMap[offset] = int(runlist.Length)
+
+		totalSize += int(runlist.Length)
 
 		if runlist.Next == nil {
 			break
 		}
 		runlist = *runlist.Next
 	}
-	return offsetLenMap
-}
-
-func (record Record) GetTotalRunlistSize() int {
-	offsetLenMap := record.GetRunListSizesAndOffsets()
-	totalSize := 0
-	for _, length := range offsetLenMap {
-		totalSize += int(length)
-	}
 	return totalSize
-
 }
 
 func (record Record) ShowRunList() {
-	offsetLenMap := record.GetRunListSizesAndOffsets()
-	totalSize := 0
-	for offset, length := range offsetLenMap {
-		totalSize += int(length)
-		fmt.Printf(" offs. %d cl len %d cl \n", offset*8, length*8)
+	runlist := record.GetRunList()
+
+	for (MFTAttributes.RunList{}) != runlist {
+
+		fmt.Printf(" offs. %d cl len %d cl \n", runlist.Offset, runlist.Length)
+		if runlist.Next == nil {
+			break
+		}
+		runlist = *runlist.Next
 	}
 
 }
@@ -316,13 +307,9 @@ func (record Record) HasFilenameExtension(extension string) bool {
 }
 
 func (record Record) HasFilename(filename string) bool {
-	if record.HasAttr("FileName") {
-		fnattr := record.FindAttribute("FileName").(*MFTAttributes.FNAttribute)
-		if fnattr.Fname == filename {
-			return true
-		}
-	}
-	return false
+
+	return record.GetFname() == filename
+
 }
 
 func (record Record) HasAttr(attrName string) bool {
@@ -468,8 +455,9 @@ func (record *Record) Process(bs []byte) {
 				idxRoot.Nodeheader = nodeheader
 
 				idxEntryOffset := ReadPtr + atrRecordResident.OffsetContent + 16 + uint16(nodeheader.OffsetEntryList)
+				lastIdxEntryOffset := ReadPtr + atrRecordResident.OffsetContent + 16 + uint16(nodeheader.OffsetEndEntryListBuffer)
 
-				for idxEntryOffset+16 < uint16(nodeheader.OffsetEndEntryListBuffer) {
+				for idxEntryOffset+16 < lastIdxEntryOffset {
 					var idxEntry *MFTAttributes.IndexEntry = new(MFTAttributes.IndexEntry)
 					utils.Unmarshal(bs[idxEntryOffset:idxEntryOffset+16], idxEntry)
 
@@ -578,16 +566,14 @@ func (record Record) GetFnames() map[string]string {
 
 func (record Record) GetFname() string {
 	fnames := record.GetFnames()
-	for ftype, fname := range fnames {
-		if ftype == "POSIX" {
-			return fname
-		} else if ftype == "Win32" {
-			return fname
-		} else {
-			return fname
+	for _, namescheme := range []string{"POSIX", "Win32", "Win32 & Dos", "Dos"} {
+		name, ok := fnames[namescheme]
+		if ok {
+			return name
 		}
 	}
-	return "NA"
+	return "-"
+
 }
 
 func (record Record) ShowFileName(fileNameSyntax string) {
