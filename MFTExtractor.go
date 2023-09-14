@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	disk "github.com/aarsakian/MFTExtractor/Disk"
-	ntfsLib "github.com/aarsakian/MFTExtractor/FS/NTFS"
 	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
 	"github.com/aarsakian/MFTExtractor/exporter"
 	"github.com/aarsakian/MFTExtractor/img"
@@ -33,9 +32,10 @@ func main() {
 	//defer dbmap.Db.Close()
 
 	//	save2DB := flag.Bool("db", false, "bool if set an sqlite file will be created, each table will corresponed to an MFT attribute")
+	var location string
 	inputfile := flag.String("MFT", "Disk MFT", "absolute path to the MFT file")
 	evidencefile := flag.String("evidence", "", "path to image file")
-	exportLocation := flag.String("export", "", "the path to export  files")
+	flag.StringVar(&location, "location", "", "the path to export  files")
 	MFTSelectedEntry := flag.Int("entry", -1, "select a particular MFT entry")
 	showFileName := flag.String("showfilename", "", "show the name of the filename attribute of each MFT record choices: Any, Win32, Dos")
 	exportFile := flag.String("filename", "", "file to export")
@@ -56,12 +56,11 @@ func main() {
 
 	flag.Parse() //ready to parse
 
-	var partitionOffset uint64
+	var partitionOffsetB uint64
 
-	var ntfs ntfsLib.NTFS
 	var hD img.DiskReader
 	var records MFT.Records
-
+	var partition disk.Partition
 	var physicalDisk disk.Disk
 
 	rp := reporter.Reporter{
@@ -98,15 +97,15 @@ func main() {
 		if *listPartitions {
 			physicalDisk.ListPartitions()
 		}
-		partition := physicalDisk.GetSelectedPartition(*partitionNum)
+		partition = physicalDisk.GetSelectedPartition(*partitionNum)
 
-		partitionOffsetB := int64(partition.GetOffset() * 512)
+		partitionOffsetB = uint64(partition.GetOffset() * 512)
 
-		data := hD.ReadFile(partitionOffsetB, 512)
+		data := hD.ReadFile(int64(partitionOffsetB), 512)
 
 		fs := partition.LocateFileSystem(data)
 
-		records = fs.Process(hD, partitionOffsetB, *MFTSelectedEntry, *fromMFTEntry, *toMFTEntry)
+		records = fs.Process(hD, int64(partitionOffsetB), *MFTSelectedEntry, *fromMFTEntry, *toMFTEntry)
 		defer hD.CloseHandler()
 
 	}
@@ -126,10 +125,13 @@ func main() {
 		records = records.FilterByName(*exportFile)
 	}
 
-	if *exportLocation != "" && *physicalDrive != -1 && *partitionNum != -1 {
-		sectorsPerCluster := ntfs.GetSectorsPerCluster()
-		exp := exporter.Exporter{Disk: *physicalDrive, PartitionOffset: partitionOffset,
-			SectorsPerCluster: sectorsPerCluster, Location: *exportLocation}
+	if location != "" && *physicalDrive != -1 && *partitionNum != -1 || location != "" && *evidencefile != "" && *partitionNum != -1 {
+		if records == nil {
+			fmt.Printf("no records found for request file %s", *exportFile)
+		}
+		sectorsPerCluster := partition.GetSectorsPerCluster()
+		exp := exporter.Exporter{Disk: *physicalDrive, PartitionOffset: partitionOffsetB,
+			SectorsPerCluster: sectorsPerCluster, Location: location}
 		exp.ExportData(records, hD)
 
 	}
