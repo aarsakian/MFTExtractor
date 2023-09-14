@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -52,6 +53,20 @@ func (winTime *WindowsTime) ConvertToIsoTime() string { //receiver winTime struc
 	unixtime := time.Unix(int64(x), 0).UTC()
 	return unixtime.Format("02-01-2006 15:04:05")
 
+}
+
+func ReadEndianInt(barray []byte) int64 {
+	var sum int32
+
+	buf := make([]byte, 4)
+
+	copy(buf, barray)
+	if len(barray) == 3 && barray[len(barray)-1]&0x80 != 0 { //3 bytes MSB set to 1
+		buf[len(buf)-1] = 0xff
+	}
+	binary.Read(bytes.NewBuffer(buf), binary.LittleEndian, &sum)
+
+	return int64(sum)
 }
 
 func ReadEndianUInt(barray []byte) uint64 {
@@ -258,43 +273,6 @@ func WriteToCSV(file *os.File, data string) {
 	}
 }
 
-func ReadEndian(barray []byte) (val interface{}) {
-	//conversion function
-	//fmt.Println("before conversion----------------",barray)
-	//fmt.Printf("len%d ",len(barray))
-
-	switch len(barray) {
-	default:
-		var vale int64
-		binary.Read(bytes.NewBuffer(barray), binary.LittleEndian, &vale)
-		val = vale
-
-	case 4:
-		var vale int32
-		//   fmt.Println("barray",barray)
-		binary.Read(bytes.NewBuffer(barray), binary.LittleEndian, &vale)
-		val = vale
-	case 2:
-
-		var vale int16
-
-		binary.Read(bytes.NewBuffer(barray), binary.LittleEndian, &vale)
-		//   fmt.Println("after conversion vale----------------",barray,vale)
-		val = vale
-
-	case 1:
-
-		var vale int8
-
-		binary.Read(bytes.NewBuffer(barray), binary.LittleEndian, &vale)
-		//      fmt.Println("after conversion vale----------------",barray,vale)
-		val = vale
-
-	}
-
-	return val
-}
-
 func readEndianU(barray []byte) (val interface{}) {
 	//conversion function
 	//fmt.Println("before conversion----------------",barray)
@@ -366,31 +344,27 @@ func FindEvidenceFiles(path_ string) []string {
 
 	basePath := filepath.Dir(path_)
 
-	_, fname := filepath.Split(path_)
-
 	files, err := os.ReadDir(basePath)
 	if err != nil {
 		log.Fatal("ERR", err)
 	}
-	k := 0
-	filenames := make([]string, len(files))
-	if len(files) == 0 {
-		log.Fatal(fmt.Printf("Directory %s does not contains files", basePath))
-	}
+
+	var filenames []string
+	r, _ := regexp.Compile("\\.[eE][a-zA-Z0-9]{1,2}$")
 	for _, finfo := range files {
 
-		if !finfo.IsDir() {
+		if finfo.IsDir() {
 
-			if strings.HasPrefix(finfo.Name(), strings.Split(fname, ".")[0]) {
+			continue
+		}
 
-				filenames[k] = filepath.Join(basePath, finfo.Name()) //supply channel
-				//fmt.Println("INFO", basePath+finfo.Name(), strings.Split(fname, ".")[0])
-				k += 1
-			}
+		if r.MatchString(finfo.Name()) {
+
+			filenames = append(filenames, filepath.Join(basePath, finfo.Name())) //supply channel
+			//fmt.Println("INFO", basePath+finfo.Name(), strings.Split(fname, ".")[0])
 
 		}
 	}
-	filenames = filenames[:k]
 
 	return filenames
 
