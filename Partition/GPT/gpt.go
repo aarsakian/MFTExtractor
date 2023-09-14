@@ -93,3 +93,7 @@ func (partition Partition) LocateFileSystem(buffer []byte) FS.FileSystem {
 	ntfs.Parse(buffer)
 	return ntfs
 }
+
+func (Partition Partition) GetSectorsPerCluster() int {
+	return 8
+}
