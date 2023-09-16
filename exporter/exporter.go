@@ -48,7 +48,7 @@ func (exp Exporter) ExportData(records []MFT.Record, hD img.DiskReader) {
 				}
 				//	fmt.Printf("extracting data from %d len %d \n", offset, runlist.Length)
 
-				data := hD.ReadFile(offset, int(runlist.Length*8*512))
+				data := hD.ReadFile(offset, int(runlist.Length*uint64(exp.SectorsPerCluster)*512))
 
 				dataRuns.Write(data)
 
