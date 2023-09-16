@@ -138,7 +138,7 @@ func (mfttable *MFTTable) ProcessRecords(data []byte) {
 		if utils.Hexify(data[i:i+4]) == "00000000" { //zero area skip
 			continue
 		}
-		fmt.Printf("Processing $MFT entry %d  out of %d records \n", record.Entry, len(records))
+		fmt.Printf("Processing $MFT entry %d  out of %d records \n", record.Entry+1, len(records))
 		record.Process(data[i : i+RecordSize])
 		records[i/RecordSize] = record
 	}
@@ -231,10 +231,16 @@ func (record Record) getVCNs() (uint64, uint64) {
 
 func (record Record) ShowAttributes(attrType string) {
 	//fmt.Printf("\n %d %d %s ", record.Entry, record.Seq, record.getType())
-	fnAttributes := utils.Filter(record.Attributes, func(attribute MFTAttributes.Attribute) bool {
-		return attribute.FindType() == attrType
-	})
-	for _, attribute := range fnAttributes {
+	var attributes []MFTAttributes.Attribute
+	if attrType == "any" {
+		attributes = record.Attributes
+	} else {
+		attributes = utils.Filter(record.Attributes, func(attribute MFTAttributes.Attribute) bool {
+			return attribute.FindType() == attrType
+		})
+	}
+
+	for _, attribute := range attributes {
 		attribute.ShowInfo()
 	}
 
