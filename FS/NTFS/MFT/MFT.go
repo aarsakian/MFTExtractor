@@ -7,8 +7,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT/attributes"
 	MFTAttributes "github.com/aarsakian/MFTExtractor/FS/NTFS/MFT/attributes"
+	"github.com/aarsakian/MFTExtractor/img"
+
 	"github.com/aarsakian/MFTExtractor/utils"
 )
 
@@ -39,6 +40,14 @@ type MFTTable struct {
 
 type Records []Record
 
+type Attribute interface {
+	FindType() string
+	SetHeader(header *MFTAttributes.AttributeHeader)
+	GetHeader() MFTAttributes.AttributeHeader
+	IsNoNResident() bool
+	ShowInfo()
+}
+
 // MFT Record
 type Record struct {
 	Signature          string //0-3
@@ -56,7 +65,7 @@ type Record struct {
 	F1                 uint16 //42-43
 	Entry              uint32 //44-48                  ??
 	Fncnt              bool
-	Attributes         []MFTAttributes.Attribute
+	Attributes         []Attribute
 	Bitmap             bool
 	// fixupArray add the        UpdateSeqArrOffset to find is location
 
@@ -145,6 +154,41 @@ func (mfttable *MFTTable) ProcessRecords(data []byte) {
 	mfttable.Records = records
 }
 
+func (mfttable *MFTTable) ProcessNonResidentRecords(hD img.DiskReader, partitionOffsetB int64, clusterSizeB int) {
+
+	for idx := range mfttable.Records {
+		runlist := mfttable.Records[idx].GetRunList("Index Allocation")
+		var buf []byte
+
+		offset := int64(0)
+
+		for (MFTAttributes.RunList{}) != runlist {
+			offset += int64(runlist.Offset)
+
+			clusters := int(runlist.Length)
+
+			//inefficient since allocates memory for each round
+			data := hD.ReadFile(partitionOffsetB+offset*int64(clusterSizeB), clusters*clusterSizeB)
+			buf = append(buf, data...)
+
+			if runlist.Next == nil {
+				break
+			}
+
+			runlist = *runlist.Next
+		}
+		idxAllocation := mfttable.Records[idx].FindAttributePtr("Index Allocation").(*MFTAttributes.IndexAllocation)
+		idxAllocation.Parse(buf)
+
+	}
+}
+
+func (record Record) FindNonResidentAttributes() []Attribute {
+	return utils.Filter(record.Attributes, func(attribute Attribute) bool {
+		return attribute.IsNoNResident()
+	})
+}
+
 func (record Record) containsAttribute(attributeName string) bool {
 	for _, attribute := range record.Attributes {
 		if attribute.FindType() == attributeName {
@@ -154,7 +198,17 @@ func (record Record) containsAttribute(attributeName string) bool {
 	return false
 }
 
-func (record Record) FindAttribute(attributeName string) attributes.Attribute {
+func (record Record) FindAttributePtr(attributeName string) Attribute {
+	for idx := range record.Attributes {
+		if record.Attributes[idx].FindType() == attributeName {
+
+			return record.Attributes[idx]
+		}
+	}
+	return nil
+}
+
+func (record Record) FindAttribute(attributeName string) Attribute {
 	for _, attribute := range record.Attributes {
 		if attribute.FindType() == attributeName {
 
@@ -169,17 +223,28 @@ func (record Record) HasResidentDataAttr() bool {
 	return attribute != nil && !attribute.IsNoNResident()
 }
 
+func (record Record) HasNonResidentAttr() bool {
+	for _, attr := range record.Attributes {
+		if !attr.IsNoNResident() {
+			return true
+		}
+	}
+	return false
+}
+
 func (record Record) getType() string {
 	return MFTflags[record.Flags]
 }
 
-func (record Record) GetRunList() MFTAttributes.RunList {
-	for _, attribute := range record.Attributes {
-		if attribute.IsNoNResident() &&
-			attribute.GetHeader().ATRrecordNoNResident.RunList != nil {
-			return *attribute.GetHeader().ATRrecordNoNResident.RunList
-		}
+func (record Record) GetRunList(attrType string) MFTAttributes.RunList {
+	attributes := utils.Filter(record.Attributes, func(attribute Attribute) bool {
+		return attribute.FindType() == attrType && attribute.IsNoNResident()
+	})
+
+	if len(attributes) == 1 && attributes[0].GetHeader().ATRrecordNoNResident.RunList != nil {
+		return *attributes[0].GetHeader().ATRrecordNoNResident.RunList
 	}
+
 	return MFTAttributes.RunList{}
 }
 
@@ -231,11 +296,11 @@ func (record Record) getVCNs() (uint64, uint64) {
 
 func (record Record) ShowAttributes(attrType string) {
 	//fmt.Printf("\n %d %d %s ", record.Entry, record.Seq, record.getType())
-	var attributes []MFTAttributes.Attribute
+	var attributes []Attribute
 	if attrType == "any" {
 		attributes = record.Attributes
 	} else {
-		attributes = utils.Filter(record.Attributes, func(attribute MFTAttributes.Attribute) bool {
+		attributes = utils.Filter(record.Attributes, func(attribute Attribute) bool {
 			return attribute.FindType() == attrType
 		})
 	}
@@ -247,7 +312,7 @@ func (record Record) ShowAttributes(attrType string) {
 }
 
 func (record Record) ShowTimestamps() {
-	var attr attributes.Attribute
+	var attr Attribute
 	attr = record.FindAttribute("FileName")
 	if attr != nil {
 		fnattr := attr.(*MFTAttributes.FNAttribute)
@@ -272,7 +337,7 @@ func (record Record) GetResidentData() []byte {
 }
 
 func (record Record) GetTotalRunlistSize() int {
-	runlist := record.GetRunList()
+	runlist := record.GetRunList("DATA")
 	totalSize := 0
 
 	for (MFTAttributes.RunList{}) != runlist {
@@ -288,7 +353,7 @@ func (record Record) GetTotalRunlistSize() int {
 }
 
 func (record Record) ShowRunList() {
-	runlist := record.GetRunList()
+	runlist := record.GetRunList("DATA")
 
 	for (MFTAttributes.RunList{}) != runlist {
 
@@ -365,7 +430,7 @@ func (record *Record) Process(bs []byte) {
 
 	ReadPtr := record.AttrOff //offset to first attribute
 
-	var attributes []MFTAttributes.Attribute
+	var attributes []Attribute
 	for ReadPtr < 1024 {
 
 		if utils.Hexify(bs[ReadPtr:ReadPtr+4]) == "ffffffff" { //End of attributes
@@ -478,7 +543,7 @@ func (record *Record) Process(bs []byte) {
 						idxEntry.Fnattr = &fnattrIDXEntry
 
 					}
-					idxEntryOffset = idxEntryOffset + idxEntry.Len
+					idxEntryOffset += idxEntry.Len
 
 					idxRoot.IndexEntries = append(idxRoot.IndexEntries, *idxEntry)
 				}
@@ -513,20 +578,7 @@ func (record *Record) Process(bs []byte) {
 				attributes = append(attributes, data)
 			} else if attrHeader.IsIndexAllocation() {
 				var idxAllocation *MFTAttributes.IndexAllocation = new(MFTAttributes.IndexAllocation)
-				utils.Unmarshal(bs[ReadPtr+64:ReadPtr+64+24], idxAllocation)
-
-				var nodeheader *MFTAttributes.NodeHeader = new(MFTAttributes.NodeHeader)
-				utils.Unmarshal(bs[ReadPtr+64+24:ReadPtr+64+24+16], nodeheader)
-
-				var idxEntry *MFTAttributes.IndexEntry = new(MFTAttributes.IndexEntry)
-				nodeheaderEndOffs := ReadPtr + 64 + 24 + 16
-				utils.Unmarshal(bs[nodeheaderEndOffs+
-					uint16(nodeheader.OffsetEntryList):nodeheaderEndOffs+
-					uint16(nodeheader.OffsetEntryList)+15], idxEntry)
-
-				idxAllocation.Nodeheader = nodeheader
 				idxAllocation.SetHeader(&attrHeader)
-				idxAllocation.IndexEntries = append(idxAllocation.IndexEntries, *idxEntry)
 				attributes = append(attributes, idxAllocation)
 			}
 
@@ -556,7 +608,7 @@ func (record Record) GetFileSize() (logical int64, physical int64) {
 
 func (record Record) GetFnames() map[string]string {
 
-	fnAttributes := utils.Filter(record.Attributes, func(attribute MFTAttributes.Attribute) bool {
+	fnAttributes := utils.Filter(record.Attributes, func(attribute Attribute) bool {
 		return attribute.FindType() == "FileName"
 	})
 	fnames := make(map[string]string, len(fnAttributes))
@@ -607,76 +659,4 @@ func (records Records) FilterByName(filename string) []Record {
 		return record.HasFilename(filename)
 	})
 
-}
-
-func (record Record) GetBasicInfoFromRecord(file1 *os.File) {
-
-	s := fmt.Sprintf("%d;%d;%s", record.Entry, record.Seq, record.getType())
-	attr := record.FindAttribute("FileName")
-	if attr != nil {
-		fnattr := attr.(*MFTAttributes.FNAttribute)
-
-		s1 := strings.Join([]string{s, fnattr.Atime.ConvertToIsoTime(),
-			fnattr.Crtime.ConvertToIsoTime(),
-			fnattr.Mtime.ConvertToIsoTime(), fnattr.Fname,
-			fmt.Sprintf(";%d;%d;%s\n", fnattr.ParRef, fnattr.ParSeq,
-				fnattr.GetType())}, ";")
-
-		utils.WriteToCSV(file1, s1)
-	}
-
-	/*
-
-						// fmt.Println("file unique ID ",objectattr.objID)
-							if *save2DB {
-								dbmap.Insert(&objectattr)
-								checkErr(err, "Insert failed")
-							}
-							s := []string{";", objectattr.ObjID}
-							_, err := file1.WriteString(strings.Join(s, " "))
-							if err != nil {
-								// handle the error here
-								fmt.Printf("err %s\n", err)
-								return
-							}
-
-
-			s := []string{"Type of Attr in Run list", fmt.Sprintf("Attribute starts at %d", ReadPtr),
-				AttrTypes[attrList.Type], fmt.Sprintf("length %d ", attrList.Len), fmt.Sprintf("start VCN %d ", attrList.StartVcn),
-				"MFT Record Number", fmt.Sprintf("%d Name %s", attrList.FileRef, attrList.name),
-				"Attribute ID ", fmt.Sprintf("%d ", attrList.ID), string(10)}
-			_, err := file1.WriteString(strings.Join(s, " "))
-			if err != nil {
-				// handle the error here
-				fmt.Printf("err %s\n", err)
-				return
-			}
-
-			s := []string{";", volname.Name.PrintNulls()}
-			_, err := file1.WriteString(strings.Join(s, "s"))
-			if err != nil {
-				// handle the error here
-				fmt.Printf("err %s\n", err)
-				return
-			}
-
-			s := []string{"Vol Info flags", volinfo.Flags, string(10)}
-			_, err := file1.WriteString(strings.Join(s, " "))
-			if err != nil {
-				// handle the error here
-				fmt.Printf("err %s\n", err)
-				return
-			}
-
-			s := []string{idxRoot.Type, ";", fmt.Sprintf(";%d", idxRoot.Sizeclusters), ";", fmt.Sprintf("%d;", 16+idxRoot.nodeheader.OffsetEntryList),
-			fmt.Sprintf(";%d", 16+idxRoot.nodeheader.OffsetEndUsedEntryList), fmt.Sprintf("allocated ends at %d", 16+idxRoot.nodeheader.OffsetEndEntryListBuffer),
-			fmt.Sprintf("MFT entry%d ", idxEntry.MFTfileref), "FLags", IndexEntryFlags[idxEntry.Flags]}
-		//fmt.Sprintf("%x",bs[uint32(ReadPtr)+uint32(atrRecordResident.OffsetContent)+32:uint32(ReadPtr)+uint32(atrRecordResident.OffsetContent)+16+IDxroot.nodeheader.OffsetEndEntryListBuffer]
-		s1 := []string{"Filename idx Entry", fnattrIDXEntry.Fname}
-		file1.WriteString(strings.Join(s1, " "))
-		}
-
-
-
-	*/
 }
