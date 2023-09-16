@@ -196,10 +196,18 @@ func (bitmap BitMap) IsNoNResident() bool {
 
 func (bitmap BitMap) ShowInfo() {
 	fmt.Printf("type %s \n", bitmap.FindType())
-	for outerId, byteval := range bitmap.AllocationStatus {
-		for innerId, clusterstatus := range []byte{byteval} {
-			fmt.Printf("cluster/entry  %d status %d \t", outerId*(innerId+1), clusterstatus)
+	pos := 1
+	for _, byteval := range bitmap.AllocationStatus {
+		bitmask := uint8(0x01)
+		shifter := 0
+		for bitmask < 128 {
+
+			bitmask = 1 << shifter
+			fmt.Printf("cluster/entry  %d status %d \t", pos, byteval&bitmask)
+			pos++
+			shifter++
 		}
+
 	}
 }
 
