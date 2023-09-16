@@ -71,6 +71,11 @@ type ObjectID struct { //unique guID
 	Header    *AttributeHeader
 }
 
+type BitMap struct {
+	AllocationStatus []byte
+	Header           *AttributeHeader
+}
+
 type VolumeName struct {
 	Name   utils.NoNull
 	Header *AttributeHeader
@@ -170,6 +175,31 @@ func (idxAllocation IndexAllocation) ShowInfo() {
 	fmt.Printf("type %s nof entries %d\n", idxAllocation.FindType(), idxAllocation.NumEntries)
 	for _, idxEntry := range idxAllocation.IndexEntries {
 		idxEntry.ShowInfo()
+	}
+}
+
+func (bitmap *BitMap) SetHeader(header *AttributeHeader) {
+	bitmap.Header = header
+}
+
+func (bitmap BitMap) GetHeader() AttributeHeader {
+	return *bitmap.Header
+}
+
+func (bitmap BitMap) FindType() string {
+	return bitmap.Header.GetType()
+}
+
+func (bitmap BitMap) IsNoNResident() bool {
+	return bitmap.Header.IsNoNResident()
+}
+
+func (bitmap BitMap) ShowInfo() {
+	fmt.Printf("type %s \n", bitmap.FindType())
+	for outerId, byteval := range bitmap.AllocationStatus {
+		for innerId, clusterstatus := range []byte{byteval} {
+			fmt.Printf("cluster/entry  %d status %d \t", outerId*(innerId+1), clusterstatus)
+		}
 	}
 }
 
@@ -293,7 +323,7 @@ func (attrHeader AttributeHeader) IsAttrList() bool {
 }
 
 func (attrHeader AttributeHeader) IsBitmap() bool {
-	return attrHeader.GetType() == "Bitmap"
+	return attrHeader.GetType() == "BitMap"
 }
 
 func (attrHeader AttributeHeader) IsVolumeName() bool {

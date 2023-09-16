@@ -134,7 +134,7 @@ func (mfttable *MFTTable) Populate(MFTSelectedEntry int, fromMFTEntry int, ToMFT
 func (mfttable *MFTTable) DetermineClusterOffsetLength() {
 	firstRecord := mfttable.Records[0]
 
-	mfttable.Size = int(firstRecord.GetTotalRunlistSize())
+	mfttable.Size = int(firstRecord.GetTotalRunlistSize("DATA"))
 
 }
 func (mfttable *MFTTable) ProcessRecords(data []byte) {
@@ -158,7 +158,10 @@ func (mfttable *MFTTable) ProcessNonResidentRecords(hD img.DiskReader, partition
 
 	for idx := range mfttable.Records {
 		runlist := mfttable.Records[idx].GetRunList("Index Allocation")
-		var buf []byte
+		length := mfttable.Records[idx].GetTotalRunlistSize("Index Allocation") * clusterSizeB
+
+		var buf bytes.Buffer
+		buf.Grow(length)
 
 		offset := int64(0)
 
@@ -169,7 +172,7 @@ func (mfttable *MFTTable) ProcessNonResidentRecords(hD img.DiskReader, partition
 
 			//inefficient since allocates memory for each round
 			data := hD.ReadFile(partitionOffsetB+offset*int64(clusterSizeB), clusters*clusterSizeB)
-			buf = append(buf, data...)
+			buf.Write(data)
 
 			if runlist.Next == nil {
 				break
@@ -178,7 +181,7 @@ func (mfttable *MFTTable) ProcessNonResidentRecords(hD img.DiskReader, partition
 			runlist = *runlist.Next
 		}
 		idxAllocation := mfttable.Records[idx].FindAttributePtr("Index Allocation").(*MFTAttributes.IndexAllocation)
-		idxAllocation.Parse(buf)
+		idxAllocation.Parse(buf.Bytes())
 
 	}
 }
@@ -336,8 +339,8 @@ func (record Record) GetResidentData() []byte {
 
 }
 
-func (record Record) GetTotalRunlistSize() int {
-	runlist := record.GetRunList("DATA")
+func (record Record) GetTotalRunlistSize(attributeType string) int {
+	runlist := record.GetRunList(attributeType)
 	totalSize := 0
 
 	for (MFTAttributes.RunList{}) != runlist {
@@ -499,6 +502,12 @@ func (record *Record) Process(bs []byte) {
 
 			} else if attrHeader.IsBitmap() { //BITMAP
 				record.Bitmap = true
+				var bitmap *MFTAttributes.BitMap = new(MFTAttributes.BitMap)
+				bitmap.AllocationStatus = bs[ReadPtr+
+					atrRecordResident.OffsetContent : uint32(ReadPtr)+
+					uint32(atrRecordResident.OffsetContent)+atrRecordResident.ContentSize]
+				bitmap.SetHeader(&attrHeader)
+				attributes = append(attributes, bitmap)
 
 			} else if attrHeader.IsVolumeName() { //Volume Name
 				volumeName := &MFTAttributes.VolumeName{Name: utils.NoNull(bs[ReadPtr+
@@ -580,6 +589,14 @@ func (record *Record) Process(bs []byte) {
 				var idxAllocation *MFTAttributes.IndexAllocation = new(MFTAttributes.IndexAllocation)
 				idxAllocation.SetHeader(&attrHeader)
 				attributes = append(attributes, idxAllocation)
+			} else if attrHeader.IsBitmap() { //BITMAP
+				record.Bitmap = true
+
+				var bitmap *MFTAttributes.BitMap = new(MFTAttributes.BitMap)
+				bitmap.SetHeader(&attrHeader)
+				attributes = append(attributes, bitmap)
+			} else {
+				fmt.Printf("unknown non resident attr %s\n", attrHeader.GetType())
 			}
 
 		} //ends non Resident
