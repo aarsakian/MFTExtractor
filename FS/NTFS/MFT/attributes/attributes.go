@@ -132,7 +132,7 @@ type VolumeInfo struct {
 }
 
 func (idxEntry IndexEntry) ShowInfo() {
-	fmt.Printf("file ref %d idx name %s flags %d vcn %d\n", idxEntry.ParRef,
+	fmt.Printf("type %s file ref %d idx name %s flags %d vcn %d\n", idxEntry.Fnattr.GetType(), idxEntry.ParRef,
 		idxEntry.Fnattr.Fname, idxEntry.Flags, idxEntry.ChildVCN)
 }
 
@@ -153,10 +153,10 @@ func (objectId ObjectID) IsNoNResident() bool {
 }
 
 func (objectId ObjectID) ShowInfo() {
-
+	fmt.Printf("type %s\n", objectId.FindType())
 }
 
-func (idxAllocation IndexAllocation) SetHeader(header *AttributeHeader) {
+func (idxAllocation *IndexAllocation) SetHeader(header *AttributeHeader) {
 	idxAllocation.Header = header
 }
 
@@ -173,7 +173,7 @@ func (idxAllocation IndexAllocation) IsNoNResident() bool {
 }
 
 func (idxAllocation IndexAllocation) ShowInfo() {
-
+	fmt.Printf("type %s nof entries %d\n", idxAllocation.FindType(), idxAllocation.NumEntries)
 }
 
 func (volInfo *VolumeInfo) SetHeader(header *AttributeHeader) {
@@ -233,7 +233,7 @@ func (idxRoot IndexRoot) FindType() string {
 }
 
 func (idxRoot IndexRoot) ShowInfo() {
-
+	fmt.Printf("type %s nof entries %d\n", idxRoot.FindType(), len(idxRoot.IndexEntries))
 }
 
 func (attrHeader AttributeHeader) GetType() string {
