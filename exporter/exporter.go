@@ -31,7 +31,7 @@ func (exp Exporter) ExportData(records []MFT.Record, hD img.DiskReader) {
 			retrievedData = record.GetResidentData()
 		} else {
 			runlist := record.GetRunList()
-			lsize, _ := record.GetFileSize()
+			_, lsize := record.GetFileSize()
 
 			var dataRuns bytes.Buffer
 			dataRuns.Grow(int(lsize))
@@ -61,9 +61,7 @@ func (exp Exporter) ExportData(records []MFT.Record, hD img.DiskReader) {
 			retrievedData = dataRuns.Bytes()
 		}
 
-		_, real := record.GetFileSize()
-
-		exp.CreateFile(record.GetFname(), retrievedData[:real])
+		exp.CreateFile(record.GetFname(), retrievedData)
 
 	}
 
