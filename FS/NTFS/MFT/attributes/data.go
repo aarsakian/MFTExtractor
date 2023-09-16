@@ -1,5 +1,7 @@
 package attributes
 
+import "fmt"
+
 type DATA struct {
 	Content []byte
 	Header  *AttributeHeader
@@ -21,5 +23,5 @@ func (data DATA) IsNoNResident() bool {
 }
 
 func (data DATA) ShowInfo() {
-
+	fmt.Printf("type %s %t \n", data.FindType(), data.IsNoNResident())
 }
