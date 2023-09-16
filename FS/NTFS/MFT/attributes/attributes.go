@@ -16,14 +16,6 @@ var AttrTypes = map[string]string{
 	"ffffffff": "Last",
 }
 
-type Attribute interface {
-	FindType() string
-	SetHeader(header *AttributeHeader)
-	GetHeader() AttributeHeader
-	IsNoNResident() bool
-	ShowInfo()
-}
-
 type AttributeHeader struct {
 	Type                 string //        0-3                              type of attribute e.g. $DATA
 	AttrLen              uint32 //4-8             length of attribute
@@ -174,6 +166,34 @@ func (idxAllocation IndexAllocation) IsNoNResident() bool {
 
 func (idxAllocation IndexAllocation) ShowInfo() {
 	fmt.Printf("type %s nof entries %d\n", idxAllocation.FindType(), idxAllocation.NumEntries)
+}
+
+func (idxAllocation *IndexAllocation) Parse(bs []byte) {
+	utils.Unmarshal(bs[:24], idxAllocation)
+
+	var nodeheader *NodeHeader = new(NodeHeader)
+	utils.Unmarshal(bs[24:24+16], nodeheader)
+	idxAllocation.Nodeheader = nodeheader
+
+	idxEntryOffset := nodeheader.OffsetEntryList
+	for idxEntryOffset < nodeheader.OffsetEndUsedEntryList {
+		var idxEntry *IndexEntry = new(IndexEntry)
+		utils.Unmarshal(bs[idxEntryOffset:idxEntryOffset+16], idxEntry)
+		if idxEntry.FilenameLen > 0 {
+			var fnattrIDXEntry FNAttribute
+			utils.Unmarshal(bs[idxEntryOffset+16:idxEntryOffset+16+uint32(idxEntry.FilenameLen)],
+				&fnattrIDXEntry)
+
+			fnattrIDXEntry.Fname =
+				utils.DecodeUTF16(bs[idxEntryOffset+16+66 : idxEntryOffset+16+
+					66+2*uint32(fnattrIDXEntry.Nlen)])
+			idxEntry.Fnattr = &fnattrIDXEntry
+
+		}
+		idxEntryOffset += uint32(idxEntry.Len)
+		idxAllocation.IndexEntries = append(idxAllocation.IndexEntries, *idxEntry)
+	}
+
 }
 
 func (volInfo *VolumeInfo) SetHeader(header *AttributeHeader) {
