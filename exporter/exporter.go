@@ -30,7 +30,7 @@ func (exp Exporter) ExportData(records []MFT.Record, hD img.DiskReader) {
 		if record.HasResidentDataAttr() {
 			retrievedData = record.GetResidentData()
 		} else {
-			runlist := record.GetRunList()
+			runlist := record.GetRunList("DATA")
 			_, lsize := record.GetFileSize()
 
 			var dataRuns bytes.Buffer
