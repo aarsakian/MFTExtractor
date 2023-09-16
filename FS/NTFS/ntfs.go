@@ -42,6 +42,8 @@ func (ntfs NTFS) Process(hD img.DiskReader, partitionOffsetB int64, MFTSelectedE
 
 	MFTAreaBuf := ntfs.CollectMFTArea(hD, partitionOffsetB)
 	ntfs.ProcessMFT(MFTAreaBuf, MFTSelectedEntry, fromMFTEntry, toMFTEntry)
+	ntfs.MFTTable.ProcessNonResidentRecords(hD, partitionOffsetB, int(ntfs.SectorsPerCluster)*int(ntfs.BytesPerSector))
+
 	return ntfs.MFTTable.Records
 }
 
@@ -51,7 +53,7 @@ func (ntfs NTFS) CollectMFTArea(hD img.DiskReader, partitionOffsetB int64) []byt
 	length := int(ntfs.MFTTable.Size) * int(ntfs.BytesPerSector) * int(ntfs.SectorsPerCluster) // allow for MFT size
 	buf.Grow(length)
 
-	runlist := ntfs.MFTTable.Records[0].GetRunList() // first record $MFT
+	runlist := ntfs.MFTTable.Records[0].GetRunList("DATA") // first record $MFT
 	offset := 0
 
 	for (MFTAttributes.RunList{}) != runlist {
