@@ -82,7 +82,6 @@ type IndexEntry struct {
 	Len         uint16 //8-9
 	FilenameLen uint16 //10-11
 	Flags       uint32 //12-15
-	ChildVCN    uint64
 	Fnattr      *FNAttribute
 }
 
@@ -124,8 +123,8 @@ type VolumeInfo struct {
 }
 
 func (idxEntry IndexEntry) ShowInfo() {
-	fmt.Printf("type %s file ref %d idx name %s flags %d vcn %d\n", idxEntry.Fnattr.GetType(), idxEntry.ParRef,
-		idxEntry.Fnattr.Fname, idxEntry.Flags, idxEntry.ChildVCN)
+	fmt.Printf("type %s file ref %d idx name %s flags %d \n", idxEntry.Fnattr.GetType(), idxEntry.ParRef,
+		idxEntry.Fnattr.Fname, idxEntry.Flags)
 }
 
 func (objectId *ObjectID) SetHeader(header *AttributeHeader) {
