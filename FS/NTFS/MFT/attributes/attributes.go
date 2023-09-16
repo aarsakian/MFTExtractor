@@ -123,8 +123,11 @@ type VolumeInfo struct {
 }
 
 func (idxEntry IndexEntry) ShowInfo() {
-	fmt.Printf("type %s file ref %d idx name %s flags %d \n", idxEntry.Fnattr.GetType(), idxEntry.ParRef,
-		idxEntry.Fnattr.Fname, idxEntry.Flags)
+	if idxEntry.Fnattr != nil {
+		fmt.Printf("type %s file ref %d idx name %s flags %d \n", idxEntry.Fnattr.GetType(), idxEntry.ParRef,
+			idxEntry.Fnattr.Fname, idxEntry.Flags)
+	}
+
 }
 
 func (objectId *ObjectID) SetHeader(header *AttributeHeader) {
@@ -165,6 +168,9 @@ func (idxAllocation IndexAllocation) IsNoNResident() bool {
 
 func (idxAllocation IndexAllocation) ShowInfo() {
 	fmt.Printf("type %s nof entries %d\n", idxAllocation.FindType(), idxAllocation.NumEntries)
+	for _, idxEntry := range idxAllocation.IndexEntries {
+		idxEntry.ShowInfo()
+	}
 }
 
 func (idxAllocation *IndexAllocation) Parse(bs []byte) {
@@ -174,7 +180,7 @@ func (idxAllocation *IndexAllocation) Parse(bs []byte) {
 	utils.Unmarshal(bs[24:24+16], nodeheader)
 	idxAllocation.Nodeheader = nodeheader
 
-	idxEntryOffset := nodeheader.OffsetEntryList
+	idxEntryOffset := nodeheader.OffsetEntryList + 24 // relative to the start of node header
 	for idxEntryOffset < nodeheader.OffsetEndUsedEntryList {
 		var idxEntry *IndexEntry = new(IndexEntry)
 		utils.Unmarshal(bs[idxEntryOffset:idxEntryOffset+16], idxEntry)
@@ -253,6 +259,9 @@ func (idxRoot IndexRoot) FindType() string {
 
 func (idxRoot IndexRoot) ShowInfo() {
 	fmt.Printf("type %s nof entries %d\n", idxRoot.FindType(), len(idxRoot.IndexEntries))
+	for _, idxEntry := range idxRoot.IndexEntries {
+		idxEntry.ShowInfo()
+	}
 }
 
 func (attrHeader AttributeHeader) GetType() string {
