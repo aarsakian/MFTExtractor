@@ -11,8 +11,8 @@ var AttrTypes = map[string]string{
 	"00000030": "FileName", "00000040": "Object ID",
 	"00000050": "Security Descriptor", "00000060": "Volume Name",
 	"00000070": "Volume Information", "00000080": "DATA",
-	"00000090": "Index Root", "000000A0": "Index Allocation",
-	"000000B0": "BitMap", "000000C0": "Reparse Point",
+	"00000090": "Index Root", "000000a0": "Index Allocation",
+	"000000b0": "BitMap", "000000c0": "Reparse Point",
 	"ffffffff": "Last",
 }
 
