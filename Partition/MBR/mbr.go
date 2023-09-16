@@ -71,7 +71,3 @@ func (mbr *MBR) Parse(buffer []byte) {
 	mbr.Partitions = LocatePartitions(buffer[446:510])
 
 }
-
-func (Partition Partition) GetSectorsPerCluster() int {
-	return 8
-}

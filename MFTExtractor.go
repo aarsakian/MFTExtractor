@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	disk "github.com/aarsakian/MFTExtractor/Disk"
+	"github.com/aarsakian/MFTExtractor/FS"
 	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
 	"github.com/aarsakian/MFTExtractor/exporter"
 	"github.com/aarsakian/MFTExtractor/img"
@@ -62,6 +63,7 @@ func main() {
 	var records MFT.Records
 	var partition disk.Partition
 	var physicalDisk disk.Disk
+	var fs FS.FileSystem
 
 	rp := reporter.Reporter{
 		ShowFileName:   *showFileName,
@@ -103,7 +105,7 @@ func main() {
 
 		data := hD.ReadFile(int64(partitionOffsetB), 512)
 
-		fs := partition.LocateFileSystem(data)
+		fs = partition.LocateFileSystem(data)
 
 		records = fs.Process(hD, int64(partitionOffsetB), *MFTSelectedEntry, *fromMFTEntry, *toMFTEntry)
 		defer hD.CloseHandler()
@@ -129,7 +131,7 @@ func main() {
 		if records == nil {
 			fmt.Printf("no records found for request file %s", *exportFile)
 		}
-		sectorsPerCluster := partition.GetSectorsPerCluster()
+		sectorsPerCluster := fs.GetSectorsPerCluster()
 		exp := exporter.Exporter{Disk: *physicalDrive, PartitionOffset: partitionOffsetB,
 			SectorsPerCluster: sectorsPerCluster, Location: location}
 		exp.ExportData(records, hD)

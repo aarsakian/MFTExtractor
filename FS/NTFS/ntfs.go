@@ -23,8 +23,8 @@ type NTFS struct {
 	MFTTable          *MFT.MFTTable
 }
 
-func (ntfs NTFS) GetSectorsPerCluster() uint8 {
-	return ntfs.SectorsPerCluster
+func (ntfs NTFS) GetSectorsPerCluster() int {
+	return int(ntfs.SectorsPerCluster)
 }
 
 func (ntfs NTFS) Process(hD img.DiskReader, partitionOffsetB int64, MFTSelectedEntry int, fromMFTEntry int, toMFTEntry int) []MFT.Record {
