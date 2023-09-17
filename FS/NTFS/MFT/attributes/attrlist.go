@@ -37,7 +37,7 @@ func (attrListEntries AttributeListEntries) GetHeader() AttributeHeader {
 
 func (attrListEntries *AttributeListEntries) Parse(data []byte) {
 	attrLen := uint16(0)
-	for 24+attrLen < uint16(attrListEntries.Header.AttrLen) {
+	for 24+attrLen < uint16(len(data)) {
 		var attrList AttributeList
 		utils.Unmarshal(data[attrLen:attrLen+24], &attrList)
 		attrList.Name = utils.NoNull(data[attrLen+uint16(attrList.Nameoffset) : attrLen+uint16(attrList.Nameoffset)+2*uint16(attrList.Namelen)])

@@ -457,87 +457,65 @@ func (record *Record) Process(bs []byte) {
 
 		if !attrHeader.IsNoNResident() { //Resident Attribute
 			var atrRecordResident *MFTAttributes.ATRrecordResident = new(MFTAttributes.ATRrecordResident)
+			var attr Attribute
+
 			utils.Unmarshal(bs[ReadPtr+16:ReadPtr+24], atrRecordResident)
 			attrHeader.ATRrecordResident = atrRecordResident
 
 			if attrHeader.IsFileName() { // File name
-				var fnattr *MFTAttributes.FNAttribute = new(MFTAttributes.FNAttribute)
-				fnattr.Parse(bs[ReadPtr+atrRecordResident.OffsetContent:])
-
-				fnattr.SetHeader(&attrHeader)
-				attributes = append(attributes, fnattr)
+				attr = &MFTAttributes.FNAttribute{}
+				attr.Parse(bs[ReadPtr+atrRecordResident.OffsetContent:])
 
 			} else if attrHeader.IsReparse() {
-				var reparse *MFTAttributes.Reparse = new(MFTAttributes.Reparse)
-				reparse.Parse(bs[ReadPtr+atrRecordResident.OffsetContent:])
-
-				reparse.SetHeader(&attrHeader)
-				attributes = append(attributes, reparse)
+				attr = &MFTAttributes.Reparse{}
+				attr.Parse(bs[ReadPtr+atrRecordResident.OffsetContent:])
 
 			} else if attrHeader.IsData() {
-				var data *MFTAttributes.DATA = new(MFTAttributes.DATA)
-				data.Parse(bs[ReadPtr+
+				attr = &MFTAttributes.DATA{}
+				attr.Parse(bs[ReadPtr+
 					atrRecordResident.OffsetContent : ReadPtr +
 					+uint16(attrHeader.AttrLen)])
-				data.SetHeader(&attrHeader)
-				attributes = append(attributes, data)
 
 			} else if attrHeader.IsObject() {
-				var objectattr *MFTAttributes.ObjectID = new(MFTAttributes.ObjectID)
-				objectattr.Parse(bs[ReadPtr+atrRecordResident.OffsetContent : ReadPtr+
+				attr = &MFTAttributes.ObjectID{}
+				attr.Parse(bs[ReadPtr+atrRecordResident.OffsetContent : ReadPtr+
 					atrRecordResident.OffsetContent+64])
-
-				objectattr.SetHeader(&attrHeader)
-				attributes = append(attributes, objectattr)
 
 			} else if attrHeader.IsAttrList() { //Attribute List
 
-				var attrListEntries *MFTAttributes.AttributeListEntries = new(MFTAttributes.AttributeListEntries)
-				attrListEntries.SetHeader(&attrHeader)
-				attrListEntries.Parse(bs[ReadPtr+atrRecordResident.OffsetContent:])
+				attr = &MFTAttributes.AttributeListEntries{}
 
-				attributes = append(attributes, attrListEntries)
+				attr.Parse(bs[ReadPtr+atrRecordResident.OffsetContent : ReadPtr+
+					atrRecordResident.OffsetContent+uint16(attrHeader.AttrLen)])
 
 			} else if attrHeader.IsBitmap() { //BITMAP
 				record.Bitmap = true
-				var bitmap *MFTAttributes.BitMap = new(MFTAttributes.BitMap)
-				bitmap.Parse(bs[ReadPtr+atrRecordResident.OffsetContent:])
-
-				bitmap.SetHeader(&attrHeader)
-				attributes = append(attributes, bitmap)
+				attr = &MFTAttributes.BitMap{}
+				attr.Parse(bs[ReadPtr+atrRecordResident.OffsetContent:])
 
 			} else if attrHeader.IsVolumeName() { //Volume Name
-				var volumeName *MFTAttributes.VolumeName = new(MFTAttributes.VolumeName)
-				volumeName.Parse(bs[ReadPtr+
+				attr = &MFTAttributes.VolumeName{}
+				attr.Parse(bs[ReadPtr+
 					atrRecordResident.OffsetContent : uint32(ReadPtr)+
 					uint32(atrRecordResident.OffsetContent)+atrRecordResident.ContentSize])
 
-				volumeName.SetHeader(&attrHeader)
-				attributes = append(attributes, volumeName)
-
 			} else if attrHeader.IsVolumeInfo() { //Volume Info
-				var volumeInfo *MFTAttributes.VolumeInfo = new(MFTAttributes.VolumeInfo)
-				volumeInfo.Parse(bs[ReadPtr+atrRecordResident.OffsetContent : ReadPtr+
+				attr = &MFTAttributes.VolumeInfo{}
+				attr.Parse(bs[ReadPtr+atrRecordResident.OffsetContent : ReadPtr+
 					atrRecordResident.OffsetContent+12])
 
-				volumeInfo.SetHeader(&attrHeader)
-				attributes = append(attributes, volumeInfo)
-
 			} else if attrHeader.IsIndexRoot() { //Index Root
-				var idxRoot *MFTAttributes.IndexRoot = new(MFTAttributes.IndexRoot)
-				idxRoot.Parse(bs[ReadPtr+atrRecordResident.OffsetContent:])
+				attr = &MFTAttributes.IndexRoot{}
+				attr.Parse(bs[ReadPtr+atrRecordResident.OffsetContent:])
 
-				idxRoot.SetHeader(&attrHeader)
-				attributes = append(attributes, idxRoot)
 			} else if attrHeader.IsStdInfo() { //Standard Information
-				startpoint := ReadPtr + atrRecordResident.OffsetContent
-				var siattr *MFTAttributes.SIAttribute = new(MFTAttributes.SIAttribute)
-				siattr.Parse(bs[startpoint : startpoint+72])
 
-				siattr.SetHeader(&attrHeader)
-				attributes = append(attributes, siattr)
+				attr = &MFTAttributes.SIAttribute{}
+				attr.Parse(bs[ReadPtr+atrRecordResident.OffsetContent : ReadPtr+atrRecordResident.OffsetContent+72])
 
 			}
+			attr.SetHeader(&attrHeader)
+			attributes = append(attributes, attr)
 
 		} else { //NoN Resident Attribute
 			var atrNoNRecordResident *MFTAttributes.ATRrecordNoNResident = new(MFTAttributes.ATRrecordNoNResident)
