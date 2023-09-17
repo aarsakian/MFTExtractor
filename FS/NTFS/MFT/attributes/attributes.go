@@ -57,6 +57,8 @@ type Reparse struct {
 	TargetPrintNameOffset int16
 	TargetPrintNameLen    uint16
 	Header                *AttributeHeader
+	Name                  string
+	PrintName             string
 }
 
 type RunList struct {
@@ -258,7 +260,8 @@ func (reparse Reparse) FindType() string {
 }
 
 func (reparse Reparse) ShowInfo() {
-
+	fmt.Printf("Type %s Target Name %s Print Name %s", reparse.FindType(),
+		reparse.Name, reparse.PrintName)
 }
 
 func (volInfo *VolumeInfo) SetHeader(header *AttributeHeader) {
