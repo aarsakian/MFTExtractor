@@ -157,8 +157,15 @@ func (mfttable *MFTTable) ProcessRecords(data []byte) {
 func (mfttable *MFTTable) ProcessNonResidentRecords(hD img.DiskReader, partitionOffsetB int64, clusterSizeB int) {
 
 	for idx := range mfttable.Records {
-		runlist := mfttable.Records[idx].GetRunList("Index Allocation")
-		length := mfttable.Records[idx].GetTotalRunlistSize("Index Allocation") * clusterSizeB
+		mfttable.Records[idx].ProcessNoNResidentAttributes(hD, partitionOffsetB, clusterSizeB)
+	}
+}
+
+func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionOffsetB int64, clusterSizeB int) {
+	for _, attribute := range record.FindNonResidentAttributes() {
+		attrName := attribute.FindType()
+		runlist := record.GetRunList(attrName)
+		length := record.GetTotalRunlistSize(attrName) * clusterSizeB
 
 		var buf bytes.Buffer
 		buf.Grow(length)
@@ -180,10 +187,16 @@ func (mfttable *MFTTable) ProcessNonResidentRecords(hD img.DiskReader, partition
 
 			runlist = *runlist.Next
 		}
-		idxAllocation := mfttable.Records[idx].FindAttributePtr("Index Allocation").(*MFTAttributes.IndexAllocation)
-		idxAllocation.Parse(buf.Bytes())
+		if attrName == "Index Allocation" {
+			idxAllocation := attribute.(*MFTAttributes.IndexAllocation)
+			idxAllocation.Parse(buf.Bytes())
+		} else if attrName == "BitMap" {
+			bitmap := attribute.(*MFTAttributes.BitMap)
+			bitmap.AllocationStatus = buf.Bytes()
+		}
 
 	}
+
 }
 
 func (record Record) FindNonResidentAttributes() []Attribute {
