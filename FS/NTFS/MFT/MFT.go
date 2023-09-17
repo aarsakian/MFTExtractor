@@ -608,6 +608,10 @@ func (record *Record) Process(bs []byte) {
 				var bitmap *MFTAttributes.BitMap = new(MFTAttributes.BitMap)
 				bitmap.SetHeader(&attrHeader)
 				attributes = append(attributes, bitmap)
+			} else if attrHeader.IsAttrList() {
+				var attrListEntries *MFTAttributes.AttributeListEntries = new(MFTAttributes.AttributeListEntries)
+				attrListEntries.SetHeader(&attrHeader)
+				attributes = append(attributes, attrListEntries)
 			} else {
 				fmt.Printf("unknown non resident attr %s\n", attrHeader.GetType())
 			}
