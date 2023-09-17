@@ -486,6 +486,9 @@ func (record *Record) Process(bs []byte) {
 				reparse.PrintName = utils.DecodeUTF16(bs[ReadPtr+atrRecordResident.OffsetContent+16+
 					uint16(reparse.TargetPrintNameOffset) : ReadPtr+atrRecordResident.OffsetContent+16+
 					uint16(reparse.TargetPrintNameLen)])
+				reparse.SetHeader(&attrHeader)
+				attributes = append(attributes, reparse)
+
 			} else if attrHeader.IsData() {
 				data := &MFTAttributes.DATA{Content: bs[ReadPtr+
 					atrRecordResident.OffsetContent : ReadPtr +
