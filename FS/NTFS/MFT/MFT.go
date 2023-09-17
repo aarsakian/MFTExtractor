@@ -516,13 +516,11 @@ func (record *Record) Process(bs []byte) {
 			} else {
 				fmt.Printf("uknown attribute %s \n", attrHeader.GetType())
 			}
-			if attr == nil {
+			if attr != nil {
+				attr.SetHeader(&attrHeader)
+				attributes = append(attributes, attr)
 
-				continue
 			}
-
-			attr.SetHeader(&attrHeader)
-			attributes = append(attributes, attr)
 
 		} else { //NoN Resident Attribute
 			var atrNoNRecordResident *MFTAttributes.ATRrecordNoNResident = new(MFTAttributes.ATRrecordNoNResident)
