@@ -55,6 +55,7 @@ type Reparse struct {
 	TargetLen             uint16
 	TargetPrintNameOffset int16
 	TargetPrintNameLen    uint16
+	Header                *AttributeHeader
 }
 
 type RunList struct {
@@ -236,6 +237,26 @@ func (idxAllocation *IndexAllocation) Parse(bs []byte) {
 		idxEntryOffset += uint32(idxEntry.Len)
 		idxAllocation.IndexEntries = append(idxAllocation.IndexEntries, *idxEntry)
 	}
+
+}
+
+func (reparse *Reparse) SetHeader(header *AttributeHeader) {
+	reparse.Header = header
+}
+
+func (reparse Reparse) GetHeader() AttributeHeader {
+	return *reparse.Header
+}
+
+func (reparse Reparse) IsNoNResident() bool {
+	return reparse.Header.IsNoNResident()
+}
+
+func (reparse Reparse) FindType() string {
+	return reparse.Header.GetType()
+}
+
+func (reparse Reparse) ShowInfo() {
 
 }
 
