@@ -46,6 +46,7 @@ type Attribute interface {
 	GetHeader() MFTAttributes.AttributeHeader
 	IsNoNResident() bool
 	ShowInfo()
+	Parse([]byte)
 }
 
 // MFT Record
@@ -193,6 +194,8 @@ func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionO
 		} else if attrName == "BitMap" {
 			bitmap := attribute.(*MFTAttributes.BitMap)
 			bitmap.AllocationStatus = buf.Bytes()
+		} else if attrName == "Reparse Point" {
+
 		}
 
 	}
@@ -467,124 +470,78 @@ func (record *Record) Process(bs []byte) {
 
 			if attrHeader.IsFileName() { // File name
 				var fnattr *MFTAttributes.FNAttribute = new(MFTAttributes.FNAttribute)
-				utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+
-					atrRecordResident.OffsetContent+66], fnattr)
+				fnattr.Parse(bs[ReadPtr+atrRecordResident.OffsetContent:])
 
-				fnattr.Fname =
-					utils.DecodeUTF16(bs[ReadPtr+atrRecordResident.OffsetContent+66 : ReadPtr+
-						atrRecordResident.OffsetContent+66+2*uint16(fnattr.Nlen)])
 				fnattr.SetHeader(&attrHeader)
 				attributes = append(attributes, fnattr)
 
 			} else if attrHeader.IsReparse() {
 				var reparse *MFTAttributes.Reparse = new(MFTAttributes.Reparse)
-				utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+
-					atrRecordResident.OffsetContent+16], reparse)
-				reparse.Name = utils.DecodeUTF16(bs[ReadPtr+atrRecordResident.OffsetContent+16+
-					uint16(reparse.TargetNameOffset) : ReadPtr+atrRecordResident.OffsetContent+
-					16+uint16(reparse.TargetNameOffset)+reparse.TargetLen])
-				reparse.PrintName = utils.DecodeUTF16(bs[ReadPtr+atrRecordResident.OffsetContent+16+
-					uint16(reparse.TargetPrintNameOffset) : ReadPtr+atrRecordResident.OffsetContent+16+
-					uint16(reparse.TargetPrintNameLen)])
+				reparse.Parse(bs[ReadPtr+atrRecordResident.OffsetContent:])
+
 				reparse.SetHeader(&attrHeader)
 				attributes = append(attributes, reparse)
 
 			} else if attrHeader.IsData() {
-				data := &MFTAttributes.DATA{Content: bs[ReadPtr+
+				var data *MFTAttributes.DATA = new(MFTAttributes.DATA)
+				data.Parse(bs[ReadPtr+
 					atrRecordResident.OffsetContent : ReadPtr +
-					+uint16(attrHeader.AttrLen)], Header: &attrHeader}
+					+uint16(attrHeader.AttrLen)])
+				data.SetHeader(&attrHeader)
 				attributes = append(attributes, data)
 
 			} else if attrHeader.IsObject() {
 				var objectattr *MFTAttributes.ObjectID = new(MFTAttributes.ObjectID)
-				utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+
-					atrRecordResident.OffsetContent+64], objectattr)
+				objectattr.Parse(bs[ReadPtr+atrRecordResident.OffsetContent : ReadPtr+
+					atrRecordResident.OffsetContent+64])
+
 				objectattr.SetHeader(&attrHeader)
 				attributes = append(attributes, objectattr)
 
 			} else if attrHeader.IsAttrList() { //Attribute List
 
-				attrLen := uint16(0)
 				var attrListEntries *MFTAttributes.AttributeListEntries = new(MFTAttributes.AttributeListEntries)
-
-				for atrRecordResident.OffsetContent+24+attrLen < uint16(attrHeader.AttrLen) {
-					var attrList MFTAttributes.AttributeList
-					utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent+attrLen:ReadPtr+
-						atrRecordResident.OffsetContent+attrLen+24], &attrList)
-					attrList.Name = utils.NoNull(bs[ReadPtr+atrRecordResident.OffsetContent+attrLen+
-						uint16(attrList.Nameoffset) : ReadPtr+atrRecordResident.OffsetContent+
-						attrLen+uint16(attrList.Nameoffset)+2*uint16(attrList.Namelen)])
-					//   runlist=bs[ReadPtr+atrRecordResident.OffsetContent+attrList.len:uint32(ReadPtr)+atrRecordResident.Len]
-					attrListEntries.Entries = append(attrListEntries.Entries, attrList)
-					attrLen += attrList.Len
-
-				}
 				attrListEntries.SetHeader(&attrHeader)
+				attrListEntries.Parse(bs[ReadPtr+atrRecordResident.OffsetContent:])
+
 				attributes = append(attributes, attrListEntries)
 
 			} else if attrHeader.IsBitmap() { //BITMAP
 				record.Bitmap = true
 				var bitmap *MFTAttributes.BitMap = new(MFTAttributes.BitMap)
-				bitmap.AllocationStatus = bs[ReadPtr+
-					atrRecordResident.OffsetContent : uint32(ReadPtr)+
-					uint32(atrRecordResident.OffsetContent)+atrRecordResident.ContentSize]
+				bitmap.Parse(bs[ReadPtr+atrRecordResident.OffsetContent:])
+
 				bitmap.SetHeader(&attrHeader)
 				attributes = append(attributes, bitmap)
 
 			} else if attrHeader.IsVolumeName() { //Volume Name
-				volumeName := &MFTAttributes.VolumeName{Name: utils.NoNull(bs[ReadPtr+
+				var volumeName *MFTAttributes.VolumeName = new(MFTAttributes.VolumeName)
+				volumeName.Parse(bs[ReadPtr+
 					atrRecordResident.OffsetContent : uint32(ReadPtr)+
-					uint32(atrRecordResident.OffsetContent)+atrRecordResident.ContentSize]),
-					Header: &attrHeader}
+					uint32(atrRecordResident.OffsetContent)+atrRecordResident.ContentSize])
+
 				volumeName.SetHeader(&attrHeader)
 				attributes = append(attributes, volumeName)
 
 			} else if attrHeader.IsVolumeInfo() { //Volume Info
 				var volumeInfo *MFTAttributes.VolumeInfo = new(MFTAttributes.VolumeInfo)
-				utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+
-					atrRecordResident.OffsetContent+12], volumeInfo)
+				volumeInfo.Parse(bs[ReadPtr+atrRecordResident.OffsetContent : ReadPtr+
+					atrRecordResident.OffsetContent+12])
+
 				volumeInfo.SetHeader(&attrHeader)
 				attributes = append(attributes, volumeInfo)
 
 			} else if attrHeader.IsIndexRoot() { //Index Root
 				var idxRoot *MFTAttributes.IndexRoot = new(MFTAttributes.IndexRoot)
-				utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent:ReadPtr+
-					atrRecordResident.OffsetContent+12], idxRoot)
-
-				var nodeheader *MFTAttributes.NodeHeader = new(MFTAttributes.NodeHeader)
-				utils.Unmarshal(bs[ReadPtr+atrRecordResident.OffsetContent+
-					16:ReadPtr+atrRecordResident.OffsetContent+32], nodeheader)
-				idxRoot.Nodeheader = nodeheader
-
-				idxEntryOffset := ReadPtr + atrRecordResident.OffsetContent + 16 + uint16(nodeheader.OffsetEntryList)
-				lastIdxEntryOffset := ReadPtr + atrRecordResident.OffsetContent + 16 + uint16(nodeheader.OffsetEndEntryListBuffer)
-
-				for idxEntryOffset+16 < lastIdxEntryOffset {
-					var idxEntry *MFTAttributes.IndexEntry = new(MFTAttributes.IndexEntry)
-					utils.Unmarshal(bs[idxEntryOffset:idxEntryOffset+16], idxEntry)
-
-					if idxEntry.FilenameLen > 0 {
-						var fnattrIDXEntry MFTAttributes.FNAttribute
-						utils.Unmarshal(bs[idxEntryOffset+16:idxEntryOffset+16+idxEntry.FilenameLen],
-							&fnattrIDXEntry)
-
-						fnattrIDXEntry.Fname =
-							utils.DecodeUTF16(bs[idxEntryOffset+16+66 : idxEntryOffset+16+
-								66+2*uint16(fnattrIDXEntry.Nlen)])
-						idxEntry.Fnattr = &fnattrIDXEntry
-
-					}
-					idxEntryOffset += idxEntry.Len
-
-					idxRoot.IndexEntries = append(idxRoot.IndexEntries, *idxEntry)
-				}
+				idxRoot.Parse(bs[ReadPtr+atrRecordResident.OffsetContent:])
 
 				idxRoot.SetHeader(&attrHeader)
 				attributes = append(attributes, idxRoot)
 			} else if attrHeader.IsStdInfo() { //Standard Information
 				startpoint := ReadPtr + atrRecordResident.OffsetContent
 				var siattr *MFTAttributes.SIAttribute = new(MFTAttributes.SIAttribute)
-				utils.Unmarshal(bs[startpoint:startpoint+72], siattr)
+				siattr.Parse(bs[startpoint : startpoint+72])
+
 				siattr.SetHeader(&attrHeader)
 				attributes = append(attributes, siattr)
 

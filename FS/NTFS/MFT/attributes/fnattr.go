@@ -59,6 +59,11 @@ func (fnAttr FNAttribute) GetType() string {
 	return RecordTypes[fnAttr.Flags]
 }
 
+func (fnAttr *FNAttribute) Parse(data []byte) {
+	utils.Unmarshal(data[:66], fnAttr)
+	fnAttr.Fname = utils.DecodeUTF16(data[:66+2*uint16(fnAttr.Nlen)])
+}
+
 func (fnAttr FNAttribute) GetFileNameType() string {
 	return NameSpaceFlags[fnAttr.Nspace]
 }

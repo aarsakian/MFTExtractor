@@ -30,6 +30,10 @@ func (siattr SIAttribute) GetHeader() AttributeHeader {
 	return *siattr.Header
 }
 
+func (siattr *SIAttribute) Parse(data []byte) {
+	utils.Unmarshal(data, siattr)
+}
+
 func (siattr SIAttribute) FindType() string {
 	return siattr.Header.GetType()
 }
