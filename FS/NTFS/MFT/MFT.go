@@ -612,6 +612,10 @@ func (record *Record) Process(bs []byte) {
 				var attrListEntries *MFTAttributes.AttributeListEntries = new(MFTAttributes.AttributeListEntries)
 				attrListEntries.SetHeader(&attrHeader)
 				attributes = append(attributes, attrListEntries)
+			} else if attrHeader.IsReparse() {
+				var reparse *MFTAttributes.Reparse = new(MFTAttributes.Reparse)
+				reparse.SetHeader(&attrHeader)
+				attributes = append(attributes, reparse)
 			} else {
 				fmt.Printf("unknown non resident attr %s\n", attrHeader.GetType())
 			}
