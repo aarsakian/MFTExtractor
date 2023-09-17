@@ -13,6 +13,7 @@ var AttrTypes = map[string]string{
 	"00000070": "Volume Information", "00000080": "DATA",
 	"00000090": "Index Root", "000000a0": "Index Allocation",
 	"000000b0": "BitMap", "000000c0": "Reparse Point",
+	"000000e0": "Extended Attribute", "000000f0": "Extended Attribute Information",
 	"ffffffff": "Last",
 }
 
