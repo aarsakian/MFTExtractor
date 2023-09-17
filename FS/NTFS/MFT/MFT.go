@@ -513,7 +513,14 @@ func (record *Record) Process(bs []byte) {
 				attr = &MFTAttributes.SIAttribute{}
 				attr.Parse(bs[ReadPtr+atrRecordResident.OffsetContent : ReadPtr+atrRecordResident.OffsetContent+72])
 
+			} else {
+				fmt.Printf("uknown attribute %s \n", attrHeader.GetType())
 			}
+			if attr == nil {
+
+				continue
+			}
+
 			attr.SetHeader(&attrHeader)
 			attributes = append(attributes, attr)
 
