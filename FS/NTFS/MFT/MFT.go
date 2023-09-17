@@ -188,15 +188,7 @@ func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionO
 
 			runlist = *runlist.Next
 		}
-		if attrName == "Index Allocation" {
-			idxAllocation := attribute.(*MFTAttributes.IndexAllocation)
-			idxAllocation.Parse(buf.Bytes())
-		} else if attrName == "BitMap" {
-			bitmap := attribute.(*MFTAttributes.BitMap)
-			bitmap.AllocationStatus = buf.Bytes()
-		} else if attrName == "Reparse Point" {
-
-		}
+		attribute.Parse(buf.Bytes())
 
 	}
 
