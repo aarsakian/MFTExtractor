@@ -385,7 +385,12 @@ func (idxRoot IndexRoot) ShowInfo() {
 }
 
 func (attrHeader AttributeHeader) GetType() string {
-	return AttrTypes[attrHeader.Type]
+	attrType, ok := AttrTypes[attrHeader.Type]
+	if ok {
+		return attrType
+	} else {
+		return fmt.Sprintf("%x \n", attrHeader.Type)
+	}
 }
 
 func (attrHeader AttributeHeader) IsLast() bool {
@@ -425,7 +430,7 @@ func (attrHeader AttributeHeader) IsIndexAllocation() bool {
 }
 
 func (attrHeader AttributeHeader) IsVolumeInfo() bool {
-	return attrHeader.GetType() == "Volume Info"
+	return attrHeader.GetType() == "Volume Information"
 }
 
 func (attrHeader AttributeHeader) IsIndexRoot() bool {
