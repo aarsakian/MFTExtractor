@@ -147,6 +147,10 @@ func (objectId ObjectID) GetHeader() AttributeHeader {
 	return *objectId.Header
 }
 
+func (objectId *ObjectID) Parse(data []byte) {
+	utils.Unmarshal(data, objectId)
+}
+
 func (objectId ObjectID) FindType() string {
 	return objectId.Header.GetType()
 }
@@ -188,6 +192,10 @@ func (bitmap *BitMap) SetHeader(header *AttributeHeader) {
 
 func (bitmap BitMap) GetHeader() AttributeHeader {
 	return *bitmap.Header
+}
+
+func (bitmap *BitMap) Parse(data []byte) {
+	bitmap.AllocationStatus = data
 }
 
 func (bitmap BitMap) FindType() string {
@@ -251,6 +259,15 @@ func (reparse Reparse) GetHeader() AttributeHeader {
 	return *reparse.Header
 }
 
+func (reparse *Reparse) Parse(data []byte) {
+	utils.Unmarshal(data[:16], reparse)
+
+	reparse.Name = utils.DecodeUTF16(data[16+
+		uint16(reparse.TargetNameOffset) : 16+uint16(reparse.TargetNameOffset)+reparse.TargetLen])
+	reparse.PrintName = utils.DecodeUTF16(data[16+uint16(reparse.TargetPrintNameOffset) : 16+
+		uint16(reparse.TargetPrintNameLen)])
+}
+
 func (reparse Reparse) IsNoNResident() bool {
 	return reparse.Header.IsNoNResident()
 }
@@ -270,6 +287,10 @@ func (volInfo *VolumeInfo) SetHeader(header *AttributeHeader) {
 
 func (volInfo VolumeInfo) GetHeader() AttributeHeader {
 	return *volInfo.Header
+}
+
+func (volInfo *VolumeInfo) Parse(data []byte) {
+	utils.Unmarshal(data, volInfo)
 }
 
 func (volInfo VolumeInfo) IsNoNResident() bool {
@@ -292,6 +313,11 @@ func (volName VolumeName) GetHeader() AttributeHeader {
 	return *volName.Header
 }
 
+func (volName *VolumeName) Parse(data []byte) {
+	volName.Name = utils.NoNull(data)
+
+}
+
 func (volName VolumeName) FindType() string {
 	return volName.Header.GetType()
 }
@@ -306,6 +332,37 @@ func (volName VolumeName) ShowInfo() {
 
 func (idxRoot *IndexRoot) SetHeader(header *AttributeHeader) {
 	idxRoot.Header = header
+}
+
+func (idxRoot *IndexRoot) Parse(data []byte) {
+	utils.Unmarshal(data[:12], idxRoot)
+
+	var nodeheader *NodeHeader = new(NodeHeader)
+	utils.Unmarshal(data[16:32], nodeheader)
+	idxRoot.Nodeheader = nodeheader
+
+	idxEntryOffset := 16 + uint16(nodeheader.OffsetEntryList)
+	lastIdxEntryOffset := 16 + uint16(nodeheader.OffsetEndEntryListBuffer)
+
+	for idxEntryOffset+16 < lastIdxEntryOffset {
+		var idxEntry *IndexEntry = new(IndexEntry)
+		utils.Unmarshal(data[idxEntryOffset:idxEntryOffset+16], idxEntry)
+
+		if idxEntry.FilenameLen > 0 {
+			var fnattrIDXEntry FNAttribute
+			utils.Unmarshal(data[idxEntryOffset+16:idxEntryOffset+16+idxEntry.FilenameLen],
+				&fnattrIDXEntry)
+
+			fnattrIDXEntry.Fname =
+				utils.DecodeUTF16(data[idxEntryOffset+16+66 : idxEntryOffset+16+
+					66+2*uint16(fnattrIDXEntry.Nlen)])
+			idxEntry.Fnattr = &fnattrIDXEntry
+
+		}
+		idxEntryOffset += idxEntry.Len
+
+		idxRoot.IndexEntries = append(idxRoot.IndexEntries, *idxEntry)
+	}
 }
 
 func (idxRoot IndexRoot) GetHeader() AttributeHeader {

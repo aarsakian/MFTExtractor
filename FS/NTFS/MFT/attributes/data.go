@@ -11,6 +11,10 @@ func (data *DATA) SetHeader(header *AttributeHeader) {
 	data.Header = header
 }
 
+func (data *DATA) Parse(datab []byte) {
+	data.Content = datab
+}
+
 func (data DATA) GetHeader() AttributeHeader {
 	return *data.Header
 }

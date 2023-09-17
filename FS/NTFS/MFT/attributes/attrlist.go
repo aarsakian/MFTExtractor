@@ -35,6 +35,19 @@ func (attrListEntries AttributeListEntries) GetHeader() AttributeHeader {
 	return *attrListEntries.Header
 }
 
+func (attrListEntries *AttributeListEntries) Parse(data []byte) {
+	attrLen := uint16(0)
+	for 24+attrLen < uint16(attrListEntries.Header.AttrLen) {
+		var attrList AttributeList
+		utils.Unmarshal(data[attrLen:attrLen+24], &attrList)
+		attrList.Name = utils.NoNull(data[attrLen+uint16(attrList.Nameoffset) : attrLen+uint16(attrList.Nameoffset)+2*uint16(attrList.Namelen)])
+		//   runlist=bs[ReadPtr+atrRecordResident.OffsetContent+attrList.len:uint32(ReadPtr)+atrRecordResident.Len]
+		attrListEntries.Entries = append(attrListEntries.Entries, attrList)
+		attrLen += attrList.Len
+
+	}
+}
+
 func (attrListEntries AttributeListEntries) FindType() string {
 	return attrListEntries.Header.GetType()
 }
