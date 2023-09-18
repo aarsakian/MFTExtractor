@@ -14,14 +14,16 @@ var AttrTypes = map[string]string{
 	"00000090": "Index Root", "000000a0": "Index Allocation",
 	"000000b0": "BitMap", "000000c0": "Reparse Point",
 	"000000e0": "Extended Attribute", "000000f0": "Extended Attribute Information",
+	"00000100": "Logged Utility Stream",
 	"ffffffff": "Last",
 }
 
 type AttributeHeader struct {
 	Type                 string //        0-3                              type of attribute e.g. $DATA
-	AttrLen              uint32 //4-8             length of attribute
+	AttrLen              uint16 //4-8             length of attribute??? practice shown 4-6
+	Uknown               [2]byte
 	NoNResident          uint8  //8
-	Nlen                 string
+	Nlen                 uint8  //9
 	NameOff              uint16 //name offset 10-12          relative to the start of attribute
 	Flags                uint16 //12-14           //compressed,
 	ID                   uint16 //14-16 type of attribute
@@ -32,7 +34,8 @@ type AttributeHeader struct {
 type ATRrecordResident struct {
 	ContentSize   uint32 //16-20 size of Resident attribute
 	OffsetContent uint16 //20-22 offset to content            soff+ssize=len
-	IDxflag       uint16 //22-24
+	IdxFlags      uint16
+	Name          string
 }
 
 type ATRrecordNoNResident struct {
@@ -129,6 +132,10 @@ type VolumeInfo struct {
 	Flags  uint16 //see table 13.22
 	F2     uint32
 	Header *AttributeHeader
+}
+
+func (atrRecordResident *ATRrecordResident) Parse(data []byte) {
+	utils.Unmarshal(data[:8], atrRecordResident)
 }
 
 func (idxEntry IndexEntry) ShowInfo() {
