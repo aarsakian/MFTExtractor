@@ -148,7 +148,7 @@ func (mfttable *MFTTable) ProcessRecords(data []byte) {
 		if utils.Hexify(data[i:i+4]) == "00000000" { //zero area skip
 			continue
 		}
-		fmt.Printf("Processing $MFT entry %d  out of %d records \n", record.Entry+1, len(records))
+		fmt.Printf("Processing $MFT entry %d  out of %d records  \n", record.Entry+1, len(records))
 		record.Process(data[i : i+RecordSize])
 		records[i/RecordSize] = record
 	}
@@ -158,16 +158,24 @@ func (mfttable *MFTTable) ProcessRecords(data []byte) {
 func (mfttable *MFTTable) ProcessNonResidentRecords(hD img.DiskReader, partitionOffsetB int64, clusterSizeB int) {
 
 	for idx := range mfttable.Records {
+		fmt.Printf("Processing NoN resident attributes, record %d of out %d\n", idx+1, len(mfttable.Records))
 		mfttable.Records[idx].ProcessNoNResidentAttributes(hD, partitionOffsetB, clusterSizeB)
 	}
 }
 
 func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionOffsetB int64, clusterSizeB int) {
+
 	for _, attribute := range record.FindNonResidentAttributes() {
 		attrName := attribute.FindType()
-		runlist := record.GetRunList(attrName)
-		length := record.GetTotalRunlistSize(attrName) * clusterSizeB
+		if attrName == "DATA" { //skip Data attributes since point to content only searching for metadata
+			continue
+		}
+		runlist := *attribute.GetHeader().ATRrecordNoNResident.RunList
 
+		length := record.GetTotalRunlistSize(attrName) * clusterSizeB
+		if length == 0 { // no runlists found
+			continue
+		}
 		var buf bytes.Buffer
 		buf.Grow(length)
 
@@ -188,7 +196,10 @@ func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionO
 
 			runlist = *runlist.Next
 		}
-		attribute.Parse(buf.Bytes())
+		actualLen := int(attribute.GetHeader().ATRrecordNoNResident.Length)
+		attribute.Parse(buf.Bytes()[:actualLen])
+
+		buf.Reset()
 
 	}
 
@@ -257,6 +268,17 @@ func (record Record) GetRunList(attrType string) MFTAttributes.RunList {
 	}
 
 	return MFTAttributes.RunList{}
+}
+
+func (record Record) GetRunLists() []MFTAttributes.RunList {
+	var runlists []MFTAttributes.RunList
+	for _, attribute := range record.Attributes {
+		if attribute.IsNoNResident() {
+
+			runlists = append(runlists, *attribute.GetHeader().ATRrecordNoNResident.RunList)
+		}
+	}
+	return runlists
 }
 
 func (record Record) ShowVCNs() {
@@ -364,15 +386,21 @@ func (record Record) GetTotalRunlistSize(attributeType string) int {
 }
 
 func (record Record) ShowRunList() {
-	runlist := record.GetRunList("DATA")
+	runlists := record.GetRunLists()
 
-	for (MFTAttributes.RunList{}) != runlist {
+	nonResidentAttributes := record.FindNonResidentAttributes()
+	for idx := range nonResidentAttributes {
 
-		fmt.Printf(" offs. %d cl len %d cl \n", runlist.Offset, runlist.Length)
-		if runlist.Next == nil {
-			break
+		runlist := runlists[idx]
+		for (MFTAttributes.RunList{}) != runlist {
+
+			fmt.Printf(" offs. %d cl len %d cl \n", runlist.Offset, runlist.Length)
+			if runlist.Next == nil {
+				break
+			}
+			runlist = *runlist.Next
 		}
-		runlist = *runlist.Next
+
 	}
 
 }
@@ -456,10 +484,12 @@ func (record *Record) Process(bs []byte) {
 		}
 
 		if !attrHeader.IsNoNResident() { //Resident Attribute
-			var atrRecordResident *MFTAttributes.ATRrecordResident = new(MFTAttributes.ATRrecordResident)
 			var attr Attribute
 
-			utils.Unmarshal(bs[ReadPtr+16:ReadPtr+24], atrRecordResident)
+			var atrRecordResident *MFTAttributes.ATRrecordResident = new(MFTAttributes.ATRrecordResident)
+
+			atrRecordResident.Parse(bs[ReadPtr+16:])
+			atrRecordResident.Name = utils.DecodeUTF16(bs[ReadPtr+attrHeader.NameOff : ReadPtr+attrHeader.NameOff+2*uint16(attrHeader.Nlen)])
 			attrHeader.ATRrecordResident = atrRecordResident
 
 			if attrHeader.IsFileName() { // File name
@@ -526,10 +556,10 @@ func (record *Record) Process(bs []byte) {
 			var atrNoNRecordResident *MFTAttributes.ATRrecordNoNResident = new(MFTAttributes.ATRrecordNoNResident)
 			utils.Unmarshal(bs[ReadPtr+16:ReadPtr+64], atrNoNRecordResident)
 
-			if uint32(ReadPtr)+attrHeader.AttrLen <= 1024 {
+			if ReadPtr+attrHeader.AttrLen <= 1024 {
 				var runlist *MFTAttributes.RunList = new(MFTAttributes.RunList)
 				runlist.Process(bs[ReadPtr+
-					atrNoNRecordResident.RunOff : uint32(ReadPtr)+attrHeader.AttrLen])
+					atrNoNRecordResident.RunOff : ReadPtr+attrHeader.AttrLen])
 				atrNoNRecordResident.RunList = runlist
 
 			}
