@@ -56,17 +56,19 @@ func (winTime *WindowsTime) ConvertToIsoTime() string { //receiver winTime struc
 }
 
 func ReadEndianInt(barray []byte) int64 {
-	var sum int32
-
-	buf := make([]byte, 4)
-
-	copy(buf, barray)
-	if len(barray) == 3 && barray[len(barray)-1]&0x80 != 0 { //3 bytes MSB set to 1
-		buf[len(buf)-1] = 0xff
+	var buf []byte
+	if barray[len(barray)-1]&0x80 != 0 {
+		buf = []byte{0xff, 0xff, 0xff, 0xff}
+	} else {
+		buf = []byte{0x00, 0x00, 0x00, 0x00}
 	}
-	binary.Read(bytes.NewBuffer(buf), binary.LittleEndian, &sum)
 
+	var sum int32
+	copy(buf, barray)
+
+	binary.Read(bytes.NewBuffer(buf), binary.LittleEndian, &sum)
 	return int64(sum)
+
 }
 
 func ReadEndianUInt(barray []byte) uint64 {
