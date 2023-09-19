@@ -174,6 +174,7 @@ func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionO
 
 		length := record.GetTotalRunlistSize(attrName) * clusterSizeB
 		if length == 0 { // no runlists found
+			fmt.Printf("attribute %s No runlists found \n", attrName)
 			continue
 		}
 		var buf bytes.Buffer
@@ -187,6 +188,10 @@ func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionO
 			clusters := int(runlist.Length)
 
 			//inefficient since allocates memory for each round
+			if offset*int64(clusterSizeB) >= hD.GetDiskSize()-partitionOffsetB {
+				fmt.Printf("attribute %s runlist offset exceeds partition size %d\n", attrName, offset)
+				break
+			}
 			data := hD.ReadFile(partitionOffsetB+offset*int64(clusterSizeB), clusters*clusterSizeB)
 			buf.Write(data)
 
@@ -196,7 +201,11 @@ func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionO
 
 			runlist = *runlist.Next
 		}
-		actualLen := int(attribute.GetHeader().ATRrecordNoNResident.Length)
+		actualLen := int(attribute.GetHeader().ATRrecordNoNResident.ActualLength)
+		if actualLen >= length {
+			fmt.Printf("attribute %s actual length exceeds the runlist length actual %d runlist %d \n", attrName, actualLen, length)
+			continue
+		}
 		attribute.Parse(buf.Bytes()[:actualLen])
 
 		buf.Reset()
