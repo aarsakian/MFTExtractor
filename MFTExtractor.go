@@ -143,11 +143,11 @@ func main() {
 	fmt.Printf("Building tree from MFT records \n")
 
 	if *showFSStructure {
-		for _, record := range records {
-			if record.Entry < 5 {
+		for idx := range records {
+			if idx < 5 {
 				continue
 			}
-			t.BuildTree(&record)
+			t.BuildTree(&records[idx])
 		}
 		t.Show()
 
