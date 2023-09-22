@@ -12,7 +12,7 @@ in the tree is actually the number of the block containing the child node (usual
 interpreted as an offset from the beginning of the corresponding disk file)*/
 
 type Node struct {
-	record   MFT.Record
+	record   *MFT.Record
 	parent   *Node
 	children []*Node
 }
@@ -21,7 +21,7 @@ type Tree struct {
 	root *Node
 }
 
-func (t *Tree) BuildTree(record MFT.Record) *Tree {
+func (t *Tree) BuildTree(record *MFT.Record) *Tree {
 
 	if t.root == nil {
 		t.root = &Node{record, nil, nil}
@@ -32,17 +32,16 @@ func (t *Tree) BuildTree(record MFT.Record) *Tree {
 	return t
 }
 
-func (n *Node) insert(record MFT.Record) {
+func (n *Node) insert(record *MFT.Record) {
 	if record.FindAttribute("FileName") != nil {
 		fnattr := record.FindAttribute("FileName").(*MFTAttributes.FNAttribute)
-		if uint64(n.record.Entry) == fnattr.ParRef && n.record.Seq-fnattr.ParSeq < 2 {
+		if uint64(n.record.Entry) == fnattr.ParRef && n.record.Seq-fnattr.ParSeq < 2 { //record is children
 			childNode := Node{record, n, nil}
 
-			childNode.parent = n
 			n.children = append(n.children, &childNode)
 
 		} else {
-			for _, childNode := range n.children {
+			for _, childNode := range n.children { //test its children
 				childNode.insert(record)
 
 			}
@@ -52,7 +51,6 @@ func (n *Node) insert(record MFT.Record) {
 }
 
 func (t Tree) Show() {
-	fmt.Printf("\n root %d ", t.root.record.Entry)
 
 	t.root.Show()
 
@@ -60,9 +58,9 @@ func (t Tree) Show() {
 
 func (n Node) Show() {
 	fmt.Printf("\n Parent is")
-	n.record.ShowFileName("Win32")
+	n.record.ShowFileName("any")
 	for _, node := range n.children {
-		node.record.ShowFileName("Win32")
+		node.record.ShowFileName("any")
 
 	}
 
