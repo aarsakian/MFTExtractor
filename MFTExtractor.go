@@ -147,7 +147,7 @@ func main() {
 			if record.Entry < 5 {
 				continue
 			}
-			t.BuildTree(record)
+			t.BuildTree(&record)
 		}
 		t.Show()
 
