@@ -51,131 +51,14 @@ type ATRrecordNoNResident struct {
 
 }
 
-type Reparse struct {
-	Flags                 uint32
-	Size                  uint16
-	Unused                [2]byte
-	TargetNameOffset      int16
-	TargetLen             uint16
-	TargetPrintNameOffset int16
-	TargetPrintNameLen    uint16
-	Header                *AttributeHeader
-	Name                  string
-	PrintName             string
-}
-
 type RunList struct {
 	Offset int64
 	Length uint64
 	Next   *RunList
 }
 
-type ObjectID struct { //unique guID
-	ObjID     string //object ID
-	OrigVolID string //volume ID
-	OrigObjID string //original objID
-	OrigDomID string // domain ID
-	Header    *AttributeHeader
-}
-
-type BitMap struct {
-	AllocationStatus []byte
-	Header           *AttributeHeader
-}
-
 func (atrRecordResident *ATRrecordResident) Parse(data []byte) {
 	utils.Unmarshal(data[:8], atrRecordResident)
-}
-
-func (objectId *ObjectID) SetHeader(header *AttributeHeader) {
-	objectId.Header = header
-}
-
-func (objectId ObjectID) GetHeader() AttributeHeader {
-	return *objectId.Header
-}
-
-func (objectId *ObjectID) Parse(data []byte) {
-	utils.Unmarshal(data, objectId)
-}
-
-func (objectId ObjectID) FindType() string {
-	return objectId.Header.GetType()
-}
-
-func (objectId ObjectID) IsNoNResident() bool {
-	return objectId.Header.IsNoNResident()
-}
-
-func (objectId ObjectID) ShowInfo() {
-	fmt.Printf("type %s\n", objectId.FindType())
-}
-
-func (bitmap *BitMap) SetHeader(header *AttributeHeader) {
-	bitmap.Header = header
-}
-
-func (bitmap BitMap) GetHeader() AttributeHeader {
-	return *bitmap.Header
-}
-
-func (bitmap *BitMap) Parse(data []byte) {
-	bitmap.AllocationStatus = data
-}
-
-func (bitmap BitMap) FindType() string {
-	return bitmap.Header.GetType()
-}
-
-func (bitmap BitMap) IsNoNResident() bool {
-	return bitmap.Header.IsNoNResident()
-}
-
-func (bitmap BitMap) ShowInfo() {
-	fmt.Printf("type %s \n", bitmap.FindType())
-	pos := 1
-	for _, byteval := range bitmap.AllocationStatus {
-		bitmask := uint8(0x01)
-		shifter := 0
-		for bitmask < 128 {
-
-			bitmask = 1 << shifter
-			fmt.Printf("cluster/entry  %d status %d \t", pos, byteval&bitmask)
-			pos++
-			shifter++
-		}
-
-	}
-}
-
-func (reparse *Reparse) SetHeader(header *AttributeHeader) {
-	reparse.Header = header
-}
-
-func (reparse Reparse) GetHeader() AttributeHeader {
-	return *reparse.Header
-}
-
-func (reparse *Reparse) Parse(data []byte) {
-	utils.Unmarshal(data[:16], reparse)
-
-	reparse.Name = utils.DecodeUTF16(data[16+
-		uint16(reparse.TargetNameOffset) : 16+uint16(reparse.TargetNameOffset)+reparse.TargetLen])
-	reparse.PrintName = utils.DecodeUTF16(data[16+uint16(reparse.TargetPrintNameOffset) : 16+
-		uint16(reparse.TargetPrintNameLen)])
-}
-
-func (reparse Reparse) IsNoNResident() bool {
-	return reparse.Header.IsNoNResident()
-}
-
-func (reparse Reparse) FindType() string {
-	return reparse.Header.GetType()
-}
-
-func (reparse Reparse) ShowInfo() {
-	fmt.Printf("Type %s Target Name %s Print Name %s", reparse.FindType(),
-		reparse.Name, reparse.PrintName)
 }
 
 func (attrHeader AttributeHeader) GetType() string {
