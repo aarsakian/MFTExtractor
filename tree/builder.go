@@ -21,15 +21,15 @@ type Tree struct {
 	root *Node
 }
 
-func (t *Tree) BuildTree(record *MFT.Record) *Tree {
+func (t *Tree) BuildTree(record *MFT.Record) {
 
 	if t.root == nil {
+
 		t.root = &Node{record, nil, nil}
 	} else {
 		t.root.insert(record)
 	}
 
-	return t
 }
 
 func (n *Node) insert(record *MFT.Record) {
@@ -57,8 +57,13 @@ func (t Tree) Show() {
 }
 
 func (n Node) Show() {
-	fmt.Printf("\n Parent is")
-	n.record.ShowFileName("any")
+
+	if n.children != nil {
+		fmt.Printf(" Parent is")
+		n.record.ShowFileName("any")
+		fmt.Printf("\n children")
+	}
+
 	for _, node := range n.children {
 		node.record.ShowFileName("any")
 
