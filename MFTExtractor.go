@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"path"
-	"strings"
 
 	disk "github.com/aarsakian/MFTExtractor/Disk"
 	"github.com/aarsakian/MFTExtractor/FS"
@@ -76,29 +74,20 @@ func main() {
 		ShowIndex:      *showIndex,
 	}
 
-	if *physicalDrive != -1 && *partitionNum != -1 {
+	if *evidencefile != "" && *partitionNum != -1 || *physicalDrive != -1 && *partitionNum != -1 {
 		physicalDisk = disk.Disk{}
 
-		hD = img.GetHandler(fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", *physicalDrive), "physicalDrive")
+		if *physicalDrive != -1 && *partitionNum != -1 {
 
-	}
+			hD = img.GetHandler(fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", *physicalDrive), "physicalDrive")
 
-	if *evidencefile != "" {
-		extension := path.Ext(*evidencefile)
-		if strings.ToLower(extension) == ".e01" {
-
-			physicalDisk = disk.Disk{}
+		} else {
 			hD = img.GetHandler(*evidencefile, "image")
 
 		}
 
-	}
+		physicalDisk.DiscoverPartitions(hD)
 
-	if *evidencefile != "" && *partitionNum != -1 || *physicalDrive != -1 && *partitionNum != -1 {
-		physicalDisk.Populate(hD)
-		if *listPartitions {
-			physicalDisk.ListPartitions()
-		}
 		partition = physicalDisk.GetSelectedPartition(*partitionNum)
 
 		partitionOffsetB = uint64(partition.GetOffset() * 512)
