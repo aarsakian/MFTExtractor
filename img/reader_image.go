@@ -1,6 +1,9 @@
 package img
 
 import (
+	"path"
+	"strings"
+
 	ewfLib "github.com/aarsakian/EWF_Reader/ewf"
 
 	"github.com/aarsakian/MFTExtractor/utils"
@@ -12,12 +15,18 @@ type ImageReader struct {
 }
 
 func (imgreader *ImageReader) CreateHandler() {
-	var ewf_image ewfLib.EWF_Image
-	filenames := utils.FindEvidenceFiles(imgreader.PathToEvidenceFiles)
+	extension := path.Ext(imgreader.PathToEvidenceFiles)
+	if strings.ToLower(extension) == ".e01" {
+		var ewf_image ewfLib.EWF_Image
+		filenames := utils.FindEvidenceFiles(imgreader.PathToEvidenceFiles)
 
-	ewf_image.ParseEvidence(filenames)
+		ewf_image.ParseEvidence(filenames)
 
-	imgreader.fd = ewf_image
+		imgreader.fd = ewf_image
+	} else {
+		panic("only EWF  images are supported")
+	}
+
 }
 
 func (imgreader ImageReader) CloseHandler() {
