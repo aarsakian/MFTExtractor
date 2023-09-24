@@ -88,6 +88,10 @@ func main() {
 
 		physicalDisk.DiscoverPartitions(hD)
 
+		if *listPartitions {
+			physicalDisk.ListPartitions()
+		}
+
 		partition = physicalDisk.GetSelectedPartition(*partitionNum)
 
 		partitionOffsetB = uint64(partition.GetOffset() * 512)
