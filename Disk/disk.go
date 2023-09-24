@@ -55,11 +55,13 @@ func (disk *Disk) populateGPT(hD img.DiskReader) {
 	disk.GPT = &gpt
 }
 
-func (disk *Disk) Populate(hD img.DiskReader) {
+func (disk *Disk) DiscoverPartitions(hD img.DiskReader) {
+
 	disk.populateMBR(hD)
 	if disk.hasProtectiveMBR() {
 		disk.populateGPT(hD)
 	}
+
 }
 
 func (disk Disk) GetSelectedPartition(partitionNum int) Partition {
