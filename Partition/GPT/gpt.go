@@ -5,6 +5,7 @@ import (
 
 	"github.com/aarsakian/MFTExtractor/FS"
 	ntfsLib "github.com/aarsakian/MFTExtractor/FS/NTFS"
+	"github.com/aarsakian/MFTExtractor/img"
 	"github.com/aarsakian/MFTExtractor/utils"
 )
 
@@ -44,6 +45,7 @@ type Partition struct {
 	EndLBA            uint64
 	Atttributes       [8]byte
 	Name              string
+	FS                FS.FileSystem
 }
 
 func (partition Partition) GetPartitionType() string {
@@ -88,8 +90,10 @@ func (partition Partition) GetOffset() uint64 {
 	return partition.StartLBA
 }
 
-func (partition Partition) LocateFileSystem(buffer []byte) FS.FileSystem {
+func (partition Partition) LocateFileSystem(hD img.DiskReader) FS.FileSystem {
+	partitionOffetB := uint64(partition.GetOffset() * 512)
+	data := hD.ReadFile(int64(partitionOffetB), 512)
 	var ntfs ntfsLib.NTFS
-	ntfs.Parse(buffer)
+	ntfs.Parse(data)
 	return ntfs
 }
