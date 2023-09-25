@@ -3,8 +3,6 @@ package MFT
 import (
 	"bytes"
 	"fmt"
-	"math"
-	"os"
 	"strings"
 
 	MFTAttributes "github.com/aarsakian/MFTExtractor/FS/NTFS/MFT/attributes"
@@ -33,9 +31,9 @@ var MFTflags = map[uint16]string{
 
 // $MFT table points either to its file path or the buffer containing $MFT
 type MFTTable struct {
-	Records  []Record
-	Filepath string
-	Size     int
+	Records []Record
+
+	Size int
 }
 
 type Records []Record
@@ -69,66 +67,6 @@ type Record struct {
 	Attributes         []Attribute
 	Bitmap             bool
 	// fixupArray add the        UpdateSeqArrOffset to find is location
-
-}
-
-func (mfttable *MFTTable) Populate(MFTSelectedEntry int, fromMFTEntry int, ToMFTEntry int) {
-	file, err := os.Open(mfttable.Filepath)
-	if err != nil {
-		// handle the error here
-		fmt.Printf("err %s for reading the MFT ", err)
-		return
-	}
-	defer file.Close()
-
-	fsize, err := file.Stat() //file descriptor
-	if err != nil {
-		fmt.Printf("error getting the file size\n")
-		return
-	}
-	mfttable.Size = int(fsize.Size())
-
-	var buf bytes.Buffer
-	// collect data of $MFT
-
-	bs := make([]byte, RecordSize)
-	// find buffer size
-	totalRecords := int(mfttable.Size) / RecordSize
-	if fromMFTEntry != -1 {
-		totalRecords -= fromMFTEntry
-	}
-	if ToMFTEntry != math.MaxUint32 {
-		totalRecords -= ToMFTEntry
-	}
-	if MFTSelectedEntry != -1 {
-		totalRecords = 1
-	}
-	buf.Grow(totalRecords * RecordSize)
-	for i := 0; i < int(mfttable.Size); i += 1024 {
-
-		if i/1024 > ToMFTEntry {
-			break
-		}
-
-		if MFTSelectedEntry != -1 && i/1024 != MFTSelectedEntry ||
-			fromMFTEntry > i/1024 {
-			continue
-		}
-
-		_, err = file.ReadAt(bs, int64(i))
-
-		if err != nil {
-			fmt.Printf("error reading file --->%s", err)
-			return
-		}
-		buf.Write(bs)
-
-		if i == MFTSelectedEntry {
-			break
-		}
-
-	}
-	mfttable.ProcessRecords(buf.Bytes())
 
 }
 
