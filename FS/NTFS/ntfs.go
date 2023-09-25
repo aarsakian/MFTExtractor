@@ -77,8 +77,8 @@ func (ntfs NTFS) CollectMFTArea(hD img.DiskReader, partitionOffsetB int64) []byt
 
 func (ntfs *NTFS) ProcessMFT(data []byte, MFTSelectedEntry int,
 	fromMFTEntry int, toMFTEntry int) {
-	MFTSizeB := int(ntfs.MFTTable.Size * int(ntfs.BytesPerSector) * int(ntfs.SectorsPerCluster))
-	totalRecords := MFTSizeB / MFT.RecordSize
+
+	totalRecords := len(data) / MFT.RecordSize
 	var buf bytes.Buffer
 	if fromMFTEntry != -1 {
 		totalRecords -= fromMFTEntry
@@ -97,7 +97,7 @@ func (ntfs *NTFS) ProcessMFT(data []byte, MFTSelectedEntry int,
 		totalRecords = 1
 	}
 	buf.Grow(totalRecords * MFT.RecordSize)
-	for i := 0; i < MFTSizeB; i += MFT.RecordSize {
+	for i := 0; i < len(data); i += MFT.RecordSize {
 
 		if i/MFT.RecordSize > toMFTEntry {
 			break
