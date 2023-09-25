@@ -9,9 +9,10 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"os"
 
 	disk "github.com/aarsakian/MFTExtractor/Disk"
-	"github.com/aarsakian/MFTExtractor/FS"
+	ntfslib "github.com/aarsakian/MFTExtractor/FS/NTFS"
 	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
 	"github.com/aarsakian/MFTExtractor/exporter"
 	"github.com/aarsakian/MFTExtractor/img"
@@ -55,13 +56,10 @@ func main() {
 
 	flag.Parse() //ready to parse
 
-	var partitionOffsetB uint64
-
 	var hD img.DiskReader
 	var records MFT.Records
-	var partition disk.Partition
+
 	var physicalDisk disk.Disk
-	var fs FS.FileSystem
 
 	rp := reporter.Reporter{
 		ShowFileName:   *showFileName,
@@ -92,16 +90,25 @@ func main() {
 			physicalDisk.ListPartitions()
 		}
 
-		partition = physicalDisk.GetSelectedPartition(*partitionNum)
+		partition := physicalDisk.GetSelectedPartition(*partitionNum)
 
-		partitionOffsetB = uint64(partition.GetOffset() * 512)
+		partitionOffsetB := uint64(partition.GetOffset() * 512)
 
-		data := hD.ReadFile(int64(partitionOffsetB), 512)
-
-		fs = partition.LocateFileSystem(data)
+		fs := partition.LocateFileSystem(hD)
 
 		records = fs.Process(hD, int64(partitionOffsetB), *MFTSelectedEntry, *fromMFTEntry, *toMFTEntry)
 		defer hD.CloseHandler()
+
+		if location != "" {
+			if records == nil {
+				fmt.Printf("no records found for request file %s", *exportFile)
+			}
+			sectorsPerCluster := fs.GetSectorsPerCluster()
+			exp := exporter.Exporter{Disk: *physicalDrive, PartitionOffset: partitionOffsetB,
+				SectorsPerCluster: sectorsPerCluster, Location: location}
+			exp.ExportData(records, hD)
+
+		}
 
 	}
 
@@ -110,25 +117,38 @@ func main() {
 	}
 
 	if *inputfile != "Disk MFT" {
-		mftTable := MFT.MFTTable{Filepath: *inputfile}
-		mftTable.Populate(*MFTSelectedEntry, *fromMFTEntry, *toMFTEntry)
-		records = mftTable.Records
+
+		file, err := os.Open(*inputfile)
+		if err != nil {
+			// handle the error here
+			fmt.Printf("err %s for reading the MFT ", err)
+			return
+		}
+		defer file.Close()
+
+		finfo, err := file.Stat() //file descriptor
+		if err != nil {
+			fmt.Printf("error getting the file size\n")
+			return
+		}
+		data := make([]byte, finfo.Size())
+
+		file.Read(data)
+		if err != nil {
+			fmt.Printf("error reading $MFT file.\n")
+			return
+		}
+		var ntfs ntfslib.NTFS
+
+		ntfs.MFTTable = &MFT.MFTTable{Size: int(finfo.Size())}
+		ntfs.ProcessMFT(data, *MFTSelectedEntry, *fromMFTEntry, *toMFTEntry)
+
+		records = ntfs.MFTTable.Records
 	}
 	rp.Show(records)
 
 	if *exportFile != "" {
 		records = records.FilterByName(*exportFile)
-	}
-
-	if location != "" && *physicalDrive != -1 && *partitionNum != -1 || location != "" && *evidencefile != "" && *partitionNum != -1 {
-		if records == nil {
-			fmt.Printf("no records found for request file %s", *exportFile)
-		}
-		sectorsPerCluster := fs.GetSectorsPerCluster()
-		exp := exporter.Exporter{Disk: *physicalDrive, PartitionOffset: partitionOffsetB,
-			SectorsPerCluster: sectorsPerCluster, Location: location}
-		exp.ExportData(records, hD)
-
 	}
 
 	t := tree.Tree{}
