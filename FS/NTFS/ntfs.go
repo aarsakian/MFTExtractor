@@ -2,6 +2,7 @@ package ntfs
 
 import (
 	"bytes"
+	"fmt"
 	"math"
 
 	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
@@ -27,7 +28,62 @@ func (ntfs NTFS) GetSectorsPerCluster() int {
 	return int(ntfs.SectorsPerCluster)
 }
 
-func (ntfs NTFS) Process(hD img.DiskReader, partitionOffsetB int64, MFTSelectedEntry int, fromMFTEntry int, toMFTEntry int) []MFT.Record {
+func (ntfs NTFS) GetBytesPerSector() uint64 {
+	return uint64(ntfs.BytesPerSector)
+}
+
+func (ntfs NTFS) GetFileContents(hD img.DiskReader, partitionOffset int64) map[string][]byte {
+	retrievedDataRecords := make(map[string][]byte)
+	for _, record := range ntfs.MFTTable.Records {
+
+		if !record.HasAttr("DATA") {
+			continue
+		}
+		fname := record.GetFname()
+		if record.HasResidentDataAttr() {
+			retrievedDataRecords[fname] = record.GetResidentData()
+		} else {
+			runlist := record.GetRunList("DATA")
+			_, lsize := record.GetFileSize()
+
+			var dataRuns bytes.Buffer
+			dataRuns.Grow(int(lsize))
+
+			offset := partitionOffset // partition in bytes
+
+			diskSize := hD.GetDiskSize()
+
+			for (MFTAttributes.RunList{}) != runlist {
+				offset += runlist.Offset * int64(ntfs.SectorsPerCluster) * 512
+				if offset > diskSize {
+					fmt.Printf("skipped offset %d exceeds disk size! exiting", offset)
+					break
+				}
+				//	fmt.Printf("extracting data from %d len %d \n", offset, runlist.Length)
+
+				data := hD.ReadFile(offset, int(runlist.Length*uint64(ntfs.SectorsPerCluster)*512))
+
+				dataRuns.Write(data)
+
+				if runlist.Next == nil {
+					break
+				}
+
+				runlist = *runlist.Next
+			}
+			retrievedDataRecords[fname] = dataRuns.Bytes()
+		}
+
+	}
+	return retrievedDataRecords
+
+}
+
+func (ntfs NTFS) GetMetadata() []MFT.Record {
+	return ntfs.MFTTable.Records
+}
+
+func (ntfs *NTFS) Process(hD img.DiskReader, partitionOffsetB int64, MFTSelectedEntry int, fromMFTEntry int, toMFTEntry int) {
 	length := int(1024) // len of MFT record
 
 	physicalOffset := partitionOffsetB + int64(ntfs.MFTOffset)*int64(ntfs.SectorsPerCluster)*int64(ntfs.BytesPerSector)
@@ -44,7 +100,6 @@ func (ntfs NTFS) Process(hD img.DiskReader, partitionOffsetB int64, MFTSelectedE
 	ntfs.ProcessMFT(MFTAreaBuf, MFTSelectedEntry, fromMFTEntry, toMFTEntry)
 	ntfs.MFTTable.ProcessNonResidentRecords(hD, partitionOffsetB, int(ntfs.SectorsPerCluster)*int(ntfs.BytesPerSector))
 
-	return ntfs.MFTTable.Records
 }
 
 func (ntfs NTFS) CollectMFTArea(hD img.DiskReader, partitionOffsetB int64) []byte {
