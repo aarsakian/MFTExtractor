@@ -6,13 +6,18 @@ import (
 	"github.com/aarsakian/MFTExtractor/utils"
 )
 
+var IndexFlags = map[uint32]string{0x000001: "Has VCN", 0x000002: "Last"}
+
+type IndexEntries []IndexEntry
+
 type IndexEntry struct {
-	ParRef      uint64
-	ParSeq      uint16
-	Len         uint16 //8-9
-	FilenameLen uint16 //10-11
-	Flags       uint32 //12-15
-	Fnattr      *FNAttribute
+	ParRef     uint64
+	ParSeq     uint16
+	Len        uint16 //8-9
+	ContentLen uint16 //10-11
+	Flags      uint32 //12-15
+	ChildVCN   int64
+	Fnattr     *FNAttribute
 }
 
 type IndexRoot struct {
@@ -22,7 +27,7 @@ type IndexRoot struct {
 	Sizeclusters         uint8  //12-12
 	Nodeheader           *NodeHeader
 	Header               *AttributeHeader
-	IndexEntries         []IndexEntry
+	IndexEntries         IndexEntries
 }
 
 type NodeHeader struct {
@@ -40,7 +45,7 @@ type IndexAllocation struct {
 	VCN              int64  //16-24 where the record fits in the tree
 	Nodeheader       *NodeHeader
 	Header           *AttributeHeader
-	IndexEntries     []IndexEntry
+	IndexEntries     IndexEntries
 }
 
 func (idxEntry IndexEntry) ShowInfo() {
@@ -63,27 +68,9 @@ func (idxRoot *IndexRoot) Parse(data []byte) {
 	idxRoot.Nodeheader = nodeheader
 
 	idxEntryOffset := 16 + uint16(nodeheader.OffsetEntryList)
-	lastIdxEntryOffset := 16 + uint16(nodeheader.OffsetEndEntryListBuffer)
 
-	for idxEntryOffset+16 < lastIdxEntryOffset {
-		var idxEntry *IndexEntry = new(IndexEntry)
-		utils.Unmarshal(data[idxEntryOffset:idxEntryOffset+16], idxEntry)
+	idxRoot.IndexEntries = Parse(data[idxEntryOffset:nodeheader.OffsetEndUsedEntryList])
 
-		if idxEntry.FilenameLen > 0 {
-			var fnattrIDXEntry FNAttribute
-			utils.Unmarshal(data[idxEntryOffset+16:idxEntryOffset+16+idxEntry.FilenameLen],
-				&fnattrIDXEntry)
-
-			fnattrIDXEntry.Fname =
-				utils.DecodeUTF16(data[idxEntryOffset+16+66 : idxEntryOffset+16+
-					66+2*uint16(fnattrIDXEntry.Nlen)])
-			idxEntry.Fnattr = &fnattrIDXEntry
-
-		}
-		idxEntryOffset += idxEntry.Len
-
-		idxRoot.IndexEntries = append(idxRoot.IndexEntries, *idxEntry)
-	}
 }
 
 func (idxRoot IndexRoot) GetHeader() AttributeHeader {
@@ -128,30 +115,47 @@ func (idxAllocation IndexAllocation) ShowInfo() {
 	}
 }
 
-func (idxAllocation *IndexAllocation) Parse(bs []byte) {
-	utils.Unmarshal(bs[:24], idxAllocation)
+func Parse(data []byte) IndexEntries {
+	var idxEntries IndexEntries
+	idxEntryOffset := uint16(0)
+	for idxEntryOffset < uint16(len(data)) {
+		var idxEntry *IndexEntry = new(IndexEntry)
+		idxEntry.Parse(data[idxEntryOffset:])
+
+		idxEntryOffset += idxEntry.Len
+		idxEntries = append(idxEntries, *idxEntry)
+	}
+	return idxEntries
+
+}
+
+func (idxEntry *IndexEntry) Parse(data []byte) {
+	utils.Unmarshal(data[:16], idxEntry)
+
+	if IndexFlags[idxEntry.Flags] == "Has VCN" {
+		idxEntry.ChildVCN = utils.ReadEndianInt(data[16+idxEntry.Len-8 : 16+idxEntry.Len])
+	}
+
+	if idxEntry.ContentLen > 0 {
+		var fnattrIDXEntry FNAttribute
+		utils.Unmarshal(data[16:16+uint32(idxEntry.ContentLen)],
+			&fnattrIDXEntry)
+
+		fnattrIDXEntry.Fname = utils.DecodeUTF16(data[16+66 : 16+66+2*uint32(fnattrIDXEntry.Nlen)])
+		idxEntry.Fnattr = &fnattrIDXEntry
+
+	}
+}
+
+func (idxAllocation *IndexAllocation) Parse(data []byte) {
+	utils.Unmarshal(data[:24], idxAllocation)
 
 	var nodeheader *NodeHeader = new(NodeHeader)
-	utils.Unmarshal(bs[24:24+16], nodeheader)
+	utils.Unmarshal(data[24:24+16], nodeheader)
 	idxAllocation.Nodeheader = nodeheader
 
 	idxEntryOffset := nodeheader.OffsetEntryList + 24 // relative to the start of node header
-	for idxEntryOffset < nodeheader.OffsetEndUsedEntryList {
-		var idxEntry *IndexEntry = new(IndexEntry)
-		utils.Unmarshal(bs[idxEntryOffset:idxEntryOffset+16], idxEntry)
-		if idxEntry.FilenameLen > 0 {
-			var fnattrIDXEntry FNAttribute
-			utils.Unmarshal(bs[idxEntryOffset+16:idxEntryOffset+16+uint32(idxEntry.FilenameLen)],
-				&fnattrIDXEntry)
 
-			fnattrIDXEntry.Fname =
-				utils.DecodeUTF16(bs[idxEntryOffset+16+66 : idxEntryOffset+16+
-					66+2*uint32(fnattrIDXEntry.Nlen)])
-			idxEntry.Fnattr = &fnattrIDXEntry
-
-		}
-		idxEntryOffset += uint32(idxEntry.Len)
-		idxAllocation.IndexEntries = append(idxAllocation.IndexEntries, *idxEntry)
-	}
+	idxAllocation.IndexEntries = Parse(data[idxEntryOffset:nodeheader.OffsetEndUsedEntryList])
 
 }
