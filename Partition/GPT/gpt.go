@@ -13,11 +13,9 @@ var PartitionTypeGuids = map[string]string{
 	"Basic Data": "",
 }
 
-type Partitions []Partition
-
 type GPT struct {
 	Header     *GPTHeader
-	Partitions Partitions
+	Partitions []Partition
 }
 type GPTHeader struct {
 	StartSignature     [8]byte
@@ -93,7 +91,7 @@ func (partition Partition) GetOffset() uint64 {
 func (partition Partition) LocateFileSystem(hD img.DiskReader) FS.FileSystem {
 	partitionOffetB := uint64(partition.GetOffset() * 512)
 	data := hD.ReadFile(int64(partitionOffetB), 512)
-	var ntfs ntfsLib.NTFS
+	var ntfs *ntfsLib.NTFS = new(ntfsLib.NTFS)
 	ntfs.Parse(data)
 	return ntfs
 }

@@ -9,11 +9,9 @@ import (
 	"github.com/aarsakian/MFTExtractor/utils"
 )
 
-type Partitions []Partition
-
 type MBR struct {
 	BootCode   [446]byte //0-445
-	Partitions Partitions
+	Partitions []Partition
 	Signature  [2]byte //510-511
 }
 
@@ -39,7 +37,7 @@ func (partition Partition) LocateFileSystem(hD img.DiskReader) FS.FileSystem {
 	partitionOffetB := uint64(partition.GetOffset() * 512)
 	data := hD.ReadFile(int64(partitionOffetB), 512)
 	if partition.Type == 0x07 || partition.Type == 0x17 {
-		var ntfs ntfsLib.NTFS
+		var ntfs *ntfsLib.NTFS = new(ntfsLib.NTFS)
 		ntfs.Parse(data)
 		return ntfs
 	} else {
@@ -56,9 +54,9 @@ func (mbr MBR) GetPartition(partitionNum int) Partition {
 	return mbr.Partitions[partitionNum]
 }
 
-func LocatePartitions(data []byte) Partitions {
+func LocatePartitions(data []byte) []Partition {
 	pos := 0
-	var partitions Partitions
+	var partitions []Partition
 	for pos < len(data) {
 		var partition *Partition = new(Partition) //explicit is better
 		utils.Unmarshal(data[pos:pos+16], partition)
