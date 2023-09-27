@@ -6,6 +6,9 @@ import (
 )
 
 type FileSystem interface {
-	Process(img.DiskReader, int64, int, int, int) []MFT.Record
+	Process(img.DiskReader, int64, int, int, int)
 	GetSectorsPerCluster() int
+	GetBytesPerSector() uint64
+	GetFileContents(img.DiskReader, int64) map[string][]byte
+	GetMetadata() []MFT.Record
 }
