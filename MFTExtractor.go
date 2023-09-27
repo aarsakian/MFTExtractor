@@ -72,10 +72,9 @@ func main() {
 		ShowIndex:      *showIndex,
 	}
 
-	if *evidencefile != "" && *partitionNum != -1 || *physicalDrive != -1 && *partitionNum != -1 {
-		physicalDisk = disk.Disk{}
+	if *evidencefile != "" || *physicalDrive != -1 {
 
-		if *physicalDrive != -1 && *partitionNum != -1 {
+		if *physicalDrive != -1 {
 
 			hD = img.GetHandler(fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", *physicalDrive), "physicalDrive")
 
@@ -83,30 +82,21 @@ func main() {
 			hD = img.GetHandler(*evidencefile, "image")
 
 		}
-
-		physicalDisk.DiscoverPartitions(hD)
+		physicalDisk = disk.Disk{Handler: hD}
+		physicalDisk.DiscoverPartitions()
 
 		if *listPartitions {
 			physicalDisk.ListPartitions()
 		}
-
-		partition := physicalDisk.GetSelectedPartition(*partitionNum)
-
-		partitionOffsetB := uint64(partition.GetOffset() * 512)
-
-		fs := partition.LocateFileSystem(hD)
-
-		records = fs.Process(hD, int64(partitionOffsetB), *MFTSelectedEntry, *fromMFTEntry, *toMFTEntry)
+		physicalDisk.ProcessPartitions(*partitionNum, *MFTSelectedEntry, *fromMFTEntry, *toMFTEntry)
+		records = physicalDisk.GetFileSystemMetadata()
 		defer hD.CloseHandler()
 
 		if location != "" {
-			if records == nil {
-				fmt.Printf("no records found for request file %s", *exportFile)
-			}
-			sectorsPerCluster := fs.GetSectorsPerCluster()
-			exp := exporter.Exporter{Disk: *physicalDrive, PartitionOffset: partitionOffsetB,
-				SectorsPerCluster: sectorsPerCluster, Location: location}
-			exp.ExportData(records, hD)
+
+			filesData := physicalDisk.GetFileContents()
+			exp := exporter.Exporter{Location: location}
+			exp.ExportData(filesData)
 
 		}
 
