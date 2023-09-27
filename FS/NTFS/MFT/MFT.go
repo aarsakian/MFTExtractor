@@ -140,7 +140,7 @@ func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionO
 			runlist = *runlist.Next
 		}
 		actualLen := int(attribute.GetHeader().ATRrecordNoNResident.ActualLength)
-		if actualLen >= length {
+		if actualLen > length {
 			fmt.Printf("attribute %s actual length exceeds the runlist length actual %d runlist %d \n", attrName, actualLen, length)
 			continue
 		}
@@ -242,22 +242,13 @@ func (record Record) ShowIndex() {
 
 	if indexAttr != nil {
 		idxRoot := indexAttr.(*MFTAttributes.IndexRoot)
-
-		for _, idxEntry := range idxRoot.IndexEntries {
-			if idxEntry.Fnattr == nil {
-				continue
-			}
-			idxEntry.ShowInfo()
-		}
+		idxRoot.ShowInfo()
 
 	}
 
 	if indexAlloc != nil {
 		idx := indexAlloc.(*MFTAttributes.IndexAllocation)
-		if idx.IndexEntries[0].Fnattr != nil {
-			fmt.Printf("idx alloc %s ",
-				idx.IndexEntries[0].Fnattr.Fname)
-		}
+		idx.ShowInfo()
 
 	}
 
