@@ -149,13 +149,14 @@ func (idxEntry *IndexEntry) Parse(data []byte) {
 
 func (idxAllocation *IndexAllocation) Parse(data []byte) {
 	utils.Unmarshal(data[:24], idxAllocation)
+	if idxAllocation.Signature == "INDX" {
+		var nodeheader *NodeHeader = new(NodeHeader)
+		utils.Unmarshal(data[24:24+16], nodeheader)
+		idxAllocation.Nodeheader = nodeheader
 
-	var nodeheader *NodeHeader = new(NodeHeader)
-	utils.Unmarshal(data[24:24+16], nodeheader)
-	idxAllocation.Nodeheader = nodeheader
+		idxEntryOffset := nodeheader.OffsetEntryList + 24 // relative to the start of node header
 
-	idxEntryOffset := nodeheader.OffsetEntryList + 24 // relative to the start of node header
-
-	idxAllocation.IndexEntries = Parse(data[idxEntryOffset:nodeheader.OffsetEndUsedEntryList])
+		idxAllocation.IndexEntries = Parse(data[idxEntryOffset:nodeheader.OffsetEndUsedEntryList])
+	}
 
 }
