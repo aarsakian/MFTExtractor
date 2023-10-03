@@ -1,7 +1,9 @@
 package disk
 
 import (
+	"bytes"
 	"fmt"
+	"sync"
 
 	"github.com/aarsakian/MFTExtractor/FS"
 	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
@@ -11,11 +13,10 @@ import (
 )
 
 type Disk struct {
-	MBR         *mbrLib.MBR
-	GPT         *gptLib.GPT
-	Handler     img.DiskReader
-	Partitions  []Partition
-	FileSystems []FS.FileSystem
+	MBR        *mbrLib.MBR
+	GPT        *gptLib.GPT
+	Handler    img.DiskReader
+	Partitions []Partition
 }
 
 func (disk Disk) hasProtectiveMBR() bool {
@@ -24,7 +25,8 @@ func (disk Disk) hasProtectiveMBR() bool {
 
 type Partition interface {
 	GetOffset() uint64
-	LocateFileSystem(img.DiskReader) FS.FileSystem
+	LocateFileSystem(img.DiskReader)
+	GetFileSystem() FS.FileSystem
 }
 
 func (disk *Disk) populateMBR() {
@@ -62,58 +64,81 @@ func (disk *Disk) DiscoverPartitions() {
 	disk.populateMBR()
 	if disk.hasProtectiveMBR() {
 		disk.populateGPT()
-		for _, partition := range disk.GPT.Partitions {
-			disk.Partitions = append(disk.Partitions, partition)
+		for idx := range disk.GPT.Partitions {
+
+			disk.Partitions = append(disk.Partitions, &disk.GPT.Partitions[idx])
+
 		}
 
 	} else {
-		for _, partition := range disk.MBR.Partitions {
-			disk.Partitions = append(disk.Partitions, partition)
+		for idx := range disk.MBR.Partitions {
+			disk.Partitions = append(disk.Partitions, &disk.MBR.Partitions[idx])
 		}
 	}
 
 }
 
-func (disk *Disk) ProcessPartitions(partitionNum int, MFTSelectedEntry int, fromMFTEntry int, toMFTEntry int) {
+func (disk *Disk) ProcessPartitions(partitionNum int, MFTSelectedEntries []int, fromMFTEntry int, toMFTEntry int) {
 
-	for idx, partition := range disk.Partitions {
+	for idx := range disk.Partitions {
 		if partitionNum != -1 && idx != partitionNum {
 			continue
 		}
 
-		filesystem := partition.LocateFileSystem(disk.Handler)
-		partitionOffsetB := int64(partition.GetOffset() * filesystem.GetBytesPerSector())
-		filesystem.Process(disk.Handler, partitionOffsetB, MFTSelectedEntry, fromMFTEntry, toMFTEntry)
+		disk.Partitions[idx].LocateFileSystem(disk.Handler)
+		fs := disk.Partitions[idx].GetFileSystem()
+		if fs == nil {
+			continue //fs not found
+		}
+		partitionOffsetB := int64(disk.Partitions[idx].GetOffset() * fs.GetBytesPerSector())
+		fs.Process(disk.Handler, partitionOffsetB, MFTSelectedEntries, fromMFTEntry, toMFTEntry)
 
-		disk.FileSystems = append(disk.FileSystems, filesystem)
 	}
 
 }
 
-func (disk Disk) GetFileSystemMetadata() []MFT.Record {
+func (disk Disk) GetFileSystemMetadata(partitionNum int) []MFT.Record {
 	var records []MFT.Record
-	for _, filesystem := range disk.FileSystems {
-		records = append(records, filesystem.GetMetadata()...)
+	for idx, partition := range disk.Partitions {
+		if idx != partitionNum {
+			continue
+		}
+		fs := partition.GetFileSystem()
+		records = append(records, fs.GetMetadata()...)
 	}
 	return records
 }
 
-func (disk Disk) GetFileContents() map[string][]byte {
+func (disk Disk) Worker(wg *sync.WaitGroup, records chan MFT.Record, results chan<- []byte, partitionNum int) {
+	partition := disk.Partitions[partitionNum]
+	partitionOffsetB := int64(partition.GetOffset())
+	fs := partition.GetFileSystem()
+	sectorsPerCluster := int(fs.GetSectorsPerCluster())
+	bytesPerSector := int(fs.GetBytesPerSector())
+	defer wg.Done()
 
-	for idx, filesystem := range disk.FileSystems {
-		partitionOffsetB := int64(disk.Partitions[idx].GetOffset() * filesystem.GetBytesPerSector())
-		return filesystem.GetFileContents(disk.Handler, partitionOffsetB)
-	}
-	return map[string][]byte{}
+	for {
+		record, ok := <-records
 
-}
+		if !ok {
+			break
+		}
 
-func (disk Disk) GetSelectedPartition(partitionNum int) Partition {
+		_, lsize := record.GetFileSize()
 
-	if disk.hasProtectiveMBR() {
-		return disk.GPT.GetPartition(partitionNum)
-	} else {
-		return disk.MBR.GetPartition(partitionNum)
+		var dataRuns bytes.Buffer
+		dataRuns.Grow(int(lsize))
+		if record.LinkedRecord == nil {
+			record.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster, bytesPerSector, dataRuns)
+		} else { // attribute runlist
+			record := record.LinkedRecord
+			for record != nil {
+				record.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster, bytesPerSector, dataRuns)
+				record = record.LinkedRecord
+			}
+		}
+
+		results <- dataRuns.Bytes()
 	}
 
 }

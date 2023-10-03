@@ -88,10 +88,14 @@ func (partition Partition) GetOffset() uint64 {
 	return partition.StartLBA
 }
 
-func (partition Partition) LocateFileSystem(hD img.DiskReader) FS.FileSystem {
+func (partition *Partition) LocateFileSystem(hD img.DiskReader) {
 	partitionOffetB := uint64(partition.GetOffset() * 512)
 	data := hD.ReadFile(int64(partitionOffetB), 512)
 	var ntfs *ntfsLib.NTFS = new(ntfsLib.NTFS)
 	ntfs.Parse(data)
-	return ntfs
+	partition.FS = ntfs
+}
+
+func (partiton Partition) GetFileSystem() FS.FileSystem {
+	return partiton.FS
 }
