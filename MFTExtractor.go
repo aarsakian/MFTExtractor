@@ -10,6 +10,9 @@ import (
 	"log"
 	"math"
 	"os"
+	"strconv"
+	"strings"
+	"sync"
 
 	disk "github.com/aarsakian/MFTExtractor/Disk"
 	ntfslib "github.com/aarsakian/MFTExtractor/FS/NTFS"
@@ -36,7 +39,7 @@ func main() {
 	inputfile := flag.String("MFT", "Disk MFT", "absolute path to the MFT file")
 	evidencefile := flag.String("evidence", "", "path to image file")
 	flag.StringVar(&location, "location", "", "the path to export  files")
-	MFTSelectedEntry := flag.Int("entry", -1, "select a particular MFT entry")
+	MFTSelectedEntries := flag.String("entries", "", "select particular MFT entries, use comma as a seperator.")
 	showFileName := flag.String("showfilename", "", "show the name of the filename attribute of each MFT record choices: Any, Win32, Dos")
 	exportFile := flag.String("filename", "", "file to export")
 	isResident := flag.Bool("resident", false, "check whether entry is resident")
@@ -60,6 +63,12 @@ func main() {
 	var records MFT.Records
 
 	var physicalDisk disk.Disk
+	var entries []int
+	for _, entry := range strings.Split(*MFTSelectedEntries, ",") {
+		entryInt, _ := strconv.Atoi(entry)
+		entries = append(entries, entryInt)
+
+	}
 
 	rp := reporter.Reporter{
 		ShowFileName:   *showFileName,
@@ -88,15 +97,26 @@ func main() {
 		if *listPartitions {
 			physicalDisk.ListPartitions()
 		}
-		physicalDisk.ProcessPartitions(*partitionNum, *MFTSelectedEntry, *fromMFTEntry, *toMFTEntry)
-		records = physicalDisk.GetFileSystemMetadata()
+		physicalDisk.ProcessPartitions(*partitionNum, entries, *fromMFTEntry, *toMFTEntry)
+		records = physicalDisk.GetFileSystemMetadata(*partitionNum)
+
+		if *exportFile != "" {
+			records = records.FilterByName(*exportFile)
+		}
 		defer hD.CloseHandler()
-
 		if location != "" {
+			tasks := make(chan MFT.Record)
+			results := make(chan []byte)
+			wg := new(sync.WaitGroup)
+			wg.Add(3)
+			go createTasks(tasks, records)
 
-			filesData := physicalDisk.GetFileContents()
+			go physicalDisk.Worker(wg, tasks, results, *partitionNum)
+
 			exp := exporter.Exporter{Location: location}
-			exp.ExportData(filesData)
+
+			go exp.ExportData(wg, results)
+			wg.Wait()
 
 		}
 
@@ -131,15 +151,11 @@ func main() {
 		var ntfs ntfslib.NTFS
 
 		ntfs.MFTTable = &MFT.MFTTable{Size: int(finfo.Size())}
-		ntfs.ProcessMFT(data, *MFTSelectedEntry, *fromMFTEntry, *toMFTEntry)
+		ntfs.ProcessMFT(data, entries, *fromMFTEntry, *toMFTEntry)
 
 		records = ntfs.MFTTable.Records
 	}
 	rp.Show(records)
-
-	if *exportFile != "" {
-		records = records.FilterByName(*exportFile)
-	}
 
 	t := tree.Tree{}
 
@@ -157,3 +173,10 @@ func main() {
 	}
 
 } //ends for
+
+func createTasks(tasks chan MFT.Record, records []MFT.Record) {
+	for _, record := range records {
+		tasks <- record
+	}
+
+}
