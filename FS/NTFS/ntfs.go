@@ -2,7 +2,6 @@ package ntfs
 
 import (
 	"bytes"
-	"fmt"
 	"math"
 
 	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
@@ -10,6 +9,33 @@ import (
 	"github.com/aarsakian/MFTExtractor/img"
 	"github.com/aarsakian/MFTExtractor/utils"
 )
+
+type Task struct {
+	Record            *MFT.Record
+	hD                img.DiskReader
+	PartitionOffset   int64
+	SectorsPerCluster int
+	BytesPerCluster   int
+}
+
+func (task Task) LocateData() []byte {
+	_, lsize := task.Record.GetFileSize()
+
+	var dataRuns bytes.Buffer
+	dataRuns.Grow(int(lsize))
+	if task.Record.LinkedRecord == nil {
+		task.Record.LocateData(task.hD, task.PartitionOffset, task.SectorsPerCluster, task.BytesPerCluster, dataRuns)
+	} else { // attribute runlist
+		record := task.Record.LinkedRecord
+		for record != nil {
+			record.LocateData(task.hD, task.PartitionOffset, task.SectorsPerCluster, task.BytesPerCluster, dataRuns)
+			record = task.Record.LinkedRecord
+		}
+	}
+
+	return dataRuns.Bytes()
+
+}
 
 type NTFS struct {
 	JumpInstruction   [3]byte //0-3
@@ -32,50 +58,16 @@ func (ntfs NTFS) GetBytesPerSector() uint64 {
 	return uint64(ntfs.BytesPerSector)
 }
 
-func (ntfs NTFS) GetFileContents(hD img.DiskReader, partitionOffset int64) map[string][]byte {
-	retrievedDataRecords := make(map[string][]byte)
-	for _, record := range ntfs.MFTTable.Records {
+func (ntfs NTFS) GetFileContents(hD img.DiskReader, partitionOffset int64, tasks chan Task) { //generate tasks
 
-		if !record.HasAttr("DATA") {
+	for idx := range ntfs.MFTTable.Records {
+
+		if !ntfs.MFTTable.Records[idx].HasAttr("DATA") && !ntfs.MFTTable.Records[idx].HasAttr("Attribute List") {
 			continue
 		}
-		fname := record.GetFname()
-		if record.HasResidentDataAttr() {
-			retrievedDataRecords[fname] = record.GetResidentData()
-		} else {
-			runlist := record.GetRunList("DATA")
-			_, lsize := record.GetFileSize()
-
-			var dataRuns bytes.Buffer
-			dataRuns.Grow(int(lsize))
-
-			offset := partitionOffset // partition in bytes
-
-			diskSize := hD.GetDiskSize()
-
-			for (MFTAttributes.RunList{}) != runlist {
-				offset += runlist.Offset * int64(ntfs.SectorsPerCluster) * 512
-				if offset > diskSize {
-					fmt.Printf("skipped offset %d exceeds disk size! exiting", offset)
-					break
-				}
-				//	fmt.Printf("extracting data from %d len %d \n", offset, runlist.Length)
-
-				data := hD.ReadFile(offset, int(runlist.Length*uint64(ntfs.SectorsPerCluster)*512))
-
-				dataRuns.Write(data)
-
-				if runlist.Next == nil {
-					break
-				}
-
-				runlist = *runlist.Next
-			}
-			retrievedDataRecords[fname] = dataRuns.Bytes()
-		}
+		tasks <- Task{&ntfs.MFTTable.Records[idx], hD, partitionOffset, int(ntfs.SectorsPerCluster), int(ntfs.BytesPerSector)}
 
 	}
-	return retrievedDataRecords
 
 }
 
@@ -83,7 +75,8 @@ func (ntfs NTFS) GetMetadata() []MFT.Record {
 	return ntfs.MFTTable.Records
 }
 
-func (ntfs *NTFS) Process(hD img.DiskReader, partitionOffsetB int64, MFTSelectedEntry int, fromMFTEntry int, toMFTEntry int) {
+func (ntfs *NTFS) Process(hD img.DiskReader, partitionOffsetB int64, MFTSelectedEntries []int,
+	fromMFTEntry int, toMFTEntry int) {
 	length := int(1024) // len of MFT record
 
 	physicalOffset := partitionOffsetB + int64(ntfs.MFTOffset)*int64(ntfs.SectorsPerCluster)*int64(ntfs.BytesPerSector)
@@ -97,8 +90,11 @@ func (ntfs *NTFS) Process(hD img.DiskReader, partitionOffsetB int64, MFTSelected
 	// fill buffer before parsing the record
 
 	MFTAreaBuf := ntfs.CollectMFTArea(hD, partitionOffsetB)
-	ntfs.ProcessMFT(MFTAreaBuf, MFTSelectedEntry, fromMFTEntry, toMFTEntry)
+	ntfs.ProcessMFT(MFTAreaBuf, MFTSelectedEntries, fromMFTEntry, toMFTEntry)
 	ntfs.MFTTable.ProcessNonResidentRecords(hD, partitionOffsetB, int(ntfs.SectorsPerCluster)*int(ntfs.BytesPerSector))
+	if len(MFTSelectedEntries) == 0 { // create link record only when user has parse all records
+		ntfs.MFTTable.CreateLinkedRecords()
+	}
 
 }
 
@@ -130,7 +126,7 @@ func (ntfs NTFS) CollectMFTArea(hD img.DiskReader, partitionOffsetB int64) []byt
 	return buf.Bytes()
 }
 
-func (ntfs *NTFS) ProcessMFT(data []byte, MFTSelectedEntry int,
+func (ntfs *NTFS) ProcessMFT(data []byte, MFTSelectedEntries []int,
 	fromMFTEntry int, toMFTEntry int) {
 
 	totalRecords := len(data) / MFT.RecordSize
@@ -148,25 +144,34 @@ func (ntfs *NTFS) ProcessMFT(data []byte, MFTSelectedEntry int,
 	if toMFTEntry != math.MaxUint32 {
 		totalRecords -= toMFTEntry
 	}
-	if MFTSelectedEntry != -1 {
-		totalRecords = 1
+	if len(MFTSelectedEntries) > 0 {
+		totalRecords = len(MFTSelectedEntries)
 	}
 	buf.Grow(totalRecords * MFT.RecordSize)
-	for i := 0; i < len(data); i += MFT.RecordSize {
 
+	for i := 0; i < len(data); i += MFT.RecordSize {
 		if i/MFT.RecordSize > toMFTEntry {
 			break
 		}
+		for _, MFTSelectedEntry := range MFTSelectedEntries {
 
-		if MFTSelectedEntry != -1 && i/MFT.RecordSize != MFTSelectedEntry ||
-			fromMFTEntry > i/MFT.RecordSize {
+			if i/MFT.RecordSize != MFTSelectedEntry {
+
+				continue
+			}
+
+			buf.Write(data[i : i+MFT.RecordSize])
+
+		}
+		//buffer full break
+		if buf.Len() == len(MFTSelectedEntries)*MFT.RecordSize {
+			break
+		}
+		if fromMFTEntry > i/MFT.RecordSize {
 			continue
 		}
-
-		buf.Write(data[i : i+MFT.RecordSize])
-
-		if i == MFTSelectedEntry {
-			break
+		if len(MFTSelectedEntries) == 0 {
+			buf.Write(data[i : i+MFT.RecordSize])
 		}
 
 	}
