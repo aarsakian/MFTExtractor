@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/aarsakian/MFTExtractor/utils"
 )
@@ -12,9 +13,10 @@ type Exporter struct {
 	Location string
 }
 
-func (exp Exporter) ExportData(filesData map[string][]byte) {
-	for fname, itsData := range filesData {
-		exp.CreateFile(fname, itsData)
+func (exp Exporter) ExportData(wg *sync.WaitGroup, results chan []byte) {
+	defer wg.Done()
+	for data := range results {
+		exp.CreateFile("TESTER", data)
 	}
 
 }
