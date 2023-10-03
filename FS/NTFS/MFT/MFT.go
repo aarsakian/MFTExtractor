@@ -47,6 +47,12 @@ type Attribute interface {
 	Parse([]byte)
 }
 
+// when attributes span over a record entry
+type LinkedRecordInfo struct {
+	Entry    uint32
+	StartVCN uint64
+}
+
 // MFT Record
 type Record struct {
 	Signature          string //0-3
@@ -66,6 +72,8 @@ type Record struct {
 	Fncnt              bool
 	Attributes         []Attribute
 	Bitmap             bool
+	LinkedRecordsInfo  []LinkedRecordInfo
+	LinkedRecord       *Record // when
 	// fixupArray add the        UpdateSeqArrOffset to find is location
 
 }
@@ -98,6 +106,18 @@ func (mfttable *MFTTable) ProcessNonResidentRecords(hD img.DiskReader, partition
 	for idx := range mfttable.Records {
 		fmt.Printf("Processing NoN resident attributes, record %d of out %d\n", idx+1, len(mfttable.Records))
 		mfttable.Records[idx].ProcessNoNResidentAttributes(hD, partitionOffsetB, clusterSizeB)
+	}
+}
+
+func (mfttable *MFTTable) CreateLinkedRecords() {
+	for idx := range mfttable.Records {
+		previdx := idx
+		for _, linkedRecordInfo := range mfttable.Records[idx].LinkedRecordsInfo {
+			entryId := linkedRecordInfo.Entry
+			mfttable.Records[previdx].LinkedRecord = &mfttable.Records[entryId]
+			previdx = int(entryId)
+
+		}
 	}
 }
 
@@ -152,19 +172,45 @@ func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionO
 
 }
 
+func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sectorsPerCluster int, bytesPerSector int, dataRuns bytes.Buffer) {
+
+	if record.HasResidentDataAttr() {
+		dataRuns.Write(record.GetResidentData())
+	} else {
+		var runlist MFTAttributes.RunList
+
+		runlist = record.GetRunList("DATA")
+
+		offset := partitionOffset // partition in bytes
+
+		diskSize := hD.GetDiskSize()
+
+		for (MFTAttributes.RunList{}) != runlist {
+			offset += runlist.Offset * int64(sectorsPerCluster*bytesPerSector)
+			if offset > diskSize {
+				fmt.Printf("skipped offset %d exceeds disk size! exiting", offset)
+				break
+			}
+			//	fmt.Printf("extracting data from %d len %d \n", offset, runlist.Length)
+
+			data := hD.ReadFile(offset, int(runlist.Length)*sectorsPerCluster*bytesPerSector)
+
+			dataRuns.Write(data)
+
+			if runlist.Next == nil {
+				break
+			}
+
+			runlist = *runlist.Next
+		}
+
+	}
+}
+
 func (record Record) FindNonResidentAttributes() []Attribute {
 	return utils.Filter(record.Attributes, func(attribute Attribute) bool {
 		return attribute.IsNoNResident()
 	})
-}
-
-func (record Record) containsAttribute(attributeName string) bool {
-	for _, attribute := range record.Attributes {
-		if attribute.FindType() == attributeName {
-			return true
-		}
-	}
-	return false
 }
 
 func (record Record) FindAttributePtr(attributeName string) Attribute {
@@ -206,15 +252,10 @@ func (record Record) getType() string {
 }
 
 func (record Record) GetRunList(attrType string) MFTAttributes.RunList {
-	attributes := utils.Filter(record.Attributes, func(attribute Attribute) bool {
-		return attribute.FindType() == attrType && attribute.IsNoNResident()
-	})
 
-	if len(attributes) == 1 && attributes[0].GetHeader().ATRrecordNoNResident.RunList != nil {
-		return *attributes[0].GetHeader().ATRrecordNoNResident.RunList
-	}
+	attr := record.FindAttribute(attrType)
+	return *attr.GetHeader().ATRrecordNoNResident.RunList
 
-	return MFTAttributes.RunList{}
 }
 
 func (record Record) GetRunLists() []MFTAttributes.RunList {
@@ -266,7 +307,7 @@ func (record Record) getVCNs() (uint64, uint64) {
 }
 
 func (record Record) ShowAttributes(attrType string) {
-	//fmt.Printf("\n %d %d %s ", record.Entry, record.Seq, record.getType())
+	fmt.Printf("%d %d %s \n", record.Entry, record.Seq, record.getType())
 	var attributes []Attribute
 	if attrType == "any" {
 		attributes = record.Attributes
@@ -406,7 +447,7 @@ func (record *Record) Process(bs []byte) {
 	}
 
 	ReadPtr := record.AttrOff //offset to first attribute
-
+	var linkedRecordsInfo []LinkedRecordInfo
 	var attributes []Attribute
 	for ReadPtr < 1024 {
 
@@ -455,6 +496,15 @@ func (record *Record) Process(bs []byte) {
 
 				attr.Parse(bs[ReadPtr+atrRecordResident.OffsetContent : ReadPtr+
 					atrRecordResident.OffsetContent+uint16(attrHeader.AttrLen)])
+				attrListEntries := attr.(*MFTAttributes.AttributeListEntries) //dereference
+
+				for _, entry := range attrListEntries.Entries {
+					if entry.GetType() != "DATA" {
+						continue
+					}
+					linkedRecordsInfo = append(linkedRecordsInfo,
+						LinkedRecordInfo{Entry: uint32(entry.ParRef), StartVCN: entry.StartVcn})
+				}
 
 			} else if attrHeader.IsBitmap() { //BITMAP
 				record.Bitmap = true
@@ -534,6 +584,7 @@ func (record *Record) Process(bs []byte) {
 
 	} //ends while
 	record.Attributes = attributes
+	record.LinkedRecordsInfo = linkedRecordsInfo
 }
 
 func (record Record) ShowFileSize() {
@@ -601,9 +652,22 @@ func (records Records) FilterByExtension(extension string) []Record {
 
 }
 
+func addLinkedRecords(records []Record) []Record {
+	for _, record := range records {
+		linkedRecord := record.LinkedRecord
+		for linkedRecord != nil {
+			records = append(records, *linkedRecord)
+			linkedRecord = linkedRecord.LinkedRecord
+		}
+
+	}
+	return records
+}
+
 func (records Records) FilterByName(filename string) []Record {
-	return utils.Filter(records, func(record Record) bool {
+	filteredRecords := utils.Filter(records, func(record Record) bool {
 		return record.HasFilename(filename)
 	})
+	return addLinkedRecords(filteredRecords)
 
 }
