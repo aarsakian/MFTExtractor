@@ -154,9 +154,11 @@ func (idxAllocation *IndexAllocation) Parse(data []byte) {
 		utils.Unmarshal(data[24:24+16], nodeheader)
 		idxAllocation.Nodeheader = nodeheader
 
-		idxEntryOffset := nodeheader.OffsetEntryList + 24 // relative to the start of node header
+		idxEntryOffset := nodeheader.OffsetEntryList + 24       // relative to the start of node header
+		if nodeheader.OffsetEndUsedEntryList > idxEntryOffset { // only when available exceeds start offset parse
+			idxAllocation.IndexEntries = Parse(data[idxEntryOffset:nodeheader.OffsetEndUsedEntryList])
+		}
 
-		idxAllocation.IndexEntries = Parse(data[idxEntryOffset:nodeheader.OffsetEndUsedEntryList])
 	}
 
 }
