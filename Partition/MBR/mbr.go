@@ -22,7 +22,7 @@ type Partition struct {
 	EndCHS   [3]byte
 	StartLBA uint32
 	Size     uint32 //sectors
-
+	FS       FS.FileSystem
 }
 
 func (partition Partition) GetOffset() uint64 {
@@ -33,15 +33,13 @@ func (partition Partition) GetPartitionType() string {
 	return fmt.Sprintf("%x", partition.Type)
 }
 
-func (partition Partition) LocateFileSystem(hD img.DiskReader) FS.FileSystem {
+func (partition *Partition) LocateFileSystem(hD img.DiskReader) {
 	partitionOffetB := uint64(partition.GetOffset() * 512)
 	data := hD.ReadFile(int64(partitionOffetB), 512)
 	if partition.Type == 0x07 || partition.Type == 0x17 {
 		var ntfs *ntfsLib.NTFS = new(ntfsLib.NTFS)
 		ntfs.Parse(data)
-		return ntfs
-	} else {
-		return nil
+		partition.FS = ntfs
 	}
 
 }
@@ -71,4 +69,8 @@ func (mbr *MBR) Parse(buffer []byte) {
 	utils.Unmarshal(buffer, &mbr)
 	mbr.Partitions = LocatePartitions(buffer[446:510])
 
+}
+
+func (partiton Partition) GetFileSystem() FS.FileSystem {
+	return partiton.FS
 }
