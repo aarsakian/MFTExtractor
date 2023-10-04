@@ -10,6 +10,7 @@ import (
 	gptLib "github.com/aarsakian/MFTExtractor/Partition/GPT"
 	mbrLib "github.com/aarsakian/MFTExtractor/Partition/MBR"
 	"github.com/aarsakian/MFTExtractor/img"
+	"github.com/aarsakian/MFTExtractor/utils"
 )
 
 type Disk struct {
@@ -109,7 +110,7 @@ func (disk Disk) GetFileSystemMetadata(partitionNum int) []MFT.Record {
 	return records
 }
 
-func (disk Disk) Worker(wg *sync.WaitGroup, records chan MFT.Record, results chan<- []byte, partitionNum int) {
+func (disk Disk) Worker(wg *sync.WaitGroup, records chan MFT.Record, results chan<- utils.AskedFile, partitionNum int) {
 	partition := disk.Partitions[partitionNum]
 	partitionOffsetB := int64(partition.GetOffset())
 	fs := partition.GetFileSystem()
@@ -117,28 +118,22 @@ func (disk Disk) Worker(wg *sync.WaitGroup, records chan MFT.Record, results cha
 	bytesPerSector := int(fs.GetBytesPerSector())
 	defer wg.Done()
 
-	for {
-		record, ok := <-records
-
-		if !ok {
-			break
-		}
-
+	for record := range records {
 		lsize := record.GetLogicalFileSize()
 
 		var dataRuns bytes.Buffer
 		dataRuns.Grow(int(lsize))
 		if record.LinkedRecord == nil {
-			record.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster, bytesPerSector, dataRuns)
+			record.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster, bytesPerSector, &dataRuns)
 		} else { // attribute runlist
 			record := record.LinkedRecord
 			for record != nil {
-				record.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster, bytesPerSector, dataRuns)
+				record.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster, bytesPerSector, &dataRuns)
 				record = record.LinkedRecord
 			}
 		}
 
-		results <- dataRuns.Bytes()
+		results <- utils.AskedFile{Fname: record.GetFname(), Content: dataRuns.Bytes()}
 	}
 
 }

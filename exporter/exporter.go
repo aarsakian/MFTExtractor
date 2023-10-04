@@ -13,10 +13,12 @@ type Exporter struct {
 	Location string
 }
 
-func (exp Exporter) ExportData(wg *sync.WaitGroup, results chan []byte) {
+func (exp Exporter) ExportData(wg *sync.WaitGroup, results chan utils.AskedFile) {
 	defer wg.Done()
-	for data := range results {
-		exp.CreateFile("TESTER", data)
+	defer close(results)
+	for result := range results {
+
+		exp.CreateFile(result.Fname, result.Content)
 	}
 
 }
