@@ -26,6 +26,11 @@ type LargeInteger struct {
 	LowPart  int32
 }
 
+type AskedFile struct {
+	Fname   string
+	Content []byte
+}
+
 func NewLargeInteger(val int64) LargeInteger {
 
 	return LargeInteger{QuadPart: val, HighPart: int32(val >> 32),
