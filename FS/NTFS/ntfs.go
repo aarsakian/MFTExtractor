@@ -10,33 +10,6 @@ import (
 	"github.com/aarsakian/MFTExtractor/utils"
 )
 
-type Task struct {
-	Record            *MFT.Record
-	hD                img.DiskReader
-	PartitionOffset   int64
-	SectorsPerCluster int
-	BytesPerCluster   int
-}
-
-func (task Task) LocateData() []byte {
-	_, lsize := task.Record.GetFileSize()
-
-	var dataRuns bytes.Buffer
-	dataRuns.Grow(int(lsize))
-	if task.Record.LinkedRecord == nil {
-		task.Record.LocateData(task.hD, task.PartitionOffset, task.SectorsPerCluster, task.BytesPerCluster, dataRuns)
-	} else { // attribute runlist
-		record := task.Record.LinkedRecord
-		for record != nil {
-			record.LocateData(task.hD, task.PartitionOffset, task.SectorsPerCluster, task.BytesPerCluster, dataRuns)
-			record = task.Record.LinkedRecord
-		}
-	}
-
-	return dataRuns.Bytes()
-
-}
-
 type NTFS struct {
 	JumpInstruction   [3]byte //0-3
 	Signature         string  //4 bytes NTFS 3-7
@@ -56,19 +29,6 @@ func (ntfs NTFS) GetSectorsPerCluster() int {
 
 func (ntfs NTFS) GetBytesPerSector() uint64 {
 	return uint64(ntfs.BytesPerSector)
-}
-
-func (ntfs NTFS) GetFileContents(hD img.DiskReader, partitionOffset int64, tasks chan Task) { //generate tasks
-
-	for idx := range ntfs.MFTTable.Records {
-
-		if !ntfs.MFTTable.Records[idx].HasAttr("DATA") && !ntfs.MFTTable.Records[idx].HasAttr("Attribute List") {
-			continue
-		}
-		tasks <- Task{&ntfs.MFTTable.Records[idx], hD, partitionOffset, int(ntfs.SectorsPerCluster), int(ntfs.BytesPerSector)}
-
-	}
-
 }
 
 func (ntfs NTFS) GetMetadata() []MFT.Record {
@@ -94,6 +54,7 @@ func (ntfs *NTFS) Process(hD img.DiskReader, partitionOffsetB int64, MFTSelected
 	ntfs.MFTTable.ProcessNonResidentRecords(hD, partitionOffsetB, int(ntfs.SectorsPerCluster)*int(ntfs.BytesPerSector))
 	if len(MFTSelectedEntries) == 0 { // create link record only when user has parse all records
 		ntfs.MFTTable.CreateLinkedRecords()
+		ntfs.MFTTable.CalculateFileSizes()
 	}
 
 }
@@ -164,14 +125,15 @@ func (ntfs *NTFS) ProcessMFT(data []byte, MFTSelectedEntries []int,
 
 		}
 		//buffer full break
-		if buf.Len() == len(MFTSelectedEntries)*MFT.RecordSize {
-			break
-		}
+
 		if fromMFTEntry > i/MFT.RecordSize {
 			continue
 		}
 		if len(MFTSelectedEntries) == 0 {
 			buf.Write(data[i : i+MFT.RecordSize])
+		}
+		if buf.Len() == len(MFTSelectedEntries)*MFT.RecordSize {
+			break
 		}
 
 	}
