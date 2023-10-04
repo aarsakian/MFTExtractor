@@ -131,7 +131,8 @@ func (mfttable *MFTTable) CalculateFileSizes() {
 
 		if mfttable.Records[idx].HasAttr("Index Root") {
 			mfttable.SetI30Size(idx, "Index Root")
-		} else if mfttable.Records[idx].HasAttr("Index Allocation") {
+		}
+		if mfttable.Records[idx].HasAttr("Index Allocation") {
 			mfttable.SetI30Size(idx, "Index Allocation")
 		}
 
@@ -148,7 +149,7 @@ func (mfttable *MFTTable) SetI30Size(recordId int, attrType string) {
 		if entry.Fnattr == nil {
 			continue
 		}
-		if entry.Fnattr.ParRef > uint64(len(mfttable.Records)) {
+		if entry.ParRef > uint64(len(mfttable.Records)) {
 			fmt.Printf("Record %d has FileAttribute in its  %s which references non existent $MFT record entry %d\n",
 				recordId, attrType, entry.Fnattr.ParRef)
 			continue
@@ -211,7 +212,7 @@ func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionO
 
 }
 
-func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sectorsPerCluster int, bytesPerSector int, dataRuns bytes.Buffer) {
+func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sectorsPerCluster int, bytesPerSector int, dataRuns *bytes.Buffer) {
 
 	if record.HasResidentDataAttr() {
 		dataRuns.Write(record.GetResidentData())
