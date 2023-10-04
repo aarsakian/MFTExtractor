@@ -124,7 +124,7 @@ func (disk Disk) Worker(wg *sync.WaitGroup, records chan MFT.Record, results cha
 			break
 		}
 
-		_, lsize := record.GetFileSize()
+		lsize := record.GetLogicalFileSize()
 
 		var dataRuns bytes.Buffer
 		dataRuns.Grow(int(lsize))
