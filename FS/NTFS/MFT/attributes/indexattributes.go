@@ -2,12 +2,14 @@ package attributes
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/aarsakian/MFTExtractor/utils"
 )
 
 var IndexFlags = map[uint32]string{0x000001: "Has VCN", 0x000002: "Last"}
 
+type ByMFTEntryID IndexEntries
 type IndexEntries []IndexEntry
 
 type IndexEntry struct {
@@ -50,8 +52,8 @@ type IndexAllocation struct {
 
 func (idxEntry IndexEntry) ShowInfo() {
 	if idxEntry.Fnattr != nil {
-		fmt.Printf("type %s file ref %d idx name %s flags %d \n", idxEntry.Fnattr.GetType(), idxEntry.ParRef,
-			idxEntry.Fnattr.Fname, idxEntry.Flags)
+		fmt.Printf("type %s file ref %d idx name %s flags %d allocated size %d real size %d \n", idxEntry.Fnattr.GetType(), idxEntry.ParRef,
+			idxEntry.Fnattr.Fname, idxEntry.Flags, idxEntry.Fnattr.AllocFsize, idxEntry.Fnattr.RealFsize)
 	}
 
 }
@@ -90,6 +92,18 @@ func (idxRoot IndexRoot) ShowInfo() {
 	for _, idxEntry := range idxRoot.IndexEntries {
 		idxEntry.ShowInfo()
 	}
+}
+
+func (idxRoot IndexRoot) GetIndexEntriesSortedByMFTEntryID() IndexEntries {
+	var idxEntries IndexEntries
+	for _, entry := range idxRoot.IndexEntries {
+		if entry.Fnattr == nil {
+			continue
+		}
+		idxEntries = append(idxEntries, entry)
+	}
+	sort.Sort(ByMFTEntryID(idxEntries))
+	return idxEntries
 }
 
 func (idxAllocation *IndexAllocation) SetHeader(header *AttributeHeader) {
@@ -161,4 +175,24 @@ func (idxAllocation *IndexAllocation) Parse(data []byte) {
 
 	}
 
+}
+
+func (idxAllocation IndexAllocation) GetIndexEntriesSortedByMFTEntryID() IndexEntries {
+	var idxEntries IndexEntries
+	for _, entry := range idxAllocation.IndexEntries {
+		if entry.Fnattr == nil {
+			continue
+		}
+		idxEntries = append(idxEntries, entry)
+	}
+	sort.Sort(ByMFTEntryID(idxEntries))
+	return idxEntries
+}
+
+func (idxEntries ByMFTEntryID) Len() int { return len(idxEntries) }
+func (idxEntries ByMFTEntryID) Less(i, j int) bool {
+	return idxEntries[i].Fnattr.ParRef < idxEntries[j].Fnattr.ParRef
+}
+func (idxEntries ByMFTEntryID) Swap(i, j int) {
+	idxEntries[i], idxEntries[j] = idxEntries[j], idxEntries[i]
 }
