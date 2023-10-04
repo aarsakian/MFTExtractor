@@ -74,8 +74,12 @@ type Record struct {
 	Bitmap             bool
 	LinkedRecordsInfo  []LinkedRecordInfo
 	LinkedRecord       *Record // when
+	I30Size            uint64
 	// fixupArray add the        UpdateSeqArrOffset to find is location
 
+}
+type IndexAttributes interface {
+	GetIndexEntriesSortedByMFTEntryID() MFTAttributes.IndexEntries
 }
 
 func (mfttable *MFTTable) DetermineClusterOffsetLength() {
@@ -119,6 +123,41 @@ func (mfttable *MFTTable) CreateLinkedRecords() {
 
 		}
 	}
+}
+
+func (mfttable *MFTTable) CalculateFileSizes() {
+	for idx := range mfttable.Records {
+		//process only I30 records
+
+		if mfttable.Records[idx].HasAttr("Index Root") {
+			mfttable.SetI30Size(idx, "Index Root")
+		} else if mfttable.Records[idx].HasAttr("Index Allocation") {
+			mfttable.SetI30Size(idx, "Index Allocation")
+		}
+
+	}
+}
+
+func (mfttable *MFTTable) SetI30Size(recordId int, attrType string) {
+
+	attr := mfttable.Records[recordId].FindAttribute(attrType).(IndexAttributes)
+
+	idxEntries := attr.GetIndexEntriesSortedByMFTEntryID()
+
+	for _, entry := range idxEntries {
+		if entry.Fnattr == nil {
+			continue
+		}
+		if entry.Fnattr.ParRef > uint64(len(mfttable.Records)) {
+			fmt.Printf("Record %d has FileAttribute in its  %s which references non existent $MFT record entry %d\n",
+				recordId, attrType, entry.Fnattr.ParRef)
+			continue
+		}
+
+		mfttable.Records[entry.ParRef].I30Size = entry.Fnattr.RealFsize
+
+	}
+
 }
 
 func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionOffsetB int64, clusterSizeB int) {
@@ -589,19 +628,28 @@ func (record *Record) Process(bs []byte) {
 
 func (record Record) ShowFileSize() {
 
-	allocated, real := record.GetFileSize()
+	logical := record.GetLogicalFileSize()
+	physical := record.GetPhysicalSize()
 	fmt.Printf(" logical: %d (KB), physical: %d (KB)",
-		allocated/1024, real/1024)
+		logical/1024, physical/1024)
 
 }
 
-func (record Record) GetFileSize() (logical int64, physical int64) {
+func (record Record) GetPhysicalSize() int64 {
+	fnattr := record.FindAttribute("FileName").(*MFTAttributes.FNAttribute)
+	return int64(fnattr.AllocFsize)
+}
+
+func (record Record) GetLogicalFileSize() int64 {
 	attr := record.FindAttribute("FileName")
 	if attr != nil {
 		fnattr := attr.(*MFTAttributes.FNAttribute)
-		return int64(fnattr.AllocFsize), int64(fnattr.RealFsize)
+		if int64(fnattr.RealFsize) != 0 {
+			return int64(fnattr.RealFsize)
+		}
+
 	}
-	return 0, 0
+	return int64(record.I30Size)
 }
 
 func (record Record) GetFnames() map[string]string {
