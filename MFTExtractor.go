@@ -20,6 +20,7 @@ import (
 	"github.com/aarsakian/MFTExtractor/exporter"
 	"github.com/aarsakian/MFTExtractor/img"
 	"github.com/aarsakian/MFTExtractor/tree"
+	"github.com/aarsakian/MFTExtractor/utils"
 
 	reporter "github.com/aarsakian/MFTExtractor/Reporter"
 )
@@ -108,8 +109,8 @@ func main() {
 		}
 		defer hD.CloseHandler()
 		if location != "" {
-			tasks := make(chan MFT.Record)
-			results := make(chan []byte)
+			tasks := make(chan MFT.Record, len(records))
+			results := make(chan utils.AskedFile, len(records))
 			wg := new(sync.WaitGroup)
 			wg.Add(3)
 			go createTasks(wg, tasks, records)
@@ -179,6 +180,7 @@ func main() {
 
 func createTasks(wg *sync.WaitGroup, tasks chan MFT.Record, records []MFT.Record) {
 	defer wg.Done()
+	defer close(tasks)
 	for _, record := range records {
 		tasks <- record
 	}
