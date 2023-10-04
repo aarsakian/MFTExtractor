@@ -65,6 +65,9 @@ func main() {
 	var physicalDisk disk.Disk
 	var entries []int
 	for _, entry := range strings.Split(*MFTSelectedEntries, ",") {
+		if entry == "" {
+			continue
+		}
 		entryInt, _ := strconv.Atoi(entry)
 		entries = append(entries, entryInt)
 
@@ -109,7 +112,7 @@ func main() {
 			results := make(chan []byte)
 			wg := new(sync.WaitGroup)
 			wg.Add(3)
-			go createTasks(tasks, records)
+			go createTasks(wg, tasks, records)
 
 			go physicalDisk.Worker(wg, tasks, results, *partitionNum)
 
@@ -174,7 +177,8 @@ func main() {
 
 } //ends for
 
-func createTasks(tasks chan MFT.Record, records []MFT.Record) {
+func createTasks(wg *sync.WaitGroup, tasks chan MFT.Record, records []MFT.Record) {
+	defer wg.Done()
 	for _, record := range records {
 		tasks <- record
 	}
