@@ -110,15 +110,17 @@ func (disk Disk) GetFileSystemMetadata(partitionNum int) []MFT.Record {
 	return records
 }
 
-func (disk Disk) Worker(wg *sync.WaitGroup, records chan MFT.Record, results chan<- utils.AskedFile, partitionNum int) {
+func (disk Disk) Worker(wg *sync.WaitGroup, records MFT.Records, results chan<- utils.AskedFile, partitionNum int) {
+	defer wg.Done()
 	partition := disk.Partitions[partitionNum]
-	partitionOffsetB := int64(partition.GetOffset())
+
 	fs := partition.GetFileSystem()
 	sectorsPerCluster := int(fs.GetSectorsPerCluster())
 	bytesPerSector := int(fs.GetBytesPerSector())
-	defer wg.Done()
+	partitionOffsetB := int64(partition.GetOffset()) * int64(bytesPerSector)
 
-	for record := range records {
+	for _, record := range records {
+		fmt.Printf("writing file %s record Id %d\n", record.GetFname(), record.Entry)
 		lsize := record.GetLogicalFileSize()
 
 		var dataRuns bytes.Buffer
@@ -154,4 +156,18 @@ func (disk Disk) ListPartitions() {
 
 	}
 
+}
+
+func (disk Disk) CollectedUnallocated() {
+	for _, partition := range disk.Partitions {
+
+		fs := partition.GetFileSystem()
+		if fs == nil {
+			continue
+		}
+		bytesPerSector := int(fs.GetBytesPerSector())
+		partitionOffsetB := int64(partition.GetOffset()) * int64(bytesPerSector)
+
+		fs.CollectUnallocated(disk.Handler, partitionOffsetB)
+	}
 }
