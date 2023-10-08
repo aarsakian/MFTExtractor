@@ -10,8 +10,6 @@ import (
 	"log"
 	"math"
 	"os"
-	"strconv"
-	"strings"
 	"sync"
 
 	disk "github.com/aarsakian/MFTExtractor/Disk"
@@ -42,7 +40,7 @@ func main() {
 	flag.StringVar(&location, "location", "", "the path to export  files")
 	MFTSelectedEntries := flag.String("entries", "", "select particular MFT entries, use comma as a seperator.")
 	showFileName := flag.String("showfilename", "", "show the name of the filename attribute of each MFT record choices: Any, Win32, Dos")
-	exportFile := flag.String("filename", "", "file to export")
+	exportFiles := flag.String("filenames", "", "files to export use comma for each file")
 	isResident := flag.Bool("resident", false, "check whether entry is resident")
 	fromMFTEntry := flag.Int("fromEntry", -1, "select entry to start parsing")
 	toMFTEntry := flag.Int("toEntry", math.MaxUint32, "select entry to end parsing")
@@ -55,8 +53,10 @@ func main() {
 	physicalDrive := flag.Int("physicaldrive", -1, "select disk drive number for extraction of non resident files")
 	partitionNum := flag.Int("partition", -1, "select partition number")
 	showFSStructure := flag.Bool("structure", false, "reconstrut entries tree")
+	showParent := flag.Bool("parent", false, "show information about parent record")
 	listPartitions := flag.Bool("listpartitions", false, "list partitions")
 	fileExtension := flag.String("extension", "", "search MFT records by extension")
+	collectUnallocated := flag.Bool("unallocated", false, "collect unallocated area of a file system")
 
 	flag.Parse() //ready to parse
 
@@ -64,15 +64,9 @@ func main() {
 	var records MFT.Records
 
 	var physicalDisk disk.Disk
-	var entries []int
-	for _, entry := range strings.Split(*MFTSelectedEntries, ",") {
-		if entry == "" {
-			continue
-		}
-		entryInt, _ := strconv.Atoi(entry)
-		entries = append(entries, entryInt)
 
-	}
+	entries := utils.GetEntriesInt(*MFTSelectedEntries)
+	fileNamesToExport := utils.GetEntries(*exportFiles)
 
 	rp := reporter.Reporter{
 		ShowFileName:   *showFileName,
@@ -83,6 +77,7 @@ func main() {
 		ShowFileSize:   *showFileSize,
 		ShowVCNs:       *showVCNs,
 		ShowIndex:      *showIndex,
+		ShowParent:     *showParent,
 	}
 
 	if *evidencefile != "" || *physicalDrive != -1 {
@@ -104,30 +99,8 @@ func main() {
 		physicalDisk.ProcessPartitions(*partitionNum, entries, *fromMFTEntry, *toMFTEntry)
 		records = physicalDisk.GetFileSystemMetadata(*partitionNum)
 
-		if *exportFile != "" {
-			records = records.FilterByName(*exportFile)
-		}
 		defer hD.CloseHandler()
-		if location != "" {
-			tasks := make(chan MFT.Record, len(records))
-			results := make(chan utils.AskedFile, len(records))
-			wg := new(sync.WaitGroup)
-			wg.Add(3)
-			go createTasks(wg, tasks, records)
 
-			go physicalDisk.Worker(wg, tasks, results, *partitionNum)
-
-			exp := exporter.Exporter{Location: location}
-
-			go exp.ExportData(wg, results)
-			wg.Wait()
-
-		}
-
-	}
-
-	if *fileExtension != "" {
-		records = records.FilterByExtension(*fileExtension)
 	}
 
 	if *inputfile != "Disk MFT" {
@@ -158,6 +131,33 @@ func main() {
 		ntfs.ProcessMFT(data, entries, *fromMFTEntry, *toMFTEntry)
 
 		records = ntfs.MFTTable.Records
+	}
+
+	if *exportFiles != "" {
+		records = records.FilterByNames(fileNamesToExport)
+	}
+
+	if *fileExtension != "" {
+		records = records.FilterByExtension(*fileExtension)
+	}
+	if (*evidencefile != "" || *physicalDrive != -1) && *collectUnallocated {
+		physicalDisk.CollectedUnallocated()
+	}
+
+	if (*evidencefile != "" || *physicalDrive != -1) && location != "" {
+
+		results := make(chan utils.AskedFile, len(records))
+		wg := new(sync.WaitGroup)
+		wg.Add(1)
+
+		exp := exporter.Exporter{Location: location}
+
+		go exp.ExportData(wg, results)
+		physicalDisk.Worker(wg, records, results, *partitionNum)
+		wg.Wait()
+
+		close(results)
+
 	}
 	rp.Show(records)
 
