@@ -5,10 +5,17 @@ MFTExtractor
 
 
 
-Using this tool you can explore $MFT and its attributes. You can selectively extract information about an entry or a range of entries. In addition, you can export the contents of the file if you have mounted the evidence and provide its physical drive order and partition number by using the respective parameters. 
+Using this tool you can explore ~~$MFT~~ NTFS and its file system attributes. You can selectively extract filesystem information of record  or for a range of records. In addition, you can export the contents of files. 
 
-**New**  you can now explore $MFT by providing physicalDrive and partitionNumber
-e.g. -physicalDrive 0 -partitionNumber 1 translates to \\\\.\\PHYSICALDRIVE0 D drive.
+Exporting files can be achieved either by mounting the evidence and providing its physical drive order and partition number or by using the acquired forensic image (Expert Witness Format).
+
+#### Examples #####
+**New**  you can now explore NTFS by providing physical drive number and partition number 
+e.g. *-physicaldrive 0 -partition 1* translates to \\\\.\\PHYSICALDRIVE0 D drive respectively,
+
+
+or by using as input an expert witness format image 
+e.g. *-evidence path_to_evidence -partition 1*.
 
 Usage information  type: MFTExtractor  -h
 
