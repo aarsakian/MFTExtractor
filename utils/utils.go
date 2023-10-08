@@ -31,6 +31,24 @@ type AskedFile struct {
 	Content []byte
 }
 
+func GetEntries(input string) []string {
+
+	return strings.Split(input, ",")
+}
+
+func GetEntriesInt(input string) []int {
+	var entries []int
+	for _, entry := range strings.Split(input, ",") {
+		if entry == "" {
+			continue
+		}
+		entryInt, _ := strconv.Atoi(entry)
+		entries = append(entries, entryInt)
+
+	}
+	return entries
+}
+
 func NewLargeInteger(val int64) LargeInteger {
 
 	return LargeInteger{QuadPart: val, HighPart: int32(val >> 32),
