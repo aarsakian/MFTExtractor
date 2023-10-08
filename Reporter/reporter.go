@@ -15,6 +15,7 @@ type Reporter struct {
 	ShowFileSize   bool
 	ShowVCNs       bool
 	ShowIndex      bool
+	ShowParent     bool
 }
 
 func (rp Reporter) Show(records []MFT.Record) {
@@ -62,6 +63,10 @@ func (rp Reporter) Show(records []MFT.Record) {
 
 			record.ShowIndex()
 			askedToShow = true
+		}
+
+		if rp.ShowParent {
+			record.ShowParentRecordInfo()
 		}
 
 		if askedToShow {
