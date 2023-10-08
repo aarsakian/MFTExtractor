@@ -15,7 +15,7 @@ type Exporter struct {
 
 func (exp Exporter) ExportData(wg *sync.WaitGroup, results chan utils.AskedFile) {
 	defer wg.Done()
-	defer close(results)
+
 	for result := range results {
 
 		exp.CreateFile(result.Fname, result.Content)
