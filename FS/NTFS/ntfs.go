@@ -52,10 +52,20 @@ func (ntfs *NTFS) Process(hD img.DiskReader, partitionOffsetB int64, MFTSelected
 	MFTAreaBuf := ntfs.CollectMFTArea(hD, partitionOffsetB)
 	ntfs.ProcessMFT(MFTAreaBuf, MFTSelectedEntries, fromMFTEntry, toMFTEntry)
 	ntfs.MFTTable.ProcessNonResidentRecords(hD, partitionOffsetB, int(ntfs.SectorsPerCluster)*int(ntfs.BytesPerSector))
-	if len(MFTSelectedEntries) == 0 { // create link record only when user has parse all records
+	if len(MFTSelectedEntries) == 0 { // additional processing only when user has not selected entries
 		ntfs.MFTTable.CreateLinkedRecords()
 		ntfs.MFTTable.CalculateFileSizes()
+		ntfs.MFTTable.FindParentRecords()
+
 	}
+
+}
+
+func (ntfs NTFS) CollectUnallocated(hD img.DiskReader, partitionOffsetB int64) []byte {
+	record := ntfs.MFTTable.Records[0]
+	bitmap := record.FindAttribute("BitMap").(*MFTAttributes.BitMap)
+	bitmap.GetUnallocatedClusters()
+	return []byte{}
 
 }
 
