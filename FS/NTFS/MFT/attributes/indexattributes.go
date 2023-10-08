@@ -42,7 +42,7 @@ type NodeHeader struct {
 type IndexAllocation struct {
 	Signature        string //0-4
 	FixupArrayOffset int16  //4-6
-	NumEntries       int16  //6-8
+	NumFixupEntries  int16  //6-8
 	LSN              int64  //8-16
 	VCN              int64  //16-24 where the record fits in the tree
 	Nodeheader       *NodeHeader
@@ -123,7 +123,7 @@ func (idxAllocation IndexAllocation) IsNoNResident() bool {
 }
 
 func (idxAllocation IndexAllocation) ShowInfo() {
-	fmt.Printf("type %s nof entries %d\n", idxAllocation.FindType(), idxAllocation.NumEntries)
+	fmt.Printf("type %s nof entries %d\n", idxAllocation.FindType(), idxAllocation.NumFixupEntries)
 	for _, idxEntry := range idxAllocation.IndexEntries {
 		idxEntry.ShowInfo()
 	}
