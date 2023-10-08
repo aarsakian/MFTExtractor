@@ -7,6 +7,8 @@ import (
 
 	MFTAttributes "github.com/aarsakian/MFTExtractor/FS/NTFS/MFT/attributes"
 	"github.com/aarsakian/MFTExtractor/img"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 
 	"github.com/aarsakian/MFTExtractor/utils"
 )
@@ -38,6 +40,11 @@ type MFTTable struct {
 
 type Records []Record
 
+type FixUp struct {
+	Signature      []byte
+	OriginalValues [][]byte
+}
+
 type Attribute interface {
 	FindType() string
 	SetHeader(header *MFTAttributes.AttributeHeader)
@@ -55,26 +62,27 @@ type LinkedRecordInfo struct {
 
 // MFT Record
 type Record struct {
-	Signature          string //0-3
-	UpdateSeqArrOffset uint16 //4-5      offset values are relative to the start of the entry.
-	UpdateSeqArrSize   uint16 //6-7
-	Lsn                uint64 //8-15       logical File Sequence Number
-	Seq                uint16 //16-17   is incremented when the entry is either allocated or unallocated, determined by the OS.
-	Linkcount          uint16 //18-19        how many directories have entries for this MFTentry
-	AttrOff            uint16 //20-21       //first attr location
-	Flags              uint16 //22-23  //tells whether entry is used or not
-	Size               uint32 //24-27
-	AllocSize          uint32 //28-31
-	BaseRef            uint64 //32-39
-	NextAttrID         uint16 //40-41 e.g. if it is 6 then there are attributes with 1 to 5
-	F1                 uint16 //42-43
-	Entry              uint32 //44-48                  ??
-	Fncnt              bool
-	Attributes         []Attribute
-	Bitmap             bool
-	LinkedRecordsInfo  []LinkedRecordInfo
-	LinkedRecord       *Record // when
-	I30Size            uint64
+	Signature            string //0-3
+	UpdateFixUpArrOffset uint16 //4-5      offset values are relative to the start of the entry.
+	UpdateFixUpArrSize   uint16 //6-7
+	Lsn                  uint64 //8-15       logical File Sequence Number
+	Seq                  uint16 //16-17   is incremented when the entry is either allocated or unallocated, determined by the OS.
+	Linkcount            uint16 //18-19        how many directories have entries for this MFTentry
+	AttrOff              uint16 //20-21       //first attr location
+	Flags                uint16 //22-23  //tells whether entry is used or not
+	Size                 uint32 //24-27
+	AllocSize            uint32 //28-31
+	BaseRef              uint64 //32-39
+	NextAttrID           uint16 //40-41 e.g. if it is 6 then there are attributes with 1 to 5
+	F1                   uint16 //42-43
+	Entry                uint32 //44-48                  ??
+	FixUp                *FixUp
+	Attributes           []Attribute
+	Bitmap               bool
+	LinkedRecordsInfo    []LinkedRecordInfo
+	LinkedRecord         *Record // when attribute is too long to fit in one MFT record
+	I30Size              uint64
+	Parent               *Record
 	// fixupArray add the        UpdateSeqArrOffset to find is location
 
 }
@@ -122,6 +130,19 @@ func (mfttable *MFTTable) CreateLinkedRecords() {
 			previdx = int(entryId)
 
 		}
+	}
+}
+
+func (mfttable *MFTTable) FindParentRecords() {
+	for idx := range mfttable.Records {
+		attr := mfttable.Records[idx].FindAttribute("FileName")
+		if attr == nil {
+			//	fmt.Printf("No FileName attribute found at record %d\n", idx)
+			continue
+
+		}
+		fnattr := attr.(*MFTAttributes.FNAttribute)
+		mfttable.Records[idx].Parent = &mfttable.Records[fnattr.ParRef]
 	}
 }
 
@@ -213,7 +234,7 @@ func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionO
 }
 
 func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sectorsPerCluster int, bytesPerSector int, dataRuns *bytes.Buffer) {
-
+	p := message.NewPrinter(language.Greek)
 	if record.HasResidentDataAttr() {
 		dataRuns.Write(record.GetResidentData())
 	} else {
@@ -231,7 +252,8 @@ func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sector
 				fmt.Printf("skipped offset %d exceeds disk size! exiting", offset)
 				break
 			}
-			//	fmt.Printf("extracting data from %d len %d \n", offset, runlist.Length)
+			res := p.Sprintf("%d", (offset-partitionOffset)/int64(sectorsPerCluster*bytesPerSector))
+			fmt.Printf("offset %s cl len %d cl \n", res, runlist.Length)
 
 			data := hD.ReadFile(offset, int(runlist.Length)*sectorsPerCluster*bytesPerSector)
 
@@ -315,6 +337,15 @@ func (record Record) ShowVCNs() {
 		fmt.Printf(" startVCN %d endVCN %d", startVCN, lastVCN)
 	}
 
+}
+
+func (record Record) ShowParentRecordInfo() {
+	fmt.Printf("\nRecord Info ")
+	record.showInfo()
+	record.ShowFileName("win32")
+	fmt.Printf(" has parent ")
+	record.Parent.showInfo()
+	record.Parent.ShowFileName("win32")
 }
 
 func (record Record) ShowIndex() {
@@ -441,6 +472,16 @@ func (record Record) HasFilename(filename string) bool {
 
 }
 
+func (record Record) HasFilenames(filenames []string) bool {
+	for _, filename := range filenames {
+		if record.HasFilename(filename) {
+			return true
+		}
+	}
+	return false
+
+}
+
 func (record Record) HasAttr(attrName string) bool {
 	return record.FindAttribute(attrName) != nil
 }
@@ -478,9 +519,23 @@ func (record Record) ShowFNAMFTAccessTime() {
 	fmt.Printf("%s ", fnattr.Atime.ConvertToIsoTime())
 }
 
+func (record *Record) ProcessFixUpArrays(data []byte) {
+	fixuparray := data[record.UpdateFixUpArrOffset : record.UpdateFixUpArrOffset+2*record.UpdateFixUpArrSize]
+	var fixupvals [][]byte
+	val := 2
+	for val < len(fixuparray) {
+
+		fixupvals = append(fixupvals, fixuparray[val:val+2])
+		val += 2
+	}
+	record.FixUp = &FixUp{Signature: fixuparray[:2], OriginalValues: fixupvals}
+
+}
+
 func (record *Record) Process(bs []byte) {
 
 	utils.Unmarshal(bs, record)
+	record.ProcessFixUpArrays(bs)
 
 	if record.Signature == "BAAD" { //skip bad entry
 		return
@@ -489,6 +544,13 @@ func (record *Record) Process(bs []byte) {
 	ReadPtr := record.AttrOff //offset to first attribute
 	var linkedRecordsInfo []LinkedRecordInfo
 	var attributes []Attribute
+
+	//fixup check
+	if record.FixUp.Signature[0] == bs[510] && record.FixUp.Signature[1] == bs[511] {
+		bs[510] = record.FixUp.OriginalValues[0][0]
+		bs[511] = record.FixUp.OriginalValues[0][1]
+	}
+
 	for ReadPtr < 1024 {
 
 		if utils.Hexify(bs[ReadPtr:ReadPtr+4]) == "ffffffff" { //End of attributes
@@ -510,32 +572,29 @@ func (record *Record) Process(bs []byte) {
 			atrRecordResident.Parse(bs[ReadPtr+16:])
 			atrRecordResident.Name = utils.DecodeUTF16(bs[ReadPtr+attrHeader.NameOff : ReadPtr+attrHeader.NameOff+2*uint16(attrHeader.Nlen)])
 			attrHeader.ATRrecordResident = atrRecordResident
+			attrStartOffset := ReadPtr + atrRecordResident.OffsetContent
+			attrEndOffset := uint32(attrStartOffset) + atrRecordResident.ContentSize
 
 			if attrHeader.IsFileName() { // File name
 				attr = &MFTAttributes.FNAttribute{}
-				attr.Parse(bs[ReadPtr+atrRecordResident.OffsetContent:])
+				attr.Parse(bs[attrStartOffset:attrEndOffset])
 
 			} else if attrHeader.IsReparse() {
 				attr = &MFTAttributes.Reparse{}
-				attr.Parse(bs[ReadPtr+atrRecordResident.OffsetContent:])
+				attr.Parse(bs[attrStartOffset:attrEndOffset])
 
 			} else if attrHeader.IsData() {
 				attr = &MFTAttributes.DATA{}
-				attr.Parse(bs[ReadPtr+
-					atrRecordResident.OffsetContent : ReadPtr +
-					+uint16(attrHeader.AttrLen)])
+				attr.Parse(bs[attrStartOffset:attrEndOffset])
 
 			} else if attrHeader.IsObject() {
 				attr = &MFTAttributes.ObjectID{}
-				attr.Parse(bs[ReadPtr+atrRecordResident.OffsetContent : ReadPtr+
-					atrRecordResident.OffsetContent+64])
-
+				attr.Parse(bs[attrStartOffset:attrEndOffset])
 			} else if attrHeader.IsAttrList() { //Attribute List
 
 				attr = &MFTAttributes.AttributeListEntries{}
 
-				attr.Parse(bs[ReadPtr+atrRecordResident.OffsetContent : ReadPtr+
-					atrRecordResident.OffsetContent+uint16(attrHeader.AttrLen)])
+				attr.Parse(bs[attrStartOffset:attrEndOffset])
 				attrListEntries := attr.(*MFTAttributes.AttributeListEntries) //dereference
 
 				for _, entry := range attrListEntries.Entries {
@@ -549,27 +608,24 @@ func (record *Record) Process(bs []byte) {
 			} else if attrHeader.IsBitmap() { //BITMAP
 				record.Bitmap = true
 				attr = &MFTAttributes.BitMap{}
-				attr.Parse(bs[ReadPtr+atrRecordResident.OffsetContent:])
+				attr.Parse(bs[attrStartOffset:attrEndOffset])
 
 			} else if attrHeader.IsVolumeName() { //Volume Name
 				attr = &MFTAttributes.VolumeName{}
-				attr.Parse(bs[ReadPtr+
-					atrRecordResident.OffsetContent : uint32(ReadPtr)+
-					uint32(atrRecordResident.OffsetContent)+atrRecordResident.ContentSize])
+				attr.Parse(bs[attrStartOffset:attrEndOffset])
 
 			} else if attrHeader.IsVolumeInfo() { //Volume Info
 				attr = &MFTAttributes.VolumeInfo{}
-				attr.Parse(bs[ReadPtr+atrRecordResident.OffsetContent : ReadPtr+
-					atrRecordResident.OffsetContent+12])
+				attr.Parse(bs[attrStartOffset:attrEndOffset])
 
 			} else if attrHeader.IsIndexRoot() { //Index Root
 				attr = &MFTAttributes.IndexRoot{}
-				attr.Parse(bs[ReadPtr+atrRecordResident.OffsetContent:])
+				attr.Parse(bs[attrStartOffset:attrEndOffset])
 
 			} else if attrHeader.IsStdInfo() { //Standard Information
 
 				attr = &MFTAttributes.SIAttribute{}
-				attr.Parse(bs[ReadPtr+atrRecordResident.OffsetContent : ReadPtr+atrRecordResident.OffsetContent+72])
+				attr.Parse(bs[attrStartOffset:attrEndOffset])
 
 			} else {
 				fmt.Printf("uknown attribute %s \n", attrHeader.GetType())
@@ -701,22 +757,17 @@ func (records Records) FilterByExtension(extension string) []Record {
 
 }
 
-func addLinkedRecords(records []Record) []Record {
-	for _, record := range records {
-		linkedRecord := record.LinkedRecord
-		for linkedRecord != nil {
-			records = append(records, *linkedRecord)
-			linkedRecord = linkedRecord.LinkedRecord
-		}
+func (records Records) FilterByNames(filenames []string) []Record {
 
-	}
-	return records
+	return utils.Filter(records, func(record Record) bool {
+		return record.HasFilenames(filenames)
+	})
+
 }
 
 func (records Records) FilterByName(filename string) []Record {
-	filteredRecords := utils.Filter(records, func(record Record) bool {
+	return utils.Filter(records, func(record Record) bool {
 		return record.HasFilename(filename)
 	})
-	return addLinkedRecords(filteredRecords)
 
 }
