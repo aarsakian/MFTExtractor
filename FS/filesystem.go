@@ -10,4 +10,5 @@ type FileSystem interface {
 	GetSectorsPerCluster() int
 	GetBytesPerSector() uint64
 	GetMetadata() []MFT.Record
+	CollectUnallocated(img.DiskReader, int64) []byte
 }
