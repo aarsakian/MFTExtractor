@@ -444,6 +444,7 @@ func (record *Record) Process(bs []byte) {
 
 	utils.Unmarshal(bs, record)
 	record.ProcessFixUpArrays(bs)
+	record.I30Size = 0 //default value
 
 	if record.Signature == "BAAD" { //skip bad entry
 		return
