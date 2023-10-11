@@ -144,7 +144,7 @@ func main() {
 		physicalDisk.CollectedUnallocated()
 	}
 
-	if (*evidencefile != "" || *physicalDrive != -1) && location != "" {
+	if (*evidencefile != "" || *physicalDrive != -1) && location != "" && len(records) != 0 {
 
 		results := make(chan utils.AskedFile, len(records))
 		wg := new(sync.WaitGroup)
