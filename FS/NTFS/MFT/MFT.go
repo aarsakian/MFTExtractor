@@ -28,7 +28,7 @@ var SIFlags = map[uint32]string{
 }
 
 var MFTflags = map[uint16]string{
-	0: "File Unallocted", 1: "File Allocated", 2: "Folder Unalloc", 3: "Folder Allocated",
+	0: "File Unallocated", 1: "File Allocated", 2: "Folder Unallocated", 3: "Folder Allocated",
 }
 
 type Records []Record
@@ -219,6 +219,10 @@ func (record Record) HasNonResidentAttr() bool {
 
 func (record Record) getType() string {
 	return MFTflags[record.Flags]
+}
+
+func (record Record) IsDeleted() bool {
+	return record.getType() == "File Unallocated" || record.getType() == "Folder Unallocated"
 }
 
 func (record Record) GetRunList(attrType string) MFTAttributes.RunList {
