@@ -148,15 +148,13 @@ func main() {
 
 		results := make(chan utils.AskedFile, len(records))
 		wg := new(sync.WaitGroup)
-		wg.Add(1)
+		wg.Add(2)
 
 		exp := exporter.Exporter{Location: location}
 
-		go exp.ExportData(wg, results)
-		physicalDisk.Worker(wg, records, results, *partitionNum)
+		go exp.ExportData(wg, results)                              //consummer
+		go physicalDisk.Worker(wg, records, results, *partitionNum) //producer
 		wg.Wait()
-
-		close(results)
 
 	}
 	rp.Show(records)
