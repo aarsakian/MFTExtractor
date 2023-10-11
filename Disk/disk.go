@@ -137,6 +137,7 @@ func (disk Disk) Worker(wg *sync.WaitGroup, records MFT.Records, results chan<- 
 
 		results <- utils.AskedFile{Fname: record.GetFname(), Content: dataRuns.Bytes()}
 	}
+	close(results)
 
 }
 
