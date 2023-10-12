@@ -62,7 +62,7 @@ func main() {
 
 	var hD img.DiskReader
 	var records MFT.Records
-
+	var recordsPerPartition map[int]MFT.Records
 	var physicalDisk disk.Disk
 
 	entries := utils.GetEntriesInt(*MFTSelectedEntries)
@@ -97,9 +97,37 @@ func main() {
 			physicalDisk.ListPartitions()
 		}
 		physicalDisk.ProcessPartitions(*partitionNum, entries, *fromMFTEntry, *toMFTEntry)
-		records = physicalDisk.GetFileSystemMetadata(*partitionNum)
+		recordsPerPartition = physicalDisk.GetFileSystemMetadata(*partitionNum)
 
 		defer hD.CloseHandler()
+
+		if *collectUnallocated {
+			physicalDisk.CollectedUnallocated()
+		}
+		for _, records := range recordsPerPartition {
+			if *exportFiles != "" {
+				records = records.FilterByNames(fileNamesToExport)
+			}
+
+			if *fileExtension != "" {
+				records = records.FilterByExtension(*fileExtension)
+			}
+
+			if location != "" && len(records) != 0 {
+
+				results := make(chan utils.AskedFile, len(records))
+				wg := new(sync.WaitGroup)
+				wg.Add(2)
+
+				exp := exporter.Exporter{Location: location}
+
+				go exp.ExportData(wg, results)                              //consumer
+				go physicalDisk.Worker(wg, records, results, *partitionNum) //producer
+				wg.Wait()
+
+			}
+			rp.Show(records)
+		}
 
 	}
 
@@ -131,47 +159,29 @@ func main() {
 		ntfs.ProcessMFT(data, entries, *fromMFTEntry, *toMFTEntry)
 
 		records = ntfs.MFTTable.Records
-	}
 
-	if *exportFiles != "" {
-		records = records.FilterByNames(fileNamesToExport)
-	}
-
-	if *fileExtension != "" {
-		records = records.FilterByExtension(*fileExtension)
-	}
-	if (*evidencefile != "" || *physicalDrive != -1) && *collectUnallocated {
-		physicalDisk.CollectedUnallocated()
-	}
-
-	if (*evidencefile != "" || *physicalDrive != -1) && location != "" && len(records) != 0 {
-
-		results := make(chan utils.AskedFile, len(records))
-		wg := new(sync.WaitGroup)
-		wg.Add(2)
-
-		exp := exporter.Exporter{Location: location}
-
-		go exp.ExportData(wg, results)                              //consummer
-		go physicalDisk.Worker(wg, records, results, *partitionNum) //producer
-		wg.Wait()
-
-	}
-	rp.Show(records)
-
-	t := tree.Tree{}
-
-	fmt.Printf("Building tree from MFT records \n")
-
-	if *showFSStructure {
-		for idx := range records {
-			if idx < 5 {
-				continue
-			}
-			t.BuildTree(&records[idx])
+		if *exportFiles != "" {
+			records = records.FilterByNames(fileNamesToExport)
 		}
-		t.Show()
 
+		if *fileExtension != "" {
+			records = records.FilterByExtension(*fileExtension)
+		}
+		rp.Show(records)
+		t := tree.Tree{}
+
+		fmt.Printf("Building tree from MFT records \n")
+
+		if *showFSStructure {
+			for idx := range records {
+				if idx < 5 {
+					continue
+				}
+				t.BuildTree(&records[idx])
+			}
+			t.Show()
+
+		}
 	}
 
 } //ends for
