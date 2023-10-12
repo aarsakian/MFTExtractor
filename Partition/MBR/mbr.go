@@ -39,7 +39,11 @@ func (partition *Partition) LocateFileSystem(hD img.DiskReader) {
 	if partition.Type == 0x07 || partition.Type == 0x17 {
 		var ntfs *ntfsLib.NTFS = new(ntfsLib.NTFS)
 		ntfs.Parse(data)
-		partition.FS = ntfs
+		if ntfs.HasValidSignature() {
+			partition.FS = ntfs
+		} else {
+			partition.FS = nil
+		}
 	}
 
 }
