@@ -99,8 +99,9 @@ func (disk *Disk) ProcessPartitions(partitionNum int, MFTSelectedEntries []int, 
 
 }
 
-func (disk Disk) GetFileSystemMetadata(partitionNum int) []MFT.Record {
-	var records []MFT.Record
+func (disk Disk) GetFileSystemMetadata(partitionNum int) map[int]MFT.Records {
+
+	recordsPerPartition := map[int]MFT.Records{}
 	for idx, partition := range disk.Partitions {
 		if partitionNum != -1 && idx != partitionNum {
 			continue
@@ -109,9 +110,10 @@ func (disk Disk) GetFileSystemMetadata(partitionNum int) []MFT.Record {
 		if fs == nil {
 			continue
 		}
-		records = append(records, fs.GetMetadata()...)
+		recordsPerPartition[idx] = fs.GetMetadata()
+
 	}
-	return records
+	return recordsPerPartition
 }
 
 func (disk Disk) Worker(wg *sync.WaitGroup, records MFT.Records, results chan<- utils.AskedFile, partitionNum int) {
