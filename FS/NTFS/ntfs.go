@@ -23,6 +23,9 @@ type NTFS struct {
 	MFTTable          *MFT.MFTTable
 }
 
+func (ntfs NTFS) HasValidSignature() bool {
+	return ntfs.Signature == "NTFS"
+}
 func (ntfs NTFS) GetSectorsPerCluster() int {
 	return int(ntfs.SectorsPerCluster)
 }
