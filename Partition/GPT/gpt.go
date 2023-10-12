@@ -93,7 +93,12 @@ func (partition *Partition) LocateFileSystem(hD img.DiskReader) {
 	data := hD.ReadFile(int64(partitionOffetB), 512)
 	var ntfs *ntfsLib.NTFS = new(ntfsLib.NTFS)
 	ntfs.Parse(data)
-	partition.FS = ntfs
+	if ntfs.HasValidSignature() {
+		partition.FS = ntfs
+	} else {
+		partition.FS = nil
+	}
+
 }
 
 func (partiton Partition) GetFileSystem() FS.FileSystem {
