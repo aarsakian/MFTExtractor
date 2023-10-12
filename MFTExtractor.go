@@ -47,7 +47,7 @@ func main() {
 	showRunList := flag.Bool("runlist", false, "show runlist of MFT record attributes")
 	showFileSize := flag.Bool("filesize", false, "show file size of a record holding a file")
 	showVCNs := flag.Bool("vcns", false, "show the vncs of non resident attributes")
-	showAttributes := flag.String("attributes", "", "show attributes")
+	showAttributes := flag.String("attributes", "", "show attributes (write any for all attributes)")
 	showTimestamps := flag.Bool("timestamps", false, "show all timestamps")
 	showIndex := flag.Bool("index", false, "show index structures")
 	physicalDrive := flag.Int("physicaldrive", -1, "select disk drive number for extraction of non resident files")
@@ -175,12 +175,3 @@ func main() {
 	}
 
 } //ends for
-
-func createTasks(wg *sync.WaitGroup, tasks chan MFT.Record, records []MFT.Record) {
-	defer wg.Done()
-	defer close(tasks)
-	for _, record := range records {
-		tasks <- record
-	}
-
-}
