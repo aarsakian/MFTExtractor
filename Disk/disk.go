@@ -89,6 +89,7 @@ func (disk *Disk) ProcessPartitions(partitionNum int, MFTSelectedEntries []int, 
 		disk.Partitions[idx].LocateFileSystem(disk.Handler)
 		fs := disk.Partitions[idx].GetFileSystem()
 		if fs == nil {
+			fmt.Printf("No File System found at partition %d \n", idx)
 			continue //fs not found
 		}
 		partitionOffsetB := int64(disk.Partitions[idx].GetOffset() * fs.GetBytesPerSector())
@@ -101,10 +102,13 @@ func (disk *Disk) ProcessPartitions(partitionNum int, MFTSelectedEntries []int, 
 func (disk Disk) GetFileSystemMetadata(partitionNum int) []MFT.Record {
 	var records []MFT.Record
 	for idx, partition := range disk.Partitions {
-		if idx != partitionNum {
+		if partitionNum != -1 && idx != partitionNum {
 			continue
 		}
 		fs := partition.GetFileSystem()
+		if fs == nil {
+			continue
+		}
 		records = append(records, fs.GetMetadata()...)
 	}
 	return records
