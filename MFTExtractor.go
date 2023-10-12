@@ -104,7 +104,7 @@ func main() {
 		if *collectUnallocated {
 			physicalDisk.CollectedUnallocated()
 		}
-		for _, records := range recordsPerPartition {
+		for partitionId, records := range recordsPerPartition {
 			if *exportFiles != "" {
 				records = records.FilterByNames(fileNamesToExport)
 			}
@@ -121,8 +121,8 @@ func main() {
 
 				exp := exporter.Exporter{Location: location}
 
-				go exp.ExportData(wg, results)                              //consumer
-				go physicalDisk.Worker(wg, records, results, *partitionNum) //producer
+				go exp.ExportData(wg, results)                            //consumer
+				go physicalDisk.Worker(wg, records, results, partitionId) //producer
 				wg.Wait()
 
 			}
