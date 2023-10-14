@@ -121,8 +121,9 @@ func main() {
 
 				exp := exporter.Exporter{Location: location}
 
-				go exp.ExportData(wg, results)                            //consumer
 				go physicalDisk.Worker(wg, records, results, partitionId) //producer
+				go exp.ExportData(wg, results)                            //consumer
+
 				wg.Wait()
 
 			}
