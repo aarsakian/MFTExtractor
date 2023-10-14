@@ -126,6 +126,10 @@ func (disk Disk) Worker(wg *sync.WaitGroup, records MFT.Records, results chan<- 
 	partitionOffsetB := int64(partition.GetOffset()) * int64(bytesPerSector)
 
 	for _, record := range records {
+		if record.IsFolder() {
+			fmt.Printf("Record %s Id %d is folder! No data to export\n", record.GetFname(), record.Entry)
+			continue
+		}
 		fmt.Printf("writing file %s record Id %d\n", record.GetFname(), record.Entry)
 		lsize := record.GetLogicalFileSize()
 
