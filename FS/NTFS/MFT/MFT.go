@@ -90,6 +90,11 @@ func (mfttable *MFTTable) DetermineClusterOffsetLength() {
 
 }
 
+func (record Record) IsFolder() bool {
+	recordType := record.getType()
+	return recordType == "Folder Unallocated" || recordType == "Folder Allocated"
+}
+
 func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionOffsetB int64, clusterSizeB int) {
 
 	for _, attribute := range record.FindNonResidentAttributes() {
@@ -370,7 +375,8 @@ func (record Record) ShowRunList() {
 func (record Record) HasFilenameExtension(extension string) bool {
 	if record.HasAttr("FileName") {
 		fnattr := record.FindAttribute("FileName").(*MFTAttributes.FNAttribute)
-		if strings.HasSuffix(fnattr.Fname, extension) {
+		if strings.HasSuffix(fnattr.Fname, strings.ToUpper("."+extension)) ||
+			strings.HasSuffix(fnattr.Fname, strings.ToLower("."+extension)) {
 			return true
 		}
 	}
