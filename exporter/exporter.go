@@ -11,6 +11,7 @@ import (
 
 type Exporter struct {
 	Location string
+	Hash     string
 }
 
 func (exp Exporter) ExportData(wg *sync.WaitGroup, results chan utils.AskedFile) {
@@ -19,6 +20,20 @@ func (exp Exporter) ExportData(wg *sync.WaitGroup, results chan utils.AskedFile)
 	for result := range results {
 
 		exp.CreateFile(result.Fname, result.Content)
+	}
+
+}
+
+func (exp Exporter) HashFile(wg *sync.WaitGroup, results chan utils.AskedFile) {
+	defer wg.Done()
+
+	for result := range results {
+		if exp.Hash == "MD5" {
+			fmt.Printf("File %s has %s %s \n", result.Fname, exp.Hash, utils.GetMD5(result.Content))
+		} else if exp.Hash == "SHA1" {
+			fmt.Printf("File %s has %s %s \n", result.Fname, exp.Hash, utils.GetSHA1(result.Content))
+		}
+
 	}
 
 }
