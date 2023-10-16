@@ -57,6 +57,7 @@ func main() {
 	listPartitions := flag.Bool("listpartitions", false, "list partitions")
 	fileExtension := flag.String("extension", "", "search MFT records by extension")
 	collectUnallocated := flag.Bool("unallocated", false, "collect unallocated area of a file system")
+	hashFiles := flag.String("hash", "", "select hash md5 or sha1 for exported files.")
 
 	flag.Parse() //ready to parse
 
@@ -104,6 +105,7 @@ func main() {
 		if *collectUnallocated {
 			physicalDisk.CollectedUnallocated()
 		}
+		exp := exporter.Exporter{Location: location, Hash: *hashFiles}
 		for partitionId, records := range recordsPerPartition {
 			if *exportFiles != "" {
 				records = records.FilterByNames(fileNamesToExport)
@@ -117,12 +119,11 @@ func main() {
 
 				results := make(chan utils.AskedFile, len(records))
 				wg := new(sync.WaitGroup)
-				wg.Add(2)
-
-				exp := exporter.Exporter{Location: location}
+				wg.Add(3)
 
 				go physicalDisk.Worker(wg, records, results, partitionId) //producer
 				go exp.ExportData(wg, results)                            //consumer
+				go exp.HashFile(wg, results)
 
 				wg.Wait()
 
