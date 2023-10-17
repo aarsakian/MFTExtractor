@@ -18,6 +18,8 @@ github.com/aarsakian/EWF_Reader v0.0.0-20230921172600-708931c9cbbf h1:ZVi+fh3RWj
 github.com/aarsakian/EWF_Reader v0.0.0-20230921172600-708931c9cbbf/go.mod h1:d6erJYcE1G79EhLFO1lTgteghLoEYyn3B4MEsTR2Hpo=
 github.com/aarsakian/EWF_Reader v0.0.0-20231017063831-ea808957df06 h1:JWsR5p+9B51/RuoxMW9hRnG5ssgf6fMtDWLUly/qOxI=
 github.com/aarsakian/EWF_Reader v0.0.0-20231017063831-ea808957df06/go.mod h1:d6erJYcE1G79EhLFO1lTgteghLoEYyn3B4MEsTR2Hpo=
+github.com/aarsakian/EWF_Reader v0.0.0-20231017124704-760c6ebc397d h1:1jPofBR1nQQ/LijsoJzkElxV4BWeoyDKM6W7LyVGUTk=
+github.com/aarsakian/EWF_Reader v0.0.0-20231017124704-760c6ebc397d/go.mod h1:d6erJYcE1G79EhLFO1lTgteghLoEYyn3B4MEsTR2Hpo=
 golang.org/x/sys v0.0.0-20220319134239-a9b59b0215f8 h1:OH54vjqzRWmbJ62fjuhxy7AxFFgoHN0/DPc/UrL8cAs=
 golang.org/x/sys v0.0.0-20220319134239-a9b59b0215f8/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.12.0 h1:CM0HF96J0hcLAwsHPJZjfdNzs0gftsLfgKt57wWHJ0o=
