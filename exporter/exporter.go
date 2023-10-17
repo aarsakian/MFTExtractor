@@ -14,13 +14,15 @@ type Exporter struct {
 	Hash     string
 }
 
-func (exp Exporter) ExportData(wg *sync.WaitGroup, results chan utils.AskedFile) {
+func (exp Exporter) ExportData(wg *sync.WaitGroup, results <-chan utils.AskedFile, copyresults chan<- utils.AskedFile) {
 	defer wg.Done()
 
 	for result := range results {
 
 		exp.CreateFile(result.Fname, result.Content)
+		copyresults <- result
 	}
+	close(copyresults)
 
 }
 

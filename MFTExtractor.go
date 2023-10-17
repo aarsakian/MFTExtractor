@@ -107,6 +107,7 @@ func main() {
 		}
 		exp := exporter.Exporter{Location: location, Hash: *hashFiles}
 		for partitionId, records := range recordsPerPartition {
+			fmt.Printf("About to export %d files\n", len(records))
 			if *exportFiles != "" {
 				records = records.FilterByNames(fileNamesToExport)
 			}
@@ -118,13 +119,13 @@ func main() {
 			if location != "" && len(records) != 0 {
 
 				results := make(chan utils.AskedFile, len(records))
+				copyresults := make(chan utils.AskedFile, len(records))
 				wg := new(sync.WaitGroup)
 				wg.Add(3)
 
 				go physicalDisk.Worker(wg, records, results, partitionId) //producer
-				go exp.ExportData(wg, results)                            //consumer
-				go exp.HashFile(wg, results)
-
+				go exp.ExportData(wg, results, copyresults)               //pipeline copies channel
+				go exp.HashFile(wg, copyresults)
 				wg.Wait()
 
 			}
