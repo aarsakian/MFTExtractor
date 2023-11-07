@@ -16,7 +16,10 @@ func GetHandler(pathToDisk string, mode string) DiskReader {
 
 	case "linux":
 		//	dr = UnixReader{pathToDisk: pathToDisk}
-	case "image":
+	case "ewf":
+		dr = &ImageReader{PathToEvidenceFiles: pathToDisk}
+
+	case "vmdk":
 		dr = &ImageReader{PathToEvidenceFiles: pathToDisk}
 	}
 	dr.CreateHandler()
