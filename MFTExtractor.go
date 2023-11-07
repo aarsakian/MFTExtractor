@@ -36,7 +36,8 @@ func main() {
 	//	save2DB := flag.Bool("db", false, "bool if set an sqlite file will be created, each table will corresponed to an MFT attribute")
 	var location string
 	inputfile := flag.String("MFT", "Disk MFT", "absolute path to the MFT file")
-	evidencefile := flag.String("evidence", "", "path to image file")
+	evidencefile := flag.String("evidence", "", "path to image file (EWF formats are supported)")
+	vmdkfile := flag.String("vmdk", "", "path to vmdk file (Sparse formats are supported)")
 	flag.StringVar(&location, "location", "", "the path to export  files")
 	MFTSelectedEntries := flag.String("entries", "", "select particular MFT entries, use comma as a seperator.")
 	showFileName := flag.String("showfilename", "", "show the name of the filename attribute of each MFT record choices: Any, Win32, Dos")
@@ -81,15 +82,17 @@ func main() {
 		ShowParent:     *showParent,
 	}
 
-	if *evidencefile != "" || *physicalDrive != -1 {
+	if *evidencefile != "" || *physicalDrive != -1 || *vmdkfile != "" {
 
 		if *physicalDrive != -1 {
 
 			hD = img.GetHandler(fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", *physicalDrive), "physicalDrive")
 
-		} else {
-			hD = img.GetHandler(*evidencefile, "image")
+		} else if *evidencefile != "" {
+			hD = img.GetHandler(*evidencefile, "ewf")
 
+		} else if *vmdkfile != "" {
+			hD = img.GetHandler(*vmdkfile, "vmdk")
 		}
 		physicalDisk = disk.Disk{Handler: hD}
 		physicalDisk.DiscoverPartitions()
