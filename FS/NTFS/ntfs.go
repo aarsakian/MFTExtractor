@@ -34,6 +34,10 @@ func (ntfs NTFS) GetBytesPerSector() uint64 {
 	return uint64(ntfs.BytesPerSector)
 }
 
+func (ntfs NTFS) GetSignature() string {
+	return ntfs.Signature
+}
+
 func (ntfs NTFS) GetMetadata() []MFT.Record {
 	return ntfs.MFTTable.Records
 }

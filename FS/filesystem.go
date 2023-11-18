@@ -11,4 +11,5 @@ type FileSystem interface {
 	GetBytesPerSector() uint64
 	GetMetadata() []MFT.Record
 	CollectUnallocated(img.DiskReader, int64) []byte
+	GetSignature() string
 }
