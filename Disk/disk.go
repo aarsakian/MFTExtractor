@@ -93,6 +93,8 @@ func (disk *Disk) ProcessPartitions(partitionNum int, MFTSelectedEntries []int, 
 			continue //fs not found
 		}
 		partitionOffsetB := int64(disk.Partitions[idx].GetOffset() * fs.GetBytesPerSector())
+		fmt.Printf("Located  %s at %d bytes \n", fs.GetSignature(), partitionOffsetB)
+
 		fs.Process(disk.Handler, partitionOffsetB, MFTSelectedEntries, fromMFTEntry, toMFTEntry)
 
 	}
