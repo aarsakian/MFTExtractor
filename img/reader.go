@@ -20,7 +20,7 @@ func GetHandler(pathToDisk string, mode string) DiskReader {
 		dr = &ImageReader{PathToEvidenceFiles: pathToDisk}
 
 	case "vmdk":
-		dr = &ImageReader{PathToEvidenceFiles: pathToDisk}
+		dr = &VMDKReader{PathToEvidenceFiles: pathToDisk}
 	}
 	dr.CreateHandler()
 
