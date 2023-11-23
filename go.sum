@@ -28,6 +28,8 @@ github.com/aarsakian/VMDK_Reader v0.0.0-20231107203734-a6186b986387 h1:tCP4MEVP5
 github.com/aarsakian/VMDK_Reader v0.0.0-20231107203734-a6186b986387/go.mod h1:a+SYNiPvKba0NMg3g9BXlLVZflohz06h4veLf0gyySY=
 github.com/aarsakian/VMDK_Reader v0.0.0-20231118200502-fe069cc0734a h1:C/Hs08naqBc3fo025CZIJO+nQuGWTdUxPsukrArn2R4=
 github.com/aarsakian/VMDK_Reader v0.0.0-20231118200502-fe069cc0734a/go.mod h1:a+SYNiPvKba0NMg3g9BXlLVZflohz06h4veLf0gyySY=
+github.com/aarsakian/VMDK_Reader v0.0.0-20231123163652-806001343f49 h1:EG7y7SaHQxRSH330n/D0KjiLwFEXVS7s2tTLaNXwTuM=
+github.com/aarsakian/VMDK_Reader v0.0.0-20231123163652-806001343f49/go.mod h1:a+SYNiPvKba0NMg3g9BXlLVZflohz06h4veLf0gyySY=
 golang.org/x/sys v0.0.0-20220319134239-a9b59b0215f8 h1:OH54vjqzRWmbJ62fjuhxy7AxFFgoHN0/DPc/UrL8cAs=
 golang.org/x/sys v0.0.0-20220319134239-a9b59b0215f8/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.12.0 h1:CM0HF96J0hcLAwsHPJZjfdNzs0gftsLfgKt57wWHJ0o=
