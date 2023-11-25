@@ -11,14 +11,17 @@ import (
 	"math"
 	"os"
 	"sync"
+	"time"
 
 	disk "github.com/aarsakian/MFTExtractor/Disk"
 	ntfslib "github.com/aarsakian/MFTExtractor/FS/NTFS"
 	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
 	"github.com/aarsakian/MFTExtractor/exporter"
 	"github.com/aarsakian/MFTExtractor/img"
+	MFTExtractorLogger "github.com/aarsakian/MFTExtractor/logger"
 	"github.com/aarsakian/MFTExtractor/tree"
 	"github.com/aarsakian/MFTExtractor/utils"
+	VMDKLogger "github.com/aarsakian/VMDK_Reader/logger"
 
 	reporter "github.com/aarsakian/MFTExtractor/Reporter"
 )
@@ -59,6 +62,7 @@ func main() {
 	fileExtension := flag.String("extension", "", "search MFT records by extension")
 	collectUnallocated := flag.Bool("unallocated", false, "collect unallocated area of a file system")
 	hashFiles := flag.String("hash", "", "select hash md5 or sha1 for exported files.")
+	logactive := flag.Bool("log", false, "enable logging")
 
 	flag.Parse() //ready to parse
 
@@ -80,6 +84,14 @@ func main() {
 		ShowVCNs:       *showVCNs,
 		ShowIndex:      *showIndex,
 		ShowParent:     *showParent,
+	}
+
+	if *logactive {
+		now := time.Now()
+		logfilename := "logs" + now.Format("2006-01-02T15_04_05") + ".txt"
+		MFTExtractorLogger.InitializeLogger(*logactive, logfilename)
+		VMDKLogger.InitializeLogger(*logactive, logfilename)
+
 	}
 
 	if *evidencefile != "" || *physicalDrive != -1 || *vmdkfile != "" {
@@ -110,7 +122,7 @@ func main() {
 		}
 		exp := exporter.Exporter{Location: location, Hash: *hashFiles}
 		for partitionId, records := range recordsPerPartition {
-			fmt.Printf("About to export %d files\n", len(records))
+			fmt.Printf(" %d files\n", len(records))
 			if *exportFiles != "" {
 				records = records.FilterByNames(fileNamesToExport)
 			}
