@@ -7,6 +7,7 @@ import (
 
 	MFTAttributes "github.com/aarsakian/MFTExtractor/FS/NTFS/MFT/attributes"
 	"github.com/aarsakian/MFTExtractor/img"
+	"github.com/aarsakian/MFTExtractor/logger"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 
@@ -106,7 +107,8 @@ func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionO
 
 		length := record.GetTotalRunlistSize(attrName) * clusterSizeB
 		if length == 0 { // no runlists found
-			fmt.Printf("attribute %s No runlists found \n", attrName)
+			msg := fmt.Sprintf("attribute %s No runlists found.", attrName)
+			logger.MFTExtractorlogger.Warning(msg)
 			continue
 		}
 		var buf bytes.Buffer
@@ -121,7 +123,9 @@ func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionO
 
 			//inefficient since allocates memory for each round
 			if offset*int64(clusterSizeB) >= hD.GetDiskSize()-partitionOffsetB {
-				fmt.Printf("attribute %s runlist offset exceeds partition size %d\n", attrName, offset)
+				msg := fmt.Sprintf("attribute %s runlist offset exceeds partition size %d.",
+					attrName, offset)
+				logger.MFTExtractorlogger.Warning(msg)
 				break
 			}
 			data := hD.ReadFile(partitionOffsetB+offset*int64(clusterSizeB), clusters*clusterSizeB)
@@ -135,7 +139,9 @@ func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionO
 		}
 		actualLen := int(attribute.GetHeader().ATRrecordNoNResident.ActualLength)
 		if actualLen > length {
-			fmt.Printf("attribute %s actual length exceeds the runlist length actual %d runlist %d \n", attrName, actualLen, length)
+			msg := fmt.Sprintf("attribute %s actual length exceeds the runlist length actual %d runlist %d.",
+				attrName, actualLen, length)
+			logger.MFTExtractorlogger.Warning(msg)
 			continue
 		}
 		attribute.Parse(buf.Bytes()[:actualLen])
@@ -162,11 +168,14 @@ func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sector
 		for (MFTAttributes.RunList{}) != runlist {
 			offset += runlist.Offset * int64(sectorsPerCluster*bytesPerSector)
 			if offset > diskSize {
-				fmt.Printf("skipped offset %d exceeds disk size! exiting", offset)
+				msg := fmt.Sprintf("skipped offset %d exceeds disk size! exiting", offset)
+				logger.MFTExtractorlogger.Warning(msg)
 				break
 			}
 			res := p.Sprintf("%d", (offset-partitionOffset)/int64(sectorsPerCluster*bytesPerSector))
-			fmt.Printf("offset %s cl len %d cl \n", res, runlist.Length)
+
+			msg := fmt.Sprintf("offset %s cl len %d cl.", res, runlist.Length)
+			logger.MFTExtractorlogger.Warning(msg)
 
 			data := hD.ReadFile(offset, int(runlist.Length)*sectorsPerCluster*bytesPerSector)
 
@@ -547,7 +556,8 @@ func (record *Record) Process(bs []byte) {
 				attr.Parse(bs[attrStartOffset:attrEndOffset])
 
 			} else {
-				fmt.Printf("uknown attribute %s \n", attrHeader.GetType())
+				msg := fmt.Sprintf("uknown attribute %s \n", attrHeader.GetType())
+				logger.MFTExtractorlogger.Warning(msg)
 			}
 			if attr != nil {
 				attr.SetHeader(&attrHeader)
@@ -591,7 +601,8 @@ func (record *Record) Process(bs []byte) {
 				reparse.SetHeader(&attrHeader)
 				attributes = append(attributes, reparse)
 			} else {
-				fmt.Printf("unknown non resident attr %s\n", attrHeader.GetType())
+				msg := fmt.Sprintf("unknown non resident attr %s\n", attrHeader.GetType())
+				logger.MFTExtractorlogger.Warning(msg)
 			}
 
 		} //ends non Resident
