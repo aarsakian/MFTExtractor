@@ -10,6 +10,7 @@ import (
 	gptLib "github.com/aarsakian/MFTExtractor/Partition/GPT"
 	mbrLib "github.com/aarsakian/MFTExtractor/Partition/MBR"
 	"github.com/aarsakian/MFTExtractor/img"
+	"github.com/aarsakian/MFTExtractor/logger"
 	"github.com/aarsakian/MFTExtractor/utils"
 )
 
@@ -89,11 +90,15 @@ func (disk *Disk) ProcessPartitions(partitionNum int, MFTSelectedEntries []int, 
 		disk.Partitions[idx].LocateFileSystem(disk.Handler)
 		fs := disk.Partitions[idx].GetFileSystem()
 		if fs == nil {
-			fmt.Printf("No File System found at partition %d \n", idx)
+			msg := "No File System found at partition %d."
+			fmt.Printf(msg, idx)
+			logger.MFTExtractorlogger.Error(fmt.Sprintf(msg, idx))
 			continue //fs not found
 		}
 		partitionOffsetB := int64(disk.Partitions[idx].GetOffset() * fs.GetBytesPerSector())
-		fmt.Printf("Located  %s at %d bytes \n", fs.GetSignature(), partitionOffsetB)
+		msg := "Located  %s at %d bytes."
+		fmt.Printf(msg, fs.GetSignature(), partitionOffsetB)
+		logger.MFTExtractorlogger.Error(fmt.Sprintf(msg, fs.GetSignature(), partitionOffsetB))
 
 		fs.Process(disk.Handler, partitionOffsetB, MFTSelectedEntries, fromMFTEntry, toMFTEntry)
 
@@ -129,7 +134,8 @@ func (disk Disk) Worker(wg *sync.WaitGroup, records MFT.Records, results chan<- 
 
 	for _, record := range records {
 		if record.IsFolder() {
-			fmt.Printf("Record %s Id %d is folder! No data to export\n", record.GetFname(), record.Entry)
+			msg := fmt.Sprintf("Record %s Id %d is folder! No data to export.", record.GetFname(), record.Entry)
+			logger.MFTExtractorlogger.Warning(msg)
 			continue
 		}
 		fmt.Printf("writing file %s record Id %d\n", record.GetFname(), record.Entry)

@@ -5,6 +5,7 @@ import (
 
 	MFTAttributes "github.com/aarsakian/MFTExtractor/FS/NTFS/MFT/attributes"
 	"github.com/aarsakian/MFTExtractor/img"
+	"github.com/aarsakian/MFTExtractor/logger"
 	"github.com/aarsakian/MFTExtractor/utils"
 )
 
@@ -15,7 +16,7 @@ type MFTTable struct {
 }
 
 func (mfttable *MFTTable) ProcessRecords(data []byte) {
-
+	fmt.Printf("Processing $MFT entries.\n")
 	records := make([]Record, len(data)/RecordSize)
 
 	var record Record
@@ -24,7 +25,8 @@ func (mfttable *MFTTable) ProcessRecords(data []byte) {
 		if utils.Hexify(data[i:i+4]) == "00000000" { //zero area skip
 			continue
 		}
-		fmt.Printf("Processing $MFT entry %d  out of %d records  \n", record.Entry+1, len(records))
+		msg := fmt.Sprintf("Processing $MFT entry %d  out of %d records.", record.Entry+1, len(records))
+		logger.MFTExtractorlogger.Info(msg)
 		record.Process(data[i : i+RecordSize])
 		records[i/RecordSize] = record
 	}
@@ -32,9 +34,10 @@ func (mfttable *MFTTable) ProcessRecords(data []byte) {
 }
 
 func (mfttable *MFTTable) ProcessNonResidentRecords(hD img.DiskReader, partitionOffsetB int64, clusterSizeB int) {
-
+	fmt.Printf("Processing NoN resident attributes.\n")
 	for idx := range mfttable.Records {
-		fmt.Printf("Processing NoN resident attributes, record %d of out %d\n", idx+1, len(mfttable.Records))
+		msg := fmt.Sprintf("Processing NoN resident attributes, record %d of out %d.", idx+1, len(mfttable.Records))
+		logger.MFTExtractorlogger.Info(msg)
 		mfttable.Records[idx].ProcessNoNResidentAttributes(hD, partitionOffsetB, clusterSizeB)
 	}
 }
@@ -89,8 +92,9 @@ func (mfttable *MFTTable) SetI30Size(recordId int, attrType string) {
 			continue
 		}
 		if entry.ParRef > uint64(len(mfttable.Records)) {
-			fmt.Printf("Record %d has FileAttribute in its  %s which references non existent $MFT record entry %d\n",
+			msg := fmt.Sprintf("Record %d has FileAttribute in its  %s which references non existent $MFT record entry %d.",
 				recordId, attrType, entry.Fnattr.ParRef)
+			logger.MFTExtractorlogger.Warning(msg)
 			continue
 		}
 
