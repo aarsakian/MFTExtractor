@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -132,16 +133,16 @@ func DetermineClusterOffsetLength(val byte) (uint64, uint64) {
 
 }
 
-func (str *NoNull) PrintNulls() string {
-	var newstr []string
-	for _, v := range *str {
+func RemoveNulls(val []byte) NoNull {
+	var newstr strings.Builder
+	for _, v := range val {
 		if v != 0 {
 
-			newstr = append(newstr, string(v))
+			newstr.WriteByte(v)
 
 		}
 	}
-	return strings.Join(newstr, "")
+	return NoNull(newstr.String())
 }
 
 func Hexify(barray []byte) string {
@@ -393,4 +394,14 @@ func FindEvidenceFiles(path_ string) []string {
 
 	return filenames
 
+}
+
+func SetProgress(progressStat int, msg string) {
+	clearLine := "\x1B[2K"
+	io.WriteString(os.Stdout, clearLine)
+	eraseCursor := "\x1B[0J"
+	io.WriteString(os.Stdout, eraseCursor)
+	str := fmt.Sprintf("%4d%% %s", progressStat, msg)
+
+	io.WriteString(os.Stdout, str)
 }
