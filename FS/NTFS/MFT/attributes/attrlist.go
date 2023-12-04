@@ -41,11 +41,13 @@ func (attrListEntries *AttributeListEntries) Parse(data []byte) {
 
 		var attrList AttributeList
 		utils.Unmarshal(data[attrLen:attrLen+24], &attrList)
-		attrList.Name = utils.NoNull(data[attrLen+uint16(attrList.Nameoffset) : attrLen+uint16(attrList.Nameoffset)+2*uint16(attrList.Namelen)])
+
+		attrList.Name = utils.RemoveNulls(data[attrLen+
+			uint16(attrList.Nameoffset) : attrLen+uint16(attrList.Nameoffset)+2*uint16(attrList.Namelen)])
 
 		attrListEntries.Entries = append(attrListEntries.Entries, attrList)
 		attrLen += attrList.Len
-		if attrLen == 0 {
+		if attrLen == 0 || attrList.Len == 0 {
 			break
 		}
 
