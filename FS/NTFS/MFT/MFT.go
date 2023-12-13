@@ -258,13 +258,13 @@ func (record Record) GetRunLists() []MFTAttributes.RunList {
 }
 
 func (record Record) GetFullPath() string {
-	fullpathArr := []string{}
-	idx := 0
+	var fullpathArr []string
+
 	parent := record.Parent
 	for parent.Entry != 5 { //$MFT Root entry
-		fullpathArr[idx] = parent.GetFname()
+		fullpathArr = append(fullpathArr, parent.GetFname())
 		parent = parent.Parent
-		idx++
+
 	}
 	//reverse
 	for i := 0; i < len(fullpathArr)/2; i++ {
@@ -272,7 +272,7 @@ func (record Record) GetFullPath() string {
 		fullpathArr[i], fullpathArr[j] = fullpathArr[j], fullpathArr[i]
 	}
 
-	return strings.Join(fullpathArr, "//")
+	return strings.Join(fullpathArr, "\\")
 }
 
 func (record Record) ShowVCNs() {
