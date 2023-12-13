@@ -16,6 +16,7 @@ type Reporter struct {
 	ShowVCNs       bool
 	ShowIndex      bool
 	ShowParent     bool
+	ShowPath       bool
 }
 
 func (rp Reporter) Show(records []MFT.Record) {
@@ -67,6 +68,10 @@ func (rp Reporter) Show(records []MFT.Record) {
 
 		if rp.ShowParent {
 			record.ShowParentRecordInfo()
+		}
+
+		if rp.ShowPath {
+			record.ShowPath()
 		}
 
 		if askedToShow {
