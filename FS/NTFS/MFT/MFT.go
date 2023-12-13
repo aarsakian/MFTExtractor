@@ -257,6 +257,24 @@ func (record Record) GetRunLists() []MFTAttributes.RunList {
 	return runlists
 }
 
+func (record Record) GetFullPath() string {
+	fullpathArr := []string{}
+	idx := 0
+	parent := record.Parent
+	for parent.Entry != 5 { //$MFT Root entry
+		fullpathArr[idx] = parent.GetFname()
+		parent = parent.Parent
+		idx++
+	}
+	//reverse
+	for i := 0; i < len(fullpathArr)/2; i++ {
+		j := len(fullpathArr) - i - 1
+		fullpathArr[i], fullpathArr[j] = fullpathArr[j], fullpathArr[i]
+	}
+
+	return strings.Join(fullpathArr, "//")
+}
+
 func (record Record) ShowVCNs() {
 	startVCN, lastVCN := record.getVCNs()
 	if startVCN != 0 || lastVCN != 0 {
@@ -272,6 +290,11 @@ func (record Record) ShowParentRecordInfo() {
 	fmt.Printf(" has parent ")
 	record.Parent.showInfo()
 	record.Parent.ShowFileName("win32")
+}
+
+func (record Record) ShowPath() {
+	fullpath := record.GetFullPath()
+	fmt.Printf("%s\\%s \n", fullpath, record.GetFname())
 }
 
 func (record Record) ShowIndex() {

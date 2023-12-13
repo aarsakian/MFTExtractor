@@ -63,6 +63,7 @@ func main() {
 	collectUnallocated := flag.Bool("unallocated", false, "collect unallocated area of a file system")
 	hashFiles := flag.String("hash", "", "select hash md5 or sha1 for exported files.")
 	logactive := flag.Bool("log", false, "enable logging")
+	showPath := flag.Bool("showpath", false, "show the full path of the selected files.")
 
 	flag.Parse() //ready to parse
 
@@ -84,6 +85,7 @@ func main() {
 		ShowVCNs:       *showVCNs,
 		ShowIndex:      *showIndex,
 		ShowParent:     *showParent,
+		ShowPath:       *showPath,
 	}
 
 	if *logactive {
@@ -185,6 +187,7 @@ func main() {
 		if *fileExtension != "" {
 			records = records.FilterByExtension(*fileExtension)
 		}
+
 		rp.Show(records)
 		t := tree.Tree{}
 
@@ -200,6 +203,7 @@ func main() {
 			t.Show()
 
 		}
+
 	}
 
 } //ends for
