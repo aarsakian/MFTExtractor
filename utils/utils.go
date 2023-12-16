@@ -260,21 +260,19 @@ func Bytereverse(barray []byte) []byte { //work with indexes
 }
 
 func WriteFile(filename string, content []byte) {
-	file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE, 0644)
-	if err != nil {
-		// handle the error here
+	if file, err := os.OpenFile(filename, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644); err != nil {
 		fmt.Printf("err %s opening the file \n", err)
+	} else {
+		bytesWritten, err := file.Write(content)
+		if err != nil {
+			fmt.Printf("err %s writing the file \n", err)
 
+		}
+
+		fmt.Printf("wrote file %s  %d bytes \n",
+			filename, bytesWritten)
+		file.Close()
 	}
-
-	bytesWritten, err := file.Write(content)
-	if err != nil {
-		fmt.Printf("err %s writing the file \n", err)
-
-	}
-
-	fmt.Printf("wrote file %s  %d bytes \n",
-		filename, bytesWritten)
 
 }
 
