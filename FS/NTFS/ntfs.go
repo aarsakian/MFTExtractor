@@ -2,6 +2,7 @@ package ntfs
 
 import (
 	"bytes"
+	"fmt"
 	"math"
 
 	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
@@ -44,6 +45,8 @@ func (ntfs NTFS) GetMetadata() []MFT.Record {
 
 func (ntfs *NTFS) Process(hD img.DiskReader, partitionOffsetB int64, MFTSelectedEntries []int,
 	fromMFTEntry int, toMFTEntry int) {
+	fmt.Printf("About to read first record entry to determine the size of $MFT Table.\n")
+
 	length := int(1024) // len of MFT record
 
 	physicalOffset := partitionOffsetB + int64(ntfs.MFTOffset)*int64(ntfs.SectorsPerCluster)*int64(ntfs.BytesPerSector)
@@ -89,8 +92,6 @@ func (ntfs NTFS) CollectMFTArea(hD img.DiskReader, partitionOffsetB int64) []byt
 		offset += int(runlist.Offset)
 
 		clusters := int(runlist.Length)
-
-		//inefficient since allocates memory for each round
 
 		data := hD.ReadFile(partitionOffsetB+int64(offset)*int64(ntfs.SectorsPerCluster)*int64(ntfs.BytesPerSector), clusters*int(ntfs.BytesPerSector)*int(ntfs.SectorsPerCluster))
 		buf.Write(data)
