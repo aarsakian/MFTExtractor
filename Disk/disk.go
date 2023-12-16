@@ -1,7 +1,6 @@
 package disk
 
 import (
-	"bytes"
 	"fmt"
 	"sync"
 
@@ -90,14 +89,14 @@ func (disk *Disk) ProcessPartitions(partitionNum int, MFTSelectedEntries []int, 
 		disk.Partitions[idx].LocateFileSystem(disk.Handler)
 		fs := disk.Partitions[idx].GetFileSystem()
 		if fs == nil {
-			msg := "No File System found at partition %d."
-			fmt.Printf(msg, idx)
+			msg := "No Known File System found at partition %d (Currently supported NTFS)."
+			fmt.Printf(msg+"\n", idx)
 			logger.MFTExtractorlogger.Error(fmt.Sprintf(msg, idx))
 			continue //fs not found
 		}
 		partitionOffsetB := int64(disk.Partitions[idx].GetOffset() * fs.GetBytesPerSector())
-		msg := "Located  %s at %d bytes."
-		fmt.Printf(msg, fs.GetSignature(), partitionOffsetB)
+		msg := "Located %s at %d bytes."
+		fmt.Printf(msg+"\n", fs.GetSignature(), partitionOffsetB)
 		logger.MFTExtractorlogger.Error(fmt.Sprintf(msg, fs.GetSignature(), partitionOffsetB))
 
 		fs.Process(disk.Handler, partitionOffsetB, MFTSelectedEntries, fromMFTEntry, toMFTEntry)
@@ -133,27 +132,25 @@ func (disk Disk) Worker(wg *sync.WaitGroup, records MFT.Records, results chan<- 
 	partitionOffsetB := int64(partition.GetOffset()) * int64(bytesPerSector)
 
 	for _, record := range records {
+
 		if record.IsFolder() {
 			msg := fmt.Sprintf("Record %s Id %d is folder! No data to export.", record.GetFname(), record.Entry)
 			logger.MFTExtractorlogger.Warning(msg)
 			continue
 		}
 		fmt.Printf("writing file %s record Id %d\n", record.GetFname(), record.Entry)
-		lsize := record.GetLogicalFileSize()
 
-		var dataRuns bytes.Buffer
-		dataRuns.Grow(int(lsize))
 		if record.LinkedRecord == nil {
-			record.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster, bytesPerSector, &dataRuns)
+			record.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster, bytesPerSector, results)
 		} else { // attribute runlist
 			record := record.LinkedRecord
-			for record != nil {
-				record.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster, bytesPerSector, &dataRuns)
+			for record.LinkedRecord != nil {
+				record.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster, bytesPerSector, results)
 				record = record.LinkedRecord
 			}
 		}
+		// use lsize to make sure that we cannot exceed the logical size
 
-		results <- utils.AskedFile{Fname: record.GetFname(), Content: dataRuns.Bytes()}
 	}
 	close(results)
 
