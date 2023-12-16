@@ -16,25 +16,28 @@ type MFTTable struct {
 }
 
 func (mfttable *MFTTable) ProcessRecords(data []byte) {
-	fmt.Printf("Processing $MFT entries.\n")
-	records := make([]Record, len(data)/RecordSize)
+
+	mfttable.Records = make([]Record, len(data)/RecordSize)
+	fmt.Printf("Processing %d $MFT entries.\n", len(mfttable.Records))
 
 	var record Record
 	for i := 0; i < len(data); i += RecordSize {
-		//fmt.Println("index ", i)
 		if utils.Hexify(data[i:i+4]) == "00000000" { //zero area skip
 			continue
 		}
-		msg := fmt.Sprintf("Processing $MFT entry %d  out of %d records.", record.Entry+1, len(records))
-		logger.MFTExtractorlogger.Info(msg)
+
 		record.Process(data[i : i+RecordSize])
-		records[i/RecordSize] = record
+
+		msg := fmt.Sprintf("Processing $MFT entry %d  out of %d records.", record.Entry+1, len(mfttable.Records))
+		logger.MFTExtractorlogger.Info(msg)
+
+		mfttable.Records[i/RecordSize] = record
 	}
-	mfttable.Records = records
+
 }
 
 func (mfttable *MFTTable) ProcessNonResidentRecords(hD img.DiskReader, partitionOffsetB int64, clusterSizeB int) {
-	fmt.Printf("Processing NoN resident attributes.\n")
+	fmt.Printf("Processing NoN resident attributes of %d records.\n", len(mfttable.Records))
 	for idx := range mfttable.Records {
 		msg := fmt.Sprintf("Processing NoN resident attributes, record %d of out %d.", idx+1, len(mfttable.Records))
 		logger.MFTExtractorlogger.Info(msg)
