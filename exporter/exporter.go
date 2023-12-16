@@ -50,6 +50,7 @@ func (exp Exporter) HashFiles(records []MFT.Record) {
 		data, e := os.ReadFile(filepath.Join(exp.Location, fname))
 		if e != nil {
 			fmt.Printf("ERROR %s", e)
+			continue
 		}
 		if exp.Hash == "MD5" {
 			fmt.Printf("File %s has %s %s \n", fname, exp.Hash, utils.GetMD5(data))
