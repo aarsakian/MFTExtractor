@@ -138,6 +138,10 @@ func main() {
 				records = records.FilterByPath(*exportFilesPath)
 			}
 
+			if len(records) == 0 {
+				continue
+			}
+
 			if location != "" {
 				fmt.Printf("About to export %d files\n", len(records))
 				results := make(chan utils.AskedFile, len(records))
@@ -155,7 +159,7 @@ func main() {
 			if *hashFiles != "" && location != "" {
 				exp.HashFiles(records)
 			} else if *hashFiles != "" && location == "" {
-				fmt.Printf("Please use location to set export location.")
+				fmt.Printf("Please use location to set export location before hashing.")
 			}
 			rp.Show(records, partitionId)
 		}
