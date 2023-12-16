@@ -39,7 +39,7 @@ func (exp Exporter) SetFilesToLogicalSize(records []MFT.Record) {
 
 func (exp Exporter) HashFiles(records []MFT.Record) {
 
-	if exp.Hash != "MD5" || exp.Hash != "SHA1" {
+	if exp.Hash != "MD5" && exp.Hash != "SHA1" {
 		fmt.Printf("Only Supported Hashes are MD5 or SHA1 and not %s!\n", exp.Hash)
 		return
 	}
