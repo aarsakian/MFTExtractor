@@ -7,7 +7,7 @@ MFTExtractor
 
 Using this tool you can explore ~~$MFT~~ NTFS and its file system attributes. You can selectively extract filesystem information of record  or for a range of records. In addition, you can export the contents of files. 
 
-Exporting files can be achieved either by mounting the evidence and providing its physical drive order and partition number or by using the acquired forensic image (Expert Witness Format).
+Exporting files can be achieved either by mounting the evidence and providing its physical drive order and partition number or by using the acquired forensic image (Expert Witness Format), or virtual machine disk format. 
 
 #### Examples #####
 you can now explore NTFS by providing physical drive number and partition number 
