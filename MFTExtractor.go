@@ -45,6 +45,7 @@ func main() {
 	MFTSelectedEntries := flag.String("entries", "", "select particular MFT entries, use comma as a seperator.")
 	showFileName := flag.String("showfilename", "", "show the name of the filename attribute of each MFT record choices: Any, Win32, Dos")
 	exportFiles := flag.String("filenames", "", "files to export use comma for each file")
+	exportFilesPath := flag.String("paths", "", "base path of files must be exact e.g. C:\\MYFILES\\ABC translates to MYFILES\\ABC")
 	isResident := flag.Bool("resident", false, "check whether entry is resident")
 	fromMFTEntry := flag.Int("fromEntry", -1, "select entry to start parsing")
 	toMFTEntry := flag.Int("toEntry", math.MaxUint32, "select entry to end parsing")
@@ -124,7 +125,7 @@ func main() {
 		}
 		exp := exporter.Exporter{Location: location, Hash: *hashFiles}
 		for partitionId, records := range recordsPerPartition {
-			fmt.Printf(" %d files\n", len(records))
+
 			if *exportFiles != "" {
 				records = records.FilterByNames(fileNamesToExport)
 			}
@@ -133,20 +134,28 @@ func main() {
 				records = records.FilterByExtension(*fileExtension)
 			}
 
-			if location != "" && len(records) != 0 {
+			if *exportFilesPath != "" {
+				records = records.FilterByPath(*exportFilesPath)
+			}
 
+			if location != "" && len(records) != 0 {
+				fmt.Printf("About to export %d files\n", len(records))
 				results := make(chan utils.AskedFile, len(records))
-				copyresults := make(chan utils.AskedFile, len(records))
+
 				wg := new(sync.WaitGroup)
-				wg.Add(3)
+				wg.Add(2)
 
 				go physicalDisk.Worker(wg, records, results, partitionId) //producer
-				go exp.ExportData(wg, results, copyresults)               //pipeline copies channel
-				go exp.HashFile(wg, copyresults)
+				go exp.ExportData(wg, results)                            //pipeline copies channel
+
 				wg.Wait()
+				exp.SetFilesToLogicalSize(records)
 
 			}
-			rp.Show(records)
+			if *hashFiles != "" {
+				exp.HashFiles(records)
+			}
+			rp.Show(records, partitionId)
 		}
 
 	}
@@ -188,7 +197,7 @@ func main() {
 			records = records.FilterByExtension(*fileExtension)
 		}
 
-		rp.Show(records)
+		rp.Show(records, 0)
 		t := tree.Tree{}
 
 		fmt.Printf("Building tree from MFT records \n")
