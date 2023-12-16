@@ -152,10 +152,14 @@ func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionO
 
 }
 
-func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sectorsPerCluster int, bytesPerSector int, dataRuns *bytes.Buffer) {
+func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sectorsPerCluster int, bytesPerSector int, results chan<- utils.AskedFile) {
 	p := message.NewPrinter(language.Greek)
+
+	writeOffset := 0
+
 	if record.HasResidentDataAttr() {
-		dataRuns.Write(record.GetResidentData())
+		results <- utils.AskedFile{Fname: record.GetFname(), Content: record.GetResidentData()}
+
 	} else {
 		var runlist MFTAttributes.RunList
 
@@ -179,13 +183,14 @@ func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sector
 
 			data := hD.ReadFile(offset, int(runlist.Length)*sectorsPerCluster*bytesPerSector)
 
-			dataRuns.Write(data)
+			results <- utils.AskedFile{Fname: record.GetFname(), Content: data}
 
 			if runlist.Next == nil {
 				break
 			}
 
 			runlist = *runlist.Next
+			writeOffset += int(runlist.Length) * sectorsPerCluster * bytesPerSector
 		}
 
 	}
@@ -261,7 +266,7 @@ func (record Record) GetFullPath() string {
 	var fullpathArr []string
 
 	parent := record.Parent
-	for parent.Entry != 5 { //$MFT Root entry
+	for parent != nil && parent.Entry != 5 { //$MFT Root entry
 		fullpathArr = append(fullpathArr, parent.GetFname())
 		parent = parent.Parent
 
@@ -292,9 +297,9 @@ func (record Record) ShowParentRecordInfo() {
 	record.Parent.ShowFileName("win32")
 }
 
-func (record Record) ShowPath() {
+func (record Record) ShowPath(partitionId int) {
 	fullpath := record.GetFullPath()
-	fmt.Printf("%s\\%s \n", fullpath, record.GetFname())
+	fmt.Printf("\\Partition%d\\%s\\%s \n", partitionId, fullpath, record.GetFname())
 }
 
 func (record Record) ShowIndex() {
@@ -429,6 +434,11 @@ func (record Record) HasFilenames(filenames []string) bool {
 		}
 	}
 	return false
+
+}
+
+func (record Record) HasPath(filespath string) bool {
+	return record.GetFullPath() == filespath
 
 }
 
@@ -654,7 +664,7 @@ func (record Record) GetLogicalFileSize() int64 {
 	attr := record.FindAttribute("FileName")
 	if attr != nil {
 		fnattr := attr.(*MFTAttributes.FNAttribute)
-		if int64(fnattr.RealFsize) != 0 {
+		if fnattr.RealFsize != 0 {
 			return int64(fnattr.RealFsize)
 		}
 
@@ -716,6 +726,12 @@ func (records Records) FilterByNames(filenames []string) []Record {
 		return record.HasFilenames(filenames)
 	})
 
+}
+
+func (records Records) FilterByPath(filespath string) []Record {
+	return utils.Filter(records, func(record Record) bool {
+		return record.HasPath(filespath)
+	})
 }
 
 func (records Records) FilterByName(filename string) []Record {
