@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
 	"github.com/aarsakian/MFTExtractor/utils"
 )
 
@@ -14,26 +15,46 @@ type Exporter struct {
 	Hash     string
 }
 
-func (exp Exporter) ExportData(wg *sync.WaitGroup, results <-chan utils.AskedFile, copyresults chan<- utils.AskedFile) {
+func (exp Exporter) ExportData(wg *sync.WaitGroup, results <-chan utils.AskedFile) {
 	defer wg.Done()
 
 	for result := range results {
 
 		exp.CreateFile(result.Fname, result.Content)
-		copyresults <- result
+
 	}
-	close(copyresults)
 
 }
 
-func (exp Exporter) HashFile(wg *sync.WaitGroup, results chan utils.AskedFile) {
-	defer wg.Done()
+func (exp Exporter) SetFilesToLogicalSize(records []MFT.Record) {
+	for _, record := range records {
+		fname := record.GetFname()
+		e := os.Truncate(filepath.Join(exp.Location, fname), record.GetLogicalFileSize())
+		if e != nil {
+			fmt.Printf("ERROR %s", e)
+		}
 
-	for result := range results {
+	}
+}
+
+func (exp Exporter) HashFiles(records []MFT.Record) {
+
+	if exp.Hash != "MD5" || exp.Hash != "SHA1" {
+		fmt.Printf("Only Supported Hashes are MD5 or SHA1 and not %s!\n", exp.Hash)
+		return
+	}
+	fmt.Printf("Hashing Stage\n")
+	for _, record := range records {
+		fname := record.GetFname()
+
+		data, e := os.ReadFile(filepath.Join(exp.Location, fname))
+		if e != nil {
+			fmt.Printf("ERROR %s", e)
+		}
 		if exp.Hash == "MD5" {
-			fmt.Printf("File %s has %s %s \n", result.Fname, exp.Hash, utils.GetMD5(result.Content))
+			fmt.Printf("File %s has %s %s \n", fname, exp.Hash, utils.GetMD5(data))
 		} else if exp.Hash == "SHA1" {
-			fmt.Printf("File %s has %s %s \n", result.Fname, exp.Hash, utils.GetSHA1(result.Content))
+			fmt.Printf("File %s has %s %s \n", fname, exp.Hash, utils.GetSHA1(data))
 		}
 
 	}
