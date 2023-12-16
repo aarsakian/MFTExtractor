@@ -19,7 +19,7 @@ type Reporter struct {
 	ShowPath       bool
 }
 
-func (rp Reporter) Show(records []MFT.Record) {
+func (rp Reporter) Show(records []MFT.Record, partitionId int) {
 	for _, record := range records {
 		askedToShow := false
 		if record.Signature == "" { //empty record
@@ -71,7 +71,7 @@ func (rp Reporter) Show(records []MFT.Record) {
 		}
 
 		if rp.ShowPath {
-			record.ShowPath()
+			record.ShowPath(partitionId)
 		}
 
 		if askedToShow {
