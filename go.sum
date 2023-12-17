@@ -16,6 +16,8 @@ github.com/aarsakian/VMDK_Reader v0.0.0-20231125163925-d7953de7ce7a h1:G6ncNUUxP
 github.com/aarsakian/VMDK_Reader v0.0.0-20231125163925-d7953de7ce7a/go.mod h1:a+SYNiPvKba0NMg3g9BXlLVZflohz06h4veLf0gyySY=
 github.com/aarsakian/VMDK_Reader v0.0.0-20231216060532-7f1d80dade2e h1:hgT5arcmdbUdIVBGvXQ1by0ZsRRJ99Kc63pQPonLYps=
 github.com/aarsakian/VMDK_Reader v0.0.0-20231216060532-7f1d80dade2e/go.mod h1:a+SYNiPvKba0NMg3g9BXlLVZflohz06h4veLf0gyySY=
+github.com/aarsakian/VMDK_Reader v0.0.0-20231217080854-ce376de06cd6 h1:BisL7qywjLFfbg9JwDOaJBuQafnA6FvKqzVYwU363AQ=
+github.com/aarsakian/VMDK_Reader v0.0.0-20231217080854-ce376de06cd6/go.mod h1:a+SYNiPvKba0NMg3g9BXlLVZflohz06h4veLf0gyySY=
 golang.org/x/sys v0.12.0 h1:CM0HF96J0hcLAwsHPJZjfdNzs0gftsLfgKt57wWHJ0o=
 golang.org/x/sys v0.12.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/text v0.13.0 h1:ablQoSUd0tRdKxZewP80B+BaqeKJuVhuRxj/dkrun3k=
