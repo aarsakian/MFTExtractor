@@ -3,6 +3,7 @@ package MFT
 import (
 	"bytes"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	MFTAttributes "github.com/aarsakian/MFTExtractor/FS/NTFS/MFT/attributes"
@@ -263,21 +264,17 @@ func (record Record) GetRunLists() []MFTAttributes.RunList {
 }
 
 func (record Record) GetFullPath() string {
-	var fullpathArr []string
+	fullpathArr := []string{}
 
 	parent := record.Parent
 	for parent != nil && parent.Entry != 5 { //$MFT Root entry
-		fullpathArr = append(fullpathArr, parent.GetFname())
+		//prepends
+		fullpathArr = append([]string{parent.GetFname()}, fullpathArr...)
 		parent = parent.Parent
-
 	}
 	//reverse
-	for i := 0; i < len(fullpathArr)/2; i++ {
-		j := len(fullpathArr) - i - 1
-		fullpathArr[i], fullpathArr[j] = fullpathArr[j], fullpathArr[i]
-	}
 
-	return strings.Join(fullpathArr, "\\")
+	return filepath.Join(fullpathArr...)
 }
 
 func (record Record) ShowVCNs() {
