@@ -586,7 +586,8 @@ func (record *Record) Process(bs []byte) {
 				attr.Parse(bs[attrStartOffset:attrEndOffset])
 
 			} else {
-				msg := fmt.Sprintf("uknown attribute %s \n", attrHeader.GetType())
+				msg := fmt.Sprintf("uknown attribute %s at record %d",
+					attrHeader.GetType(), record.Entry)
 				logger.MFTExtractorlogger.Warning(msg)
 			}
 			if attr != nil {

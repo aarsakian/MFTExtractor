@@ -28,9 +28,6 @@ func (mfttable *MFTTable) ProcessRecords(data []byte) {
 
 		record.Process(data[i : i+RecordSize])
 
-		msg := fmt.Sprintf("Processing $MFT entry %d  out of %d records.", record.Entry+1, len(mfttable.Records))
-		logger.MFTExtractorlogger.Info(msg)
-
 		mfttable.Records[i/RecordSize] = record
 	}
 
@@ -39,8 +36,6 @@ func (mfttable *MFTTable) ProcessRecords(data []byte) {
 func (mfttable *MFTTable) ProcessNonResidentRecords(hD img.DiskReader, partitionOffsetB int64, clusterSizeB int) {
 	fmt.Printf("Processing NoN resident attributes of %d records.\n", len(mfttable.Records))
 	for idx := range mfttable.Records {
-		msg := fmt.Sprintf("Processing NoN resident attributes, record %d of out %d.", idx+1, len(mfttable.Records))
-		logger.MFTExtractorlogger.Info(msg)
 		mfttable.Records[idx].ProcessNoNResidentAttributes(hD, partitionOffsetB, clusterSizeB)
 	}
 }
