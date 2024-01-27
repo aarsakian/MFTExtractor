@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	disk "github.com/aarsakian/MFTExtractor/Disk"
 	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
 	"github.com/aarsakian/MFTExtractor/utils"
 )
@@ -35,6 +36,24 @@ func (exp Exporter) SetFilesToLogicalSize(records []MFT.Record) {
 		}
 
 	}
+}
+
+func (exp Exporter) ExportRecords(records []MFT.Record, physicalDisk disk.Disk, partitionNum int) {
+	if exp.Location == "" {
+		return
+	}
+
+	fmt.Printf("About to export %d files\n", len(records))
+	results := make(chan utils.AskedFile, len(records))
+
+	wg := new(sync.WaitGroup)
+	wg.Add(2)
+
+	go physicalDisk.Worker(wg, records, results, partitionNum) //producer
+	go exp.ExportData(wg, results)                             //pipeline copies channel
+
+	wg.Wait()
+	exp.SetFilesToLogicalSize(records)
 }
 
 func (exp Exporter) HashFiles(records []MFT.Record) {
