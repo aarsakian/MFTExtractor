@@ -718,6 +718,14 @@ func (records Records) FilterByExtension(extension string) []Record {
 
 }
 
+func (records Records) FilterByExtensions(extensions []string) []Record {
+	var filteredRecords []Record
+	for _, extension := range extensions {
+		filteredRecords = append(filteredRecords, records.FilterByExtension(extension)...)
+	}
+	return filteredRecords
+}
+
 func (records Records) FilterByNames(filenames []string) []Record {
 
 	return utils.Filter(records, func(record Record) bool {
