@@ -20,6 +20,29 @@ type Disk struct {
 	Partitions []Partition
 }
 
+func InitiliazeEvidence(evidencefile string) Disk {
+	var hD img.DiskReader
+	hD = img.GetHandler(evidencefile, "ewf")
+	return Disk{Handler: hD}
+
+}
+
+func InitializePhysicalDisk(physicalDrive int) Disk {
+	var hD img.DiskReader
+	hD = img.GetHandler(fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", physicalDrive), "physicalDrive")
+	return Disk{Handler: hD}
+}
+
+func InitalizeVMDKDisk(vmdkfile string) Disk {
+	var hD img.DiskReader
+	hD = img.GetHandler(vmdkfile, "vmdk")
+	return Disk{Handler: hD}
+}
+
+func (disk Disk) Close() {
+	disk.Handler.CloseHandler()
+}
+
 func (disk Disk) hasProtectiveMBR() bool {
 	return disk.MBR.IsProtective()
 }

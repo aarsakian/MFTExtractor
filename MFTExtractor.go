@@ -10,14 +10,12 @@ import (
 	"log"
 	"math"
 	"os"
-	"sync"
 	"time"
 
 	disk "github.com/aarsakian/MFTExtractor/Disk"
 	ntfslib "github.com/aarsakian/MFTExtractor/FS/NTFS"
 	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
 	"github.com/aarsakian/MFTExtractor/exporter"
-	"github.com/aarsakian/MFTExtractor/img"
 	MFTExtractorLogger "github.com/aarsakian/MFTExtractor/logger"
 	"github.com/aarsakian/MFTExtractor/tree"
 	"github.com/aarsakian/MFTExtractor/utils"
@@ -38,7 +36,7 @@ func main() {
 
 	//	save2DB := flag.Bool("db", false, "bool if set an sqlite file will be created, each table will corresponed to an MFT attribute")
 	var location string
-	inputfile := flag.String("MFT", "Disk MFT", "absolute path to the MFT file")
+	inputfile := flag.String("MFT", "", "absolute path to the MFT file")
 	evidencefile := flag.String("evidence", "", "path to image file (EWF formats are supported)")
 	vmdkfile := flag.String("vmdk", "", "path to vmdk file (Sparse formats are supported)")
 	flag.StringVar(&location, "location", "", "the path to export  files")
@@ -68,7 +66,6 @@ func main() {
 
 	flag.Parse() //ready to parse
 
-	var hD img.DiskReader
 	var records MFT.Records
 	var recordsPerPartition map[int]MFT.Records
 	var physicalDisk disk.Disk
@@ -97,33 +94,32 @@ func main() {
 
 	}
 
+	exp := exporter.Exporter{Location: location, Hash: *hashFiles}
+
 	if *evidencefile != "" || *physicalDrive != -1 || *vmdkfile != "" {
-
-		if *physicalDrive != -1 {
-
-			hD = img.GetHandler(fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", *physicalDrive), "physicalDrive")
-
-		} else if *evidencefile != "" {
-			hD = img.GetHandler(*evidencefile, "ewf")
-
-		} else if *vmdkfile != "" {
-			hD = img.GetHandler(*vmdkfile, "vmdk")
+		if *evidencefile != "" {
+			physicalDisk = disk.InitiliazeEvidence(*evidencefile)
+		} else if *physicalDrive != -1 {
+			physicalDisk = disk.InitializePhysicalDisk(*physicalDrive)
+		} else {
+			physicalDisk = disk.InitalizeVMDKDisk(*vmdkfile)
 		}
-		physicalDisk = disk.Disk{Handler: hD}
+
+		defer physicalDisk.Close()
+
 		physicalDisk.DiscoverPartitions()
 
 		if *listPartitions {
 			physicalDisk.ListPartitions()
 		}
-		physicalDisk.ProcessPartitions(*partitionNum, entries, *fromMFTEntry, *toMFTEntry)
-		recordsPerPartition = physicalDisk.GetFileSystemMetadata(*partitionNum)
-
-		defer hD.CloseHandler()
 
 		if *collectUnallocated {
 			physicalDisk.CollectedUnallocated()
 		}
-		exp := exporter.Exporter{Location: location, Hash: *hashFiles}
+
+		physicalDisk.ProcessPartitions(*partitionNum, entries, *fromMFTEntry, *toMFTEntry)
+		recordsPerPartition = physicalDisk.GetFileSystemMetadata(*partitionNum)
+
 		for partitionId, records := range recordsPerPartition {
 
 			if *exportFiles != "" {
@@ -142,20 +138,8 @@ func main() {
 				continue
 			}
 
-			if location != "" {
-				fmt.Printf("About to export %d files\n", len(records))
-				results := make(chan utils.AskedFile, len(records))
+			exp.ExportRecords(records, physicalDisk, partitionId)
 
-				wg := new(sync.WaitGroup)
-				wg.Add(2)
-
-				go physicalDisk.Worker(wg, records, results, partitionId) //producer
-				go exp.ExportData(wg, results)                            //pipeline copies channel
-
-				wg.Wait()
-				exp.SetFilesToLogicalSize(records)
-
-			}
 			if *hashFiles != "" && location != "" {
 				exp.HashFiles(records)
 			} else if *hashFiles != "" && location == "" {
@@ -164,9 +148,7 @@ func main() {
 			rp.Show(records, partitionId)
 		}
 
-	}
-
-	if *inputfile != "Disk MFT" {
+	} else if *inputfile != "Disk MFT" {
 
 		file, err := os.Open(*inputfile)
 		if err != nil {
@@ -203,21 +185,21 @@ func main() {
 			records = records.FilterByExtension(*fileExtension)
 		}
 
-		rp.Show(records, 0)
-		t := tree.Tree{}
+	}
 
-		fmt.Printf("Building tree from MFT records \n")
+	rp.Show(records, 0)
+	t := tree.Tree{}
 
-		if *showFSStructure {
-			for idx := range records {
-				if idx < 5 {
-					continue
-				}
-				t.BuildTree(&records[idx])
+	fmt.Printf("Building tree from MFT records \n")
+
+	if *showFSStructure {
+		for idx := range records {
+			if idx < 5 {
+				continue
 			}
-			t.Show()
-
+			t.BuildTree(&records[idx])
 		}
+		t.Show()
 
 	}
 
