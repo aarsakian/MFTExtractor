@@ -39,16 +39,16 @@ type ATRrecordResident struct {
 }
 
 type ATRrecordNoNResident struct {
-	StartVcn     uint64   //16-24
-	LastVcn      uint64   //24-32
-	RunOff       uint16   //32-34     offset to the start of the attribute
-	Compusize    uint16   //34-36
-	F1           uint32   //36-40
-	Length       uint64   //40-48
-	ActualLength uint64   //48-56
-	InitLength   uint64   //56-64
-	RunList      *RunList //holds a linked list of runs
-
+	StartVcn          uint64   //16-24
+	LastVcn           uint64   //24-32
+	RunOff            uint16   //32-34     offset to the start of the attribute
+	Compusize         uint16   //34-36
+	F1                uint32   //36-40
+	Length            uint64   //40-48
+	ActualLength      uint64   //48-56
+	InitLength        uint64   //56-64
+	RunList           *RunList //holds a linked list of runs
+	RunListTotalLenCl uint64   // total length of runlist
 }
 
 type RunList struct {
@@ -122,9 +122,9 @@ func (attrHeader AttributeHeader) IsNoNResident() bool {
 	return attrHeader.NoNResident == 1
 }
 
-func (prevRunlist *RunList) Process(runlists []byte) {
+func (prevRunlist *RunList) Process(runlists []byte) uint64 {
 	clusterPtr := uint64(0)
-
+	length := uint64(0)
 	for clusterPtr < uint64(len(runlists)) { // length of bytes of runlist
 		ClusterOffsB, ClusterLenB := utils.DetermineClusterOffsetLength(runlists[clusterPtr])
 
@@ -136,6 +136,8 @@ func (prevRunlist *RunList) Process(runlists []byte) {
 				ClusterLenB : clusterPtr+ClusterLenB+ClusterOffsB+1])
 
 			runlist := RunList{Offset: clustersOff, Length: clustersLen}
+
+			length += clustersLen
 
 			if clusterPtr == 0 {
 				*prevRunlist = runlist
@@ -151,5 +153,5 @@ func (prevRunlist *RunList) Process(runlists []byte) {
 			break
 		}
 	}
-
+	return length
 }
