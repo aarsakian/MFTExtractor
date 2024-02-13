@@ -88,7 +88,7 @@ type IndexAttributes interface {
 func (mfttable *MFTTable) DetermineClusterOffsetLength() {
 	firstRecord := mfttable.Records[0]
 
-	mfttable.Size = int(firstRecord.GetTotalRunlistSize("DATA"))
+	mfttable.Size = int(firstRecord.FindAttribute("DATA").GetHeader().ATRrecordNoNResident.RunListTotalLenCl)
 
 }
 
@@ -99,17 +99,14 @@ func (record Record) IsFolder() bool {
 
 func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionOffsetB int64, clusterSizeB int) {
 
-	for _, attribute := range record.FindNonResidentAttributes() {
-		attrName := attribute.FindType()
-		if attrName == "DATA" { //skip Data attributes since point to content only searching for metadata
-			continue
-		}
-		runlist := *attribute.GetHeader().ATRrecordNoNResident.RunList
+	for _, attribute := range record.FilterOutNonResidentAttributes("DATA") {
+		atrrecordNoNResident := attribute.GetHeader().ATRrecordNoNResident
+		runlist := *atrrecordNoNResident.RunList
 
-		length := record.GetTotalRunlistSize(attrName) * clusterSizeB
+		length := int(atrrecordNoNResident.RunListTotalLenCl) * clusterSizeB
 		if length == 0 { // no runlists found
-			msg := fmt.Sprintf("attribute %s No runlists found.", attrName)
-			logger.MFTExtractorlogger.Warning(msg)
+
+			logger.MFTExtractorlogger.Warning("attribute %s No runlists found.")
 			continue
 		}
 		var buf bytes.Buffer
@@ -124,8 +121,8 @@ func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionO
 
 			//inefficient since allocates memory for each round
 			if offset*int64(clusterSizeB) >= hD.GetDiskSize()-partitionOffsetB {
-				msg := fmt.Sprintf("attribute %s runlist offset exceeds partition size %d.",
-					attrName, offset)
+				msg := fmt.Sprintf("attribute runlist offset exceeds partition size %d.",
+					offset)
 				logger.MFTExtractorlogger.Warning(msg)
 				break
 			}
@@ -138,10 +135,10 @@ func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionO
 
 			runlist = *runlist.Next
 		}
-		actualLen := int(attribute.GetHeader().ATRrecordNoNResident.ActualLength)
+		actualLen := int(atrrecordNoNResident.ActualLength)
 		if actualLen > length {
-			msg := fmt.Sprintf("attribute %s actual length exceeds the runlist length actual %d runlist %d.",
-				attrName, actualLen, length)
+			msg := fmt.Sprintf("attribute  actual length exceeds the runlist length actual %d runlist %d.",
+				actualLen, length)
 			logger.MFTExtractorlogger.Warning(msg)
 			continue
 		}
@@ -200,6 +197,12 @@ func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sector
 func (record Record) FindNonResidentAttributes() []Attribute {
 	return utils.Filter(record.Attributes, func(attribute Attribute) bool {
 		return attribute.IsNoNResident()
+	})
+}
+
+func (record Record) FilterOutNonResidentAttributes(attrName string) []Attribute {
+	return utils.Filter(record.Attributes, func(attribute Attribute) bool {
+		return attribute.IsNoNResident() && attribute.FindType() != attrName
 	})
 }
 
@@ -368,22 +371,6 @@ func (record Record) showInfo() {
 func (record Record) GetResidentData() []byte {
 	return record.FindAttribute("DATA").(*MFTAttributes.DATA).Content
 
-}
-
-func (record Record) GetTotalRunlistSize(attributeType string) int {
-	runlist := record.GetRunList(attributeType)
-	totalSize := 0
-
-	for (MFTAttributes.RunList{}) != runlist {
-
-		totalSize += int(runlist.Length)
-
-		if runlist.Next == nil {
-			break
-		}
-		runlist = *runlist.Next
-	}
-	return totalSize
 }
 
 func (record Record) ShowRunList() {
@@ -602,9 +589,10 @@ func (record *Record) Process(bs []byte) {
 
 			if ReadPtr+attrHeader.AttrLen <= 1024 {
 				var runlist *MFTAttributes.RunList = new(MFTAttributes.RunList)
-				runlist.Process(bs[ReadPtr+
+				lengthcl := runlist.Process(bs[ReadPtr+
 					atrNoNRecordResident.RunOff : ReadPtr+attrHeader.AttrLen])
 				atrNoNRecordResident.RunList = runlist
+				atrNoNRecordResident.RunListTotalLenCl = lengthcl
 
 			}
 			attrHeader.ATRrecordNoNResident = atrNoNRecordResident
