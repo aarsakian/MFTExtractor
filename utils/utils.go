@@ -29,6 +29,7 @@ type LargeInteger struct {
 
 type AskedFile struct {
 	Fname   string
+	Id      int
 	Content []byte
 }
 
