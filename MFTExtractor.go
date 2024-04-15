@@ -10,6 +10,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"strings"
 	"time"
 
 	disk "github.com/aarsakian/MFTExtractor/Disk"
@@ -58,11 +59,12 @@ func main() {
 	showFSStructure := flag.Bool("structure", false, "reconstrut entries tree")
 	showParent := flag.Bool("parent", false, "show information about parent record")
 	listPartitions := flag.Bool("listpartitions", false, "list partitions")
-	fileExtension := flag.String("extension", "", "search MFT records by extension")
+	fileExtensions := flag.String("extensions", "", "search MFT records by extensions use , for each extension")
 	collectUnallocated := flag.Bool("unallocated", false, "collect unallocated area of a file system")
 	hashFiles := flag.String("hash", "", "select hash md5 or sha1 for exported files.")
 	logactive := flag.Bool("log", false, "enable logging")
 	showPath := flag.Bool("showpath", false, "show the full path of the selected files.")
+	strategy := flag.String("strategy", "overwrite", "what strategy will use for files sharing the same file name supported is use Id default is ovewrite")
 
 	flag.Parse() //ready to parse
 
@@ -94,7 +96,7 @@ func main() {
 
 	}
 
-	exp := exporter.Exporter{Location: location, Hash: *hashFiles}
+	exp := exporter.Exporter{Location: location, Hash: *hashFiles, Strategy: *strategy}
 
 	if *evidencefile != "" || *physicalDrive != -1 || *vmdkfile != "" {
 		if *evidencefile != "" {
@@ -126,8 +128,8 @@ func main() {
 				records = records.FilterByNames(fileNamesToExport)
 			}
 
-			if *fileExtension != "" {
-				records = records.FilterByExtension(*fileExtension)
+			if *fileExtensions != "" {
+				records = records.FilterByExtensions(strings.Split(*fileExtensions, ","))
 			}
 
 			if *exportFilesPath != "" {
@@ -181,8 +183,8 @@ func main() {
 			records = records.FilterByNames(fileNamesToExport)
 		}
 
-		if *fileExtension != "" {
-			records = records.FilterByExtension(*fileExtension)
+		if *fileExtensions != "" {
+			records = records.FilterByExtensions(strings.Split(*fileExtensions, ","))
 		}
 
 	}
