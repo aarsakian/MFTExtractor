@@ -14,22 +14,34 @@ import (
 type Exporter struct {
 	Location string
 	Hash     string
+	Strategy string
 }
 
 func (exp Exporter) ExportData(wg *sync.WaitGroup, results <-chan utils.AskedFile) {
 	defer wg.Done()
 
 	for result := range results {
+		if exp.Strategy == "Id" {
 
-		exp.CreateFile(result.Fname, result.Content)
+			exp.CreateFile(fmt.Sprintf("[%d]%s", result.Id, result.Fname), result.Content)
+
+		} else {
+			exp.CreateFile(result.Fname, result.Content)
+		}
 
 	}
 
 }
 
 func (exp Exporter) SetFilesToLogicalSize(records []MFT.Record) {
+	var fname string
 	for _, record := range records {
-		fname := record.GetFname()
+		if exp.Strategy == "Id" {
+			fname = fmt.Sprintf("[%d]%s", record.Entry, record.GetFname())
+		} else {
+			fname = record.GetFname()
+		}
+
 		e := os.Truncate(filepath.Join(exp.Location, fname), record.GetLogicalFileSize())
 		if e != nil {
 			fmt.Printf("ERROR %s", e)
@@ -82,8 +94,8 @@ func (exp Exporter) HashFiles(records []MFT.Record) {
 }
 
 func (exp Exporter) CreateFile(fname string, data []byte) {
-	fullpath := filepath.Join(exp.Location, fname)
 
+	fullpath := filepath.Join(exp.Location, fname)
 	err := os.MkdirAll(exp.Location, 0750)
 	if err != nil && !os.IsExist(err) {
 		fmt.Println(err)
