@@ -144,8 +144,6 @@ func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionO
 		}
 		attribute.Parse(buf.Bytes()[:actualLen])
 
-		buf.Reset()
-
 	}
 
 }
@@ -181,7 +179,7 @@ func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sector
 
 			data := hD.ReadFile(offset, int(runlist.Length)*sectorsPerCluster*bytesPerSector)
 
-			results <- utils.AskedFile{Fname: record.GetFname(), Content: data}
+			results <- utils.AskedFile{Fname: record.GetFname(), Content: data, Id: int(record.Entry)}
 
 			if runlist.Next == nil {
 				break
