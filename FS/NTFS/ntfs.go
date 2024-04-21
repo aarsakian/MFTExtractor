@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"sync"
 
 	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
 	MFTAttributes "github.com/aarsakian/MFTExtractor/FS/NTFS/MFT/attributes"
@@ -71,11 +72,35 @@ func (ntfs *NTFS) Process(hD img.DiskReader, partitionOffsetB int64, MFTSelected
 
 }
 
-func (ntfs NTFS) CollectUnallocated(hD img.DiskReader, partitionOffsetB int64) []byte {
+func (ntfs NTFS) CollectUnallocated(wg *sync.WaitGroup, hD img.DiskReader, partitionOffsetB int64, blocks chan<- []byte) {
+	defer wg.Done()
 	record := ntfs.MFTTable.Records[0]
 	bitmap := record.FindAttribute("BitMap").(*MFTAttributes.BitMap)
-	bitmap.GetUnallocatedClusters()
-	return []byte{}
+	unallocatedClusters := bitmap.GetUnallocatedClusters()
+	var buf bytes.Buffer
+
+	blockSize := 1 // nof consecutive clusters
+	prevClusterOffset := unallocatedClusters[0]
+
+	for idx, unallocatedCluster := range unallocatedClusters {
+		if idx == 0 {
+			continue
+		}
+		if unallocatedCluster-prevClusterOffset <= 1 {
+			blockSize += 1
+		} else {
+			buf.Grow(blockSize * int(ntfs.BytesPerSector))
+			firstBlockCluster := unallocatedClusters[idx-blockSize]
+			offset := partitionOffsetB + int64(firstBlockCluster)*int64(ntfs.SectorsPerCluster*uint8(ntfs.BytesPerSector))
+			buf.Write(hD.ReadFile(offset, int(uint16(blockSize)*(uint16(ntfs.SectorsPerCluster)*ntfs.BytesPerSector))))
+			blockSize = 1
+			blocks <- buf.Bytes()
+
+		}
+		prevClusterOffset = unallocatedCluster
+
+	}
+	close(blocks)
 
 }
 
