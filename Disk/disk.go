@@ -161,7 +161,7 @@ func (disk Disk) Worker(wg *sync.WaitGroup, records MFT.Records, results chan<- 
 			logger.MFTExtractorlogger.Warning(msg)
 			continue
 		}
-		fmt.Printf("writing file %s record Id %d\n", record.GetFname(), record.Entry)
+		fmt.Printf("pulling data file %s Id %d\n", record.GetFname(), record.Entry)
 
 		if record.LinkedRecord == nil {
 			record.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster, bytesPerSector, results)
@@ -197,7 +197,7 @@ func (disk Disk) ListPartitions() {
 
 }
 
-func (disk Disk) CollectedUnallocated() {
+func (disk Disk) CollectedUnallocated(wg *sync.WaitGroup, blocks chan<- []byte) {
 	for _, partition := range disk.Partitions {
 
 		fs := partition.GetFileSystem()
@@ -207,6 +207,6 @@ func (disk Disk) CollectedUnallocated() {
 		bytesPerSector := int(fs.GetBytesPerSector())
 		partitionOffsetB := int64(partition.GetOffset()) * int64(bytesPerSector)
 
-		fs.CollectUnallocated(disk.Handler, partitionOffsetB)
+		fs.CollectUnallocated(wg, disk.Handler, partitionOffsetB, blocks)
 	}
 }
