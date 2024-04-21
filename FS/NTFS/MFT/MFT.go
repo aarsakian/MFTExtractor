@@ -153,8 +153,11 @@ func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sector
 
 	writeOffset := 0
 
+	var buf bytes.Buffer
+	buf.Grow(int(record.GetLogicalFileSize()))
+
 	if record.HasResidentDataAttr() {
-		results <- utils.AskedFile{Fname: record.GetFname(), Content: record.GetResidentData()}
+		buf.Write(record.GetResidentData())
 
 	} else {
 		var runlist MFTAttributes.RunList
@@ -177,9 +180,7 @@ func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sector
 			msg := fmt.Sprintf("offset %s cl len %d cl.", res, runlist.Length)
 			logger.MFTExtractorlogger.Warning(msg)
 
-			data := hD.ReadFile(offset, int(runlist.Length)*sectorsPerCluster*bytesPerSector)
-
-			results <- utils.AskedFile{Fname: record.GetFname(), Content: data, Id: int(record.Entry)}
+			buf.Write(hD.ReadFile(offset, int(runlist.Length)*sectorsPerCluster*bytesPerSector))
 
 			if runlist.Next == nil {
 				break
@@ -190,6 +191,13 @@ func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sector
 		}
 
 	}
+	results <- utils.AskedFile{Fname: record.GetFname(), Content: buf.Bytes(), Id: int(record.Entry)}
+}
+
+func (records Records) FilterOutDeleted() []Record {
+	return utils.Filter(records, func(record Record) bool {
+		return !record.IsDeleted()
+	})
 }
 
 func (record Record) FindNonResidentAttributes() []Attribute {
