@@ -1,6 +1,8 @@
 package FS
 
 import (
+	"sync"
+
 	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
 	"github.com/aarsakian/MFTExtractor/img"
 )
@@ -10,6 +12,6 @@ type FileSystem interface {
 	GetSectorsPerCluster() int
 	GetBytesPerSector() uint64
 	GetMetadata() []MFT.Record
-	CollectUnallocated(img.DiskReader, int64) []byte
+	CollectUnallocated(*sync.WaitGroup, img.DiskReader, int64, chan<- []byte)
 	GetSignature() string
 }
