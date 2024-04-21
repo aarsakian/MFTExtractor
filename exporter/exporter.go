@@ -33,6 +33,14 @@ func (exp Exporter) ExportData(wg *sync.WaitGroup, results <-chan utils.AskedFil
 
 }
 
+func (exp Exporter) ExportUnallocated(wg *sync.WaitGroup, blocks <-chan []byte) {
+	defer wg.Done()
+	fullpath := filepath.Join(exp.Location, "Unallocated")
+	for block := range blocks {
+		utils.WriteFile(fullpath, block)
+	}
+}
+
 func (exp Exporter) SetFilesToLogicalSize(records []MFT.Record) {
 	var fname string
 	for _, record := range records {
@@ -44,7 +52,7 @@ func (exp Exporter) SetFilesToLogicalSize(records []MFT.Record) {
 
 		e := os.Truncate(filepath.Join(exp.Location, fname), record.GetLogicalFileSize())
 		if e != nil {
-			fmt.Printf("ERROR %s", e)
+			fmt.Printf("Error truncating %s\n", e)
 		}
 
 	}
@@ -65,7 +73,6 @@ func (exp Exporter) ExportRecords(records []MFT.Record, physicalDisk disk.Disk, 
 	go exp.ExportData(wg, results)                             //pipeline copies channel
 
 	wg.Wait()
-	exp.SetFilesToLogicalSize(records)
 }
 
 func (exp Exporter) HashFiles(records []MFT.Record) {
