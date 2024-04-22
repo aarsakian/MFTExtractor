@@ -197,7 +197,7 @@ func (disk Disk) ListPartitions() {
 
 }
 
-func (disk Disk) CollectedUnallocated(wg *sync.WaitGroup, blocks chan<- []byte) {
+func (disk Disk) CollectedUnallocated(blocks chan<- []byte) {
 	for _, partition := range disk.Partitions {
 
 		fs := partition.GetFileSystem()
@@ -207,6 +207,6 @@ func (disk Disk) CollectedUnallocated(wg *sync.WaitGroup, blocks chan<- []byte) 
 		bytesPerSector := int(fs.GetBytesPerSector())
 		partitionOffsetB := int64(partition.GetOffset()) * int64(bytesPerSector)
 
-		fs.CollectUnallocated(wg, disk.Handler, partitionOffsetB, blocks)
+		fs.CollectUnallocated(disk.Handler, partitionOffsetB, blocks)
 	}
 }
