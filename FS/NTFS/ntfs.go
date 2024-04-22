@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"math"
-	"sync"
 
 	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
 	MFTAttributes "github.com/aarsakian/MFTExtractor/FS/NTFS/MFT/attributes"
@@ -72,8 +71,8 @@ func (ntfs *NTFS) Process(hD img.DiskReader, partitionOffsetB int64, MFTSelected
 
 }
 
-func (ntfs NTFS) CollectUnallocated(wg *sync.WaitGroup, hD img.DiskReader, partitionOffsetB int64, blocks chan<- []byte) {
-	defer wg.Done()
+func (ntfs NTFS) CollectUnallocated(hD img.DiskReader, partitionOffsetB int64, blocks chan<- []byte) {
+
 	record := ntfs.MFTTable.Records[0]
 	bitmap := record.FindAttribute("BitMap").(*MFTAttributes.BitMap)
 	unallocatedClusters := bitmap.GetUnallocatedClusters()
