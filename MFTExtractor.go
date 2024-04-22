@@ -11,7 +11,6 @@ import (
 	"math"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	disk "github.com/aarsakian/MFTExtractor/Disk"
@@ -120,12 +119,7 @@ func main() {
 		recordsPerPartition = physicalDisk.GetFileSystemMetadata(*partitionNum)
 
 		if *collectUnallocated {
-			wg := new(sync.WaitGroup)
-			wg.Add(2)
-			blocks := make(chan []byte, 1) // write for consecutive blocks
-			go physicalDisk.CollectedUnallocated(wg, blocks)
-			go exp.ExportUnallocated(wg, blocks)
-			wg.Wait()
+			exp.ExportUnallocated(physicalDisk)
 		}
 
 		for partitionId, records := range recordsPerPartition {
