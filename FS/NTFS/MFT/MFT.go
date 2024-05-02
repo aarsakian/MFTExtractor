@@ -740,3 +740,31 @@ func (records Records) FilterByName(filename string) []Record {
 	})
 
 }
+
+func (records Records) FilterByPrefixesSuffixes(prefix1 string, suffix1 string,
+	prefix2 string, suffix2 string) []Record {
+
+	return utils.Filter(records, func(record Record) bool {
+		return record.HasPrefix(prefix1) && record.HasSuffix(suffix1) ||
+			record.HasPrefix(prefix2) && record.HasSuffix(suffix2)
+	})
+
+}
+
+func (records Records) FilterByPrefixSuffix(prefix string, suffix string) []Record {
+
+	return utils.Filter(records, func(record Record) bool {
+		return record.HasPrefix(prefix) && record.HasSuffix(suffix)
+	})
+
+}
+
+func (record Record) HasPrefix(prefix string) bool {
+	record_name := record.GetFname()
+	return strings.HasPrefix(record_name, prefix)
+}
+
+func (record Record) HasSuffix(suffix string) bool {
+	record_name := record.GetFname()
+	return strings.HasSuffix(record_name, suffix)
+}
