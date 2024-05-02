@@ -3,6 +3,7 @@ package attributes
 import (
 	"fmt"
 
+	"github.com/aarsakian/MFTExtractor/logger"
 	"github.com/aarsakian/MFTExtractor/utils"
 )
 
@@ -29,7 +30,10 @@ func (reparse Reparse) GetHeader() AttributeHeader {
 
 func (reparse *Reparse) Parse(data []byte) {
 	utils.Unmarshal(data[:16], reparse)
-
+	if len(data) < 16 {
+		logger.MFTExtractorlogger.Warning(fmt.Sprintf("Reparse data not enough %d", len(data)))
+		return
+	}
 	reparse.Name = utils.DecodeUTF16(data[16+
 		uint16(reparse.TargetNameOffset) : 16+uint16(reparse.TargetNameOffset)+reparse.TargetLen])
 	reparse.PrintName = utils.DecodeUTF16(data[16+uint16(reparse.TargetPrintNameOffset) : 16+
