@@ -95,8 +95,12 @@ func (mfttable *MFTTable) SetI30Size(recordId int, attrType string) {
 			logger.MFTExtractorlogger.Warning(msg)
 			continue
 		}
-
-		mfttable.Records[entry.ParRef].I30Size = entry.Fnattr.RealFsize
+		//issue with realsize in 8.3 fnattr
+		if entry.Fnattr.RealFsize > entry.Fnattr.AllocFsize {
+			mfttable.Records[entry.ParRef].I30Size = entry.Fnattr.AllocFsize
+		} else {
+			mfttable.Records[entry.ParRef].I30Size = entry.Fnattr.RealFsize
+		}
 
 	}
 
