@@ -103,12 +103,17 @@ func (exp Exporter) HashFiles(records []MFT.Record) {
 }
 
 func (exp Exporter) CreateFile(fname string, data []byte) {
-
+	var err error
 	fullpath := filepath.Join(exp.Location, fname)
-	err := os.MkdirAll(exp.Location, 0750)
+	err = os.MkdirAll(exp.Location, 0750)
 	if err != nil && !os.IsExist(err) {
 		fmt.Println(err)
 	}
+	err = os.Remove(fullpath)
+	if err != nil && !os.IsExist(err) {
+		fmt.Println(err)
+	}
+
 	utils.WriteFile(fullpath, data)
 
 }
