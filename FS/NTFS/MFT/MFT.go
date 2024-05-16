@@ -470,6 +470,11 @@ func (record Record) ShowFNAMFTAccessTime() {
 }
 
 func (record *Record) ProcessFixUpArrays(data []byte) {
+	if len(data) < int(2*record.UpdateFixUpArrSize) {
+		msg := fmt.Sprintf("Data not enough to parse fixup array by %d", int(2*record.UpdateFixUpArrSize)-len(data))
+		logger.MFTExtractorlogger.Warning(msg)
+		return
+	}
 	fixuparray := data[record.UpdateFixUpArrOffset : record.UpdateFixUpArrOffset+2*record.UpdateFixUpArrSize]
 	var fixupvals [][]byte
 	val := 2
