@@ -105,7 +105,7 @@ func (disk *Disk) DiscoverPartitions() {
 func (disk *Disk) ProcessPartitions(partitionNum int, MFTSelectedEntries []int, fromMFTEntry int, toMFTEntry int) {
 
 	for idx := range disk.Partitions {
-		if partitionNum != -1 && idx != partitionNum {
+		if partitionNum != -1 && idx+1 != partitionNum {
 			continue
 		}
 
@@ -113,14 +113,14 @@ func (disk *Disk) ProcessPartitions(partitionNum int, MFTSelectedEntries []int, 
 		fs := disk.Partitions[idx].GetFileSystem()
 		if fs == nil {
 			msg := "No Known File System found at partition %d (Currently supported NTFS)."
-			fmt.Printf(msg+"\n", idx)
 			logger.MFTExtractorlogger.Error(fmt.Sprintf(msg, idx))
 			continue //fs not found
 		}
+
 		partitionOffsetB := int64(disk.Partitions[idx].GetOffset() * fs.GetBytesPerSector())
-		msg := "Located %s at %d bytes."
-		fmt.Printf(msg+"\n", fs.GetSignature(), partitionOffsetB)
-		logger.MFTExtractorlogger.Error(fmt.Sprintf(msg, fs.GetSignature(), partitionOffsetB))
+		msg := "Partition %d  %s at %d sector"
+		fmt.Printf(msg+"\n", idx+1, fs.GetSignature(), partitionOffsetB/512)
+		logger.MFTExtractorlogger.Error(fmt.Sprintf(msg, idx+1, fs.GetSignature(), partitionOffsetB))
 
 		fs.Process(disk.Handler, partitionOffsetB, MFTSelectedEntries, fromMFTEntry, toMFTEntry)
 
