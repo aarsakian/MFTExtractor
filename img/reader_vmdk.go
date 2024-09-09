@@ -2,21 +2,34 @@ package img
 
 import (
 	"path"
-	"path/filepath"
 	"strings"
 
-	extent "github.com/aarsakian/VMDK_Reader/extent"
+	"github.com/aarsakian/VMDK_Reader/logger"
+	"github.com/aarsakian/VMDK_Reader/vmdk"
 )
 
 type VMDKReader struct {
 	PathToEvidenceFiles string
-	fd                  extent.Extents
+	fd                  vmdk.VMDKImage //Handle
 }
 
 func (imgreader *VMDKReader) CreateHandler() {
 	extension := path.Ext(imgreader.PathToEvidenceFiles)
 	if strings.ToLower(extension) == ".vmdk" {
-		imgreader.fd = extent.ProcessExtents(imgreader.PathToEvidenceFiles)
+
+		vmdkimage := vmdk.VMDKImage{Path: imgreader.PathToEvidenceFiles}
+		vmdkimage.Process()
+
+		if vmdkimage.HasParent() {
+			parentVMDKImage, err := vmdkimage.LocateParent()
+			if err != nil {
+				logger.VMDKlogger.Error(err)
+			} else {
+				parentVMDKImage.Process()
+				vmdkimage.ParentImage = &parentVMDKImage
+			}
+		}
+		imgreader.fd = vmdkimage
 
 	} else {
 		panic("only VMDK Sparse  images are supported")
@@ -29,7 +42,7 @@ func (imgreader VMDKReader) CloseHandler() {
 }
 
 func (imgreader VMDKReader) ReadFile(physicalOffset int64, length int) []byte {
-	return imgreader.fd.RetrieveData(filepath.Dir(imgreader.PathToEvidenceFiles), physicalOffset, int64(length))
+	return imgreader.fd.RetrieveData(physicalOffset, int64(length))
 }
 
 func (imgreader VMDKReader) GetDiskSize() int64 {
