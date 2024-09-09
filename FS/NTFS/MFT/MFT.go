@@ -492,6 +492,10 @@ func (record *Record) Process(bs []byte) {
 	utils.Unmarshal(bs, record)
 
 	if record.Signature == "BAAD" { //skip bad entry
+		logger.MFTExtractorlogger.Warning(fmt.Sprintf("Record %d is corrupt", record.Entry))
+		return
+	} else if record.Signature != "FILE" {
+		logger.MFTExtractorlogger.Warning(fmt.Sprintf("Record %d has non valid signature %x", record.Entry, record.Signature))
 		return
 	}
 	record.ProcessFixUpArrays(bs)
@@ -598,13 +602,17 @@ func (record *Record) Process(bs []byte) {
 			var atrNoNRecordResident *MFTAttributes.ATRrecordNoNResident = new(MFTAttributes.ATRrecordNoNResident)
 			utils.Unmarshal(bs[ReadPtr+16:ReadPtr+64], atrNoNRecordResident)
 
-			if ReadPtr+attrHeader.AttrLen <= 1024 {
+			if int(ReadPtr+atrNoNRecordResident.RunOff+attrHeader.AttrLen) < len(bs) {
 				var runlist *MFTAttributes.RunList = new(MFTAttributes.RunList)
 				lengthcl := runlist.Process(bs[ReadPtr+
-					atrNoNRecordResident.RunOff : ReadPtr+attrHeader.AttrLen])
+					atrNoNRecordResident.RunOff : ReadPtr+atrNoNRecordResident.RunOff+attrHeader.AttrLen])
 				atrNoNRecordResident.RunList = runlist
 				atrNoNRecordResident.RunListTotalLenCl = lengthcl
 
+			} else {
+				msg := fmt.Sprintf("attribute %s at record %d exceeded buffer by %d",
+					attrHeader.GetType(), record.Entry, int(ReadPtr+attrHeader.AttrLen)-len(bs))
+				logger.MFTExtractorlogger.Warning(msg)
 			}
 			attrHeader.ATRrecordNoNResident = atrNoNRecordResident
 
