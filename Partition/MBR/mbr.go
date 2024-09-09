@@ -70,7 +70,7 @@ func LocatePartitions(data []byte) []Partition {
 
 func (mbr *MBR) Parse(buffer []byte) {
 
-	utils.Unmarshal(buffer, &mbr)
+	utils.Unmarshal(buffer, mbr)
 	mbr.Partitions = LocatePartitions(buffer[446:510])
 
 }
