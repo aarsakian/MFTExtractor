@@ -8,6 +8,7 @@ import (
 	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
 	MFTAttributes "github.com/aarsakian/MFTExtractor/FS/NTFS/MFT/attributes"
 	"github.com/aarsakian/MFTExtractor/img"
+	"github.com/aarsakian/MFTExtractor/logger"
 	"github.com/aarsakian/MFTExtractor/utils"
 )
 
@@ -45,11 +46,14 @@ func (ntfs NTFS) GetMetadata() []MFT.Record {
 
 func (ntfs *NTFS) Process(hD img.DiskReader, partitionOffsetB int64, MFTSelectedEntries []int,
 	fromMFTEntry int, toMFTEntry int) {
-	fmt.Printf("About to read first record entry to determine the size of $MFT Table.\n")
 
 	length := int(1024) // len of MFT record
 
 	physicalOffset := partitionOffsetB + int64(ntfs.MFTOffset)*int64(ntfs.SectorsPerCluster)*int64(ntfs.BytesPerSector)
+
+	msg := "Reading first record entry to determine the size of $MFT Table at offset %d"
+	fmt.Printf(msg+"\n", physicalOffset)
+	logger.MFTExtractorlogger.Info(fmt.Sprintf(msg, physicalOffset))
 
 	data := hD.ReadFile(physicalOffset, length)
 
