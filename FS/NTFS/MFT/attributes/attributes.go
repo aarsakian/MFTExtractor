@@ -66,7 +66,7 @@ func (attrHeader AttributeHeader) GetType() string {
 	if ok {
 		return attrType
 	} else {
-		return fmt.Sprintf("%x \n", attrHeader.Type)
+		return fmt.Sprintf("%s ", attrHeader.Type)
 	}
 }
 
