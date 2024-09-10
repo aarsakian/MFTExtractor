@@ -51,11 +51,13 @@ func (mfttable *MFTTable) CreateLinkedRecords() {
 		previdx := idx
 		for _, linkedRecordInfo := range mfttable.Records[idx].LinkedRecordsInfo {
 			entryId := linkedRecordInfo.Entry
-			if int(entryId) > len(mfttable.Records) {
+
+			linkedRecord, err := mfttable.GetRecord(entryId)
+			if err != nil {
 				logger.MFTExtractorlogger.Warning(fmt.Sprintf("Record %d has linked to non existing record %d", mfttable.Records[previdx].Entry, entryId))
 				continue
 			}
-			mfttable.Records[previdx].LinkedRecord = &mfttable.Records[entryId]
+			mfttable.Records[previdx].LinkedRecord = linkedRecord
 			previdx = int(entryId)
 
 		}
@@ -72,7 +74,7 @@ func (mfttable *MFTTable) FindParentRecords() {
 
 		}
 		fnattr := attr.(*MFTAttributes.FNAttribute)
-		parentRecord, err := mfttable.GetParentRecord(fnattr.ParRef)
+		parentRecord, err := mfttable.GetRecord(uint32(fnattr.ParRef))
 		if err == nil {
 			mfttable.Records[idx].Parent = parentRecord
 		} else {
@@ -82,17 +84,17 @@ func (mfttable *MFTTable) FindParentRecords() {
 	}
 }
 
-func (mfttable MFTTable) GetParentRecord(referencedEntry uint64) (*Record, error) {
-	if int(referencedEntry) < len(mfttable.Records) && mfttable.Records[referencedEntry].Entry == uint32(referencedEntry) {
+func (mfttable MFTTable) GetRecord(referencedEntry uint32) (*Record, error) {
+	if int(referencedEntry) < len(mfttable.Records) && mfttable.Records[referencedEntry].Entry == referencedEntry {
 		return &mfttable.Records[referencedEntry], nil
 	} else { //brute force seach
 		for idx := range mfttable.Records {
-			if mfttable.Records[idx].Entry == uint32(referencedEntry) {
+			if mfttable.Records[idx].Entry == referencedEntry {
 				return &mfttable.Records[idx], nil
 			}
 		}
 	}
-	return nil, errors.New("no parent record found")
+	return nil, errors.New("no record found")
 }
 
 func (mfttable *MFTTable) CalculateFileSizes() {
@@ -121,7 +123,7 @@ func (mfttable *MFTTable) SetI30Size(recordId int, attrType string) {
 		}
 
 		//issue with realsize in 8.3 fnattr
-		parentEntry, err := mfttable.GetParentRecord(entry.ParRef)
+		parentEntry, err := mfttable.GetRecord(uint32(entry.ParRef))
 		if err != nil {
 			msg := fmt.Sprintf("Record %d has attribute %s which references non existent $MFT record entry %d.",
 				recordId, attrType, entry.Fnattr.ParRef)
