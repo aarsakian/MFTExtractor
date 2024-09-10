@@ -1,6 +1,7 @@
 package img
 
 import (
+	"fmt"
 	"path"
 	"strings"
 
@@ -42,6 +43,7 @@ func (imgreader VMDKReader) CloseHandler() {
 }
 
 func (imgreader VMDKReader) ReadFile(physicalOffset int64, length int) []byte {
+	logger.VMDKlogger.Info(fmt.Sprintf("Read from %d len %d", physicalOffset, length))
 	return imgreader.fd.RetrieveData(physicalOffset, int64(length))
 }
 
