@@ -68,8 +68,8 @@ func (ntfs *NTFS) Process(hD img.DiskReader, partitionOffsetB int64, MFTSelected
 	ntfs.MFTTable.ProcessNonResidentRecords(hD, partitionOffsetB, int(ntfs.SectorsPerCluster)*int(ntfs.BytesPerSector))
 	if len(MFTSelectedEntries) == 0 { // additional processing only when user has not selected entries
 		ntfs.MFTTable.CreateLinkedRecords()
-		ntfs.MFTTable.CalculateFileSizes()
 		ntfs.MFTTable.FindParentRecords()
+		ntfs.MFTTable.CalculateFileSizes()
 
 	}
 
