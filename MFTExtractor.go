@@ -17,6 +17,7 @@ import (
 	ntfslib "github.com/aarsakian/MFTExtractor/FS/NTFS"
 	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
 	"github.com/aarsakian/MFTExtractor/exporter"
+	"github.com/aarsakian/MFTExtractor/logger"
 	MFTExtractorLogger "github.com/aarsakian/MFTExtractor/logger"
 	"github.com/aarsakian/MFTExtractor/tree"
 	"github.com/aarsakian/MFTExtractor/utils"
@@ -140,6 +141,12 @@ func main() {
 				continue
 			}
 
+			if len(fileNamesToExport) > 0 && len(records) == 0 {
+				msg := fmt.Sprintf("filenames not found %s", *exportFiles)
+				logger.MFTExtractorlogger.Warning(msg)
+				fmt.Printf(msg + "\n")
+				continue
+			}
 			exp.ExportRecords(records, physicalDisk, partitionId)
 
 			if *hashFiles != "" && location != "" {
