@@ -17,6 +17,8 @@ import (
 	"time"
 	"unicode/utf16"
 	"unicode/utf8"
+
+	"github.com/aarsakian/MFTExtractor/logger"
 )
 
 type NoNull string
@@ -270,8 +272,10 @@ func WriteFile(filename string, content []byte) {
 
 		}
 
-		fmt.Printf("wrote file %s  %d bytes \n",
+		msg := fmt.Sprintf("wrote file %s  %d bytes",
 			filename, bytesWritten)
+		logger.MFTExtractorlogger.Info(msg)
+		fmt.Printf(msg + "\n")
 		file.Close()
 	}
 
