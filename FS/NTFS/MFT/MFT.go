@@ -99,14 +99,18 @@ func (record Record) IsFolder() bool {
 
 func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionOffsetB int64, clusterSizeB int) {
 
-	for _, attribute := range record.FilterOutNonResidentAttributes("DATA") {
+	for _, attribute := range record.FilterOutNonResidentAttributes("DATA") { //all non resident attrs except DATA
 		atrrecordNoNResident := attribute.GetHeader().ATRrecordNoNResident
+		if atrrecordNoNResident.RunList == nil {
+			logger.MFTExtractorlogger.Warning(fmt.Sprintf("attribute %s has no runlists.", attribute.GetHeader().GetType()))
+			continue
+		}
 		runlist := *atrrecordNoNResident.RunList
 
 		length := int(atrrecordNoNResident.RunListTotalLenCl) * clusterSizeB
 		if length == 0 { // no runlists found
 
-			logger.MFTExtractorlogger.Warning("attribute %s No runlists found.")
+			logger.MFTExtractorlogger.Warning(fmt.Sprintf("attribute %s  No runlists found.", attribute.GetHeader().GetType()))
 			continue
 		}
 		var buf bytes.Buffer
@@ -492,10 +496,10 @@ func (record *Record) Process(bs []byte) {
 	utils.Unmarshal(bs, record)
 
 	if record.Signature == "BAAD" { //skip bad entry
-		logger.MFTExtractorlogger.Warning(fmt.Sprintf("Record %d is corrupt", record.Entry))
+		logger.MFTExtractorlogger.Warning("Record is corrupt")
 		return
 	} else if record.Signature != "FILE" {
-		logger.MFTExtractorlogger.Warning(fmt.Sprintf("Record %d has non valid signature %x", record.Entry, record.Signature))
+		logger.MFTExtractorlogger.Warning(fmt.Sprintf("Record has non valid signature %x", record.Signature))
 		return
 	}
 	record.ProcessFixUpArrays(bs)
