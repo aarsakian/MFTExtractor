@@ -12,7 +12,7 @@ import (
 
 // $MFT table points either to its file path or the buffer containing $MFT
 type MFTTable struct {
-	Records []Record
+	Records Records
 	Size    int
 }
 
@@ -98,9 +98,12 @@ func (mfttable MFTTable) GetRecord(referencedEntry uint32) (*Record, error) {
 }
 
 func (mfttable *MFTTable) CalculateFileSizes() {
+
 	for idx := range mfttable.Records {
 		//process only I30 records
-
+		if !mfttable.Records[idx].IsFolder() {
+			continue
+		}
 		if mfttable.Records[idx].HasAttr("Index Root") {
 			mfttable.SetI30Size(idx, "Index Root")
 		}
@@ -117,24 +120,31 @@ func (mfttable *MFTTable) SetI30Size(recordId int, attrType string) {
 
 	idxEntries := attr.GetIndexEntriesSortedByMFTEntryID()
 
-	for _, entry := range idxEntries {
-		if entry.Fnattr == nil {
+	for _, idxEntry := range idxEntries {
+		if idxEntry.Fnattr == nil {
 			continue
 		}
 
 		//issue with realsize in 8.3 fnattr
-		parentEntry, err := mfttable.GetRecord(uint32(entry.ParRef))
+		referencedEntry, err := mfttable.GetRecord(uint32(idxEntry.ParRef))
+
 		if err != nil {
 			msg := fmt.Sprintf("Record %d has attribute %s which references non existent $MFT record entry %d.",
-				recordId, attrType, entry.Fnattr.ParRef)
+				recordId, attrType, idxEntry.Fnattr.ParRef)
 			logger.MFTExtractorlogger.Warning(msg)
 			continue
 		}
 
-		if entry.Fnattr.RealFsize > entry.Fnattr.AllocFsize {
-			parentEntry.I30Size = entry.Fnattr.AllocFsize
+		// set file size omit folders
+		if referencedEntry.IsFolder() {
+			continue
+		}
+
+		if idxEntry.Fnattr.RealFsize > idxEntry.Fnattr.AllocFsize {
+
+			referencedEntry.I30Size = idxEntry.Fnattr.AllocFsize
 		} else {
-			parentEntry.I30Size = entry.Fnattr.RealFsize
+			referencedEntry.I30Size = idxEntry.Fnattr.RealFsize
 		}
 
 	}
