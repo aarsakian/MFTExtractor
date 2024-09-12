@@ -18,7 +18,7 @@ type SIAttribute struct {
 	OwnID    uint32
 	SecID    uint32
 	Quota    uint64
-	Usn      uint64
+	USN      uint64
 	Header   *AttributeHeader
 }
 
@@ -54,5 +54,5 @@ func (siattr SIAttribute) ShowInfo() {
 	atime, ctime, mtime, mfttime := siattr.GetTimestamps()
 	typeAttr := siattr.FindType()
 	fmt.Printf("type %s usn  %d atime %s ctime %s mtime %s mfttime %s\n",
-		typeAttr, siattr.Usn, atime, ctime, mtime, mfttime)
+		typeAttr, siattr.USN, atime, ctime, mtime, mfttime)
 }
