@@ -216,6 +216,18 @@ func (record Record) FilterOutNonResidentAttributes(attrName string) []Attribute
 	})
 }
 
+func (records Records) FilterOutFiles() Records {
+	return utils.Filter(records, func(record Record) bool {
+		return record.IsFolder()
+	})
+}
+
+func (records Records) FilterOutFolders() Records {
+	return utils.Filter(records, func(record Record) bool {
+		return !record.IsFolder()
+	})
+}
+
 func (record Record) FindAttributePtr(attributeName string) Attribute {
 	for idx := range record.Attributes {
 		if record.Attributes[idx].FindType() == attributeName {
@@ -416,7 +428,6 @@ func (record Record) HasFilenameExtension(extension string) bool {
 }
 
 func (record Record) HasFilename(filename string) bool {
-
 	return record.GetFname() == filename
 
 }
@@ -591,8 +602,18 @@ func (record *Record) Process(bs []byte) {
 				attr = &MFTAttributes.SIAttribute{}
 				attr.Parse(bs[attrStartOffset:attrEndOffset])
 
+			} else if attrHeader.IsLoggedUtility() {
+				attr = &MFTAttributes.LoggedUtilityStream{Kind: attrHeader.GetName()}
+				attr.Parse(bs[attrStartOffset:attrEndOffset])
+
+			} else if attrHeader.IsExtendedAttribute() {
+				attr = &MFTAttributes.ExtendedAttribute{}
+				attr.Parse(bs[attrStartOffset:attrEndOffset])
+			} else if attrHeader.IsExtendedInformationAttribute() {
+				attr = &MFTAttributes.EA_INFORMATION{}
+				attr.Parse(bs[attrStartOffset:attrEndOffset])
 			} else {
-				msg := fmt.Sprintf("uknown attribute %s at record %d",
+				msg := fmt.Sprintf("uknown resident attribute %s at record %d",
 					attrHeader.GetType(), record.Entry)
 				logger.MFTExtractorlogger.Warning(msg)
 			}
