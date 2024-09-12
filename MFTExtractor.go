@@ -126,6 +126,7 @@ func main() {
 		for partitionId, records := range recordsPerPartition {
 
 			if *exportFiles != "" {
+				records = records.FilterOutFolders()
 				records = records.FilterByNames(fileNamesToExport)
 			}
 
@@ -137,16 +138,15 @@ func main() {
 				records = records.FilterByPath(*exportFilesPath)
 			}
 
-			if len(records) == 0 {
-				continue
-			}
-
 			if len(fileNamesToExport) > 0 && len(records) == 0 {
-				msg := fmt.Sprintf("filenames not found %s", *exportFiles)
+				msg := fmt.Sprintf("filenames not found %s in Partition %d", *exportFiles, partitionId+1)
 				logger.MFTExtractorlogger.Warning(msg)
 				fmt.Printf(msg + "\n")
 				continue
+			} else if len(records) == 0 {
+				continue
 			}
+
 			exp.ExportRecords(records, physicalDisk, partitionId)
 
 			if *hashFiles != "" && location != "" {
