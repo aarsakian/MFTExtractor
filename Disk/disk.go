@@ -132,7 +132,7 @@ func (disk Disk) GetFileSystemMetadata(partitionNum int) map[int]MFT.Records {
 
 	recordsPerPartition := map[int]MFT.Records{}
 	for idx, partition := range disk.Partitions {
-		if partitionNum != -1 && idx != partitionNum {
+		if partitionNum != -1 && idx+1 != partitionNum {
 			continue
 		}
 		fs := partition.GetFileSystem()
