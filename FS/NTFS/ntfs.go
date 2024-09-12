@@ -67,8 +67,19 @@ func (ntfs *NTFS) Process(hD img.DiskReader, partitionOffsetB int64, MFTSelected
 	ntfs.ProcessMFT(MFTAreaBuf, MFTSelectedEntries, fromMFTEntry, toMFTEntry)
 	ntfs.MFTTable.ProcessNonResidentRecords(hD, partitionOffsetB, int(ntfs.SectorsPerCluster)*int(ntfs.BytesPerSector))
 	if len(MFTSelectedEntries) == 0 { // additional processing only when user has not selected entries
+		msg := "Linking $MFT record non resident $MFT entries"
+		fmt.Printf(msg + "\n")
+		logger.MFTExtractorlogger.Info(msg)
 		ntfs.MFTTable.CreateLinkedRecords()
+
+		msg = "Locating parent $MFT records from Filename attributes"
+		fmt.Printf(msg + "\n")
+		logger.MFTExtractorlogger.Info(msg)
 		ntfs.MFTTable.FindParentRecords()
+
+		msg = "Calculating file size from record"
+		fmt.Printf(msg + "\n")
+		logger.MFTExtractorlogger.Info(msg)
 		ntfs.MFTTable.CalculateFileSizes()
 
 	}
