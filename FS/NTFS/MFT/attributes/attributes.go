@@ -13,6 +13,7 @@ var AttrTypes = map[string]string{
 	"00000070": "Volume Information", "00000080": "DATA",
 	"00000090": "Index Root", "000000a0": "Index Allocation",
 	"000000b0": "BitMap", "000000c0": "Reparse Point",
+	"000000d0": "Extended Attribute Information",
 	"000000e0": "Extended Attribute", "000000f0": "Extended Attribute Information",
 	"00000100": "Logged Utility Stream",
 	"ffffffff": "Last",
@@ -118,8 +119,28 @@ func (attrHeader AttributeHeader) IsStdInfo() bool {
 	return attrHeader.GetType() == "Standard Information"
 }
 
+func (attrHeader AttributeHeader) IsLoggedUtility() bool {
+	return attrHeader.GetType() == "Logged Utility Stream"
+}
+
+func (attrHeader AttributeHeader) IsExtendedAttribute() bool {
+	return attrHeader.GetType() == "Extended Attribute"
+}
+
+func (attrHeader AttributeHeader) IsExtendedInformationAttribute() bool {
+	return attrHeader.GetType() == "Extended Attribute Information"
+}
+
 func (attrHeader AttributeHeader) IsNoNResident() bool {
 	return attrHeader.NoNResident == 1
+}
+
+func (attrHeader AttributeHeader) GetName() string {
+	if !attrHeader.IsNoNResident() {
+		return attrHeader.ATRrecordResident.Name
+	} else {
+		return ""
+	}
 }
 
 func (prevRunlist *RunList) Process(runlists []byte) uint64 {
