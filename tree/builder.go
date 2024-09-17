@@ -2,9 +2,11 @@ package tree
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
 	MFTAttributes "github.com/aarsakian/MFTExtractor/FS/NTFS/MFT/attributes"
+	"github.com/aarsakian/MFTExtractor/logger"
 )
 
 /*Thus, a B-tree node is equivalent to a disk block, and a “pointer” value stored
@@ -21,7 +23,18 @@ type Tree struct {
 	root *Node
 }
 
-func (t *Tree) BuildTree(record *MFT.Record) {
+func (t *Tree) Build(records MFT.Records) {
+	fmt.Printf("Building tree from MFT records \n")
+	for idx := range records {
+		if records[idx].Entry < 5 { //$MFT entry number 5
+			continue
+		}
+		t.AddRecord(&records[idx])
+	}
+
+}
+
+func (t *Tree) AddRecord(record *MFT.Record) {
 
 	if t.root == nil {
 
@@ -59,15 +72,24 @@ func (t Tree) Show() {
 func (n Node) Show() {
 
 	if n.children != nil {
-		fmt.Printf(" Parent is")
-		n.record.ShowFileName("any")
-		fmt.Printf("\n children")
+
+		msg := fmt.Sprintf(" %s  |_> ", n.record.GetFname())
+		logger.MFTExtractorlogger.Info(msg)
+		fmt.Print("\n" + msg)
 	}
 
-	for _, node := range n.children {
-		node.record.ShowFileName("any")
+	msgB := strings.Builder{}
+	msgB.Grow(len(n.children))
+
+	for _, childnode := range n.children {
+		msg := fmt.Sprintf(" %s", childnode.record.GetFname())
+
+		fmt.Print(msg)
+		msgB.WriteString(msg)
 
 	}
+
+	logger.MFTExtractorlogger.Info(msgB.String())
 
 	for _, node := range n.children {
 
