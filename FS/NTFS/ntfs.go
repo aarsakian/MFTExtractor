@@ -77,7 +77,7 @@ func (ntfs *NTFS) Process(hD img.DiskReader, partitionOffsetB int64, MFTSelected
 		logger.MFTExtractorlogger.Info(msg)
 		ntfs.MFTTable.FindParentRecords()
 
-		msg = "Calculating file size from record"
+		msg = "Calculating files sizes from $I30"
 		fmt.Printf(msg + "\n")
 		logger.MFTExtractorlogger.Info(msg)
 		ntfs.MFTTable.CalculateFileSizes()
