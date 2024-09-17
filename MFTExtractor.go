@@ -57,7 +57,7 @@ func main() {
 	showIndex := flag.Bool("index", false, "show index structures")
 	physicalDrive := flag.Int("physicaldrive", -1, "select disk drive number for extraction of non resident files")
 	partitionNum := flag.Int("partition", -1, "select partition number")
-	showFSStructure := flag.Bool("structure", false, "reconstrut entries tree")
+	showFStree := flag.Bool("tree", false, "reconstrut entries tree")
 	showParent := flag.Bool("parent", false, "show information about parent record")
 	listPartitions := flag.Bool("listpartitions", false, "list partitions")
 	fileExtensions := flag.String("extensions", "", "search MFT records by extensions use , for each extension")
@@ -75,6 +75,8 @@ func main() {
 
 	entries := utils.GetEntriesInt(*MFTSelectedEntries)
 	fileNamesToExport := utils.GetEntries(*exportFiles)
+
+	t := tree.Tree{}
 
 	rp := reporter.Reporter{
 		ShowFileName:   *showFileName,
@@ -155,6 +157,12 @@ func main() {
 				fmt.Printf("Please use location to set export location before hashing.")
 			}
 			rp.Show(records, partitionId)
+
+			if *showFStree {
+				t.Build(records)
+				t.Show()
+
+			}
 		}
 
 	} else if *inputfile != "Disk MFT" {
@@ -197,19 +205,10 @@ func main() {
 	}
 
 	rp.Show(records, 0)
-	t := tree.Tree{}
 
-	fmt.Printf("Building tree from MFT records \n")
-
-	if *showFSStructure {
-		for idx := range records {
-			if idx < 5 {
-				continue
-			}
-			t.BuildTree(&records[idx])
-		}
+	if *showFStree {
+		t.Build(records)
 		t.Show()
-
 	}
 
 } //ends for
