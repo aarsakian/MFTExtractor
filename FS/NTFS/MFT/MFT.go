@@ -2,6 +2,7 @@ package MFT
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -502,16 +503,14 @@ func (record *Record) ProcessFixUpArrays(data []byte) {
 
 }
 
-func (record *Record) Process(bs []byte) {
+func (record *Record) Process(bs []byte) error {
 
 	utils.Unmarshal(bs, record)
 
 	if record.Signature == "BAAD" { //skip bad entry
-		logger.MFTExtractorlogger.Warning("Record is corrupt")
-		return
+		return errors.New("Record is corrupt")
 	} else if record.Signature != "FILE" {
-		logger.MFTExtractorlogger.Warning(fmt.Sprintf("Record has non valid signature %x", record.Signature))
-		return
+		return fmt.Errorf("Record has non valid signature %x", record.Signature)
 	}
 	record.ProcessFixUpArrays(bs)
 	record.I30Size = 0 //default value
@@ -674,6 +673,7 @@ func (record *Record) Process(bs []byte) {
 	} //ends while
 	record.Attributes = attributes
 	record.LinkedRecordsInfo = linkedRecordsInfo
+	return nil
 }
 
 func (record Record) ShowFileSize() {
@@ -720,7 +720,7 @@ func (record Record) GetFnames() map[string]string {
 
 func (record Record) GetFname() string {
 	fnames := record.GetFnames()
-	for _, namescheme := range []string{"POSIX", "Win32", "Win32 & Dos", "Dos"} {
+	for _, namescheme := range []string{"Win32", "Win32 & Dos", "POSIX", "Dos"} {
 		name, ok := fnames[namescheme]
 		if ok {
 			return name
