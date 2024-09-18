@@ -29,7 +29,11 @@ func (mfttable *MFTTable) ProcessRecords(data []byte) {
 			continue
 		}
 
-		record.Process(data[i : i+RecordSize])
+		err := record.Process(data[i : i+RecordSize])
+		if err != nil {
+			logger.MFTExtractorlogger.Error(err)
+			continue
+		}
 
 		mfttable.Records[i/RecordSize] = record
 
