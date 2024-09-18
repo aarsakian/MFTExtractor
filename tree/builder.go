@@ -37,9 +37,11 @@ func (t *Tree) Build(records MFT.Records) {
 func (t *Tree) AddRecord(record *MFT.Record) {
 
 	if t.root == nil {
+		logger.MFTExtractorlogger.Info("initialized root")
 
 		t.root = &Node{record, nil, nil}
 	} else {
+
 		t.root.insert(record)
 	}
 
@@ -50,12 +52,13 @@ func (n *Node) insert(record *MFT.Record) {
 		fnattr := record.FindAttribute("FileName").(*MFTAttributes.FNAttribute)
 		if uint64(n.record.Entry) == fnattr.ParRef && n.record.Seq-fnattr.ParSeq < 2 { //record is children
 			childNode := Node{record, n, nil}
-
 			n.children = append(n.children, &childNode)
 
+			logger.MFTExtractorlogger.Info(fmt.Sprintf("added child %s Id %d  to %s Id %d", record.GetFname(), record.Entry, n.record.GetFname(), n.record.Entry))
+
 		} else {
-			for _, childNode := range n.children { //test its children
-				childNode.insert(record)
+			for idx := range n.children { //test its children
+				n.children[idx].insert(record)
 
 			}
 		}
@@ -70,16 +73,18 @@ func (t Tree) Show() {
 }
 
 func (n Node) Show() {
+	if n.children == nil {
+		return
 
-	if n.children != nil {
-
-		msg := fmt.Sprintf(" %s  |_> ", n.record.GetFname())
-		logger.MFTExtractorlogger.Info(msg)
-		fmt.Print("\n" + msg)
 	}
-
 	msgB := strings.Builder{}
-	msgB.Grow(len(n.children))
+	msgB.Grow(len(n.children) + 1) // for root
+
+	msg := fmt.Sprintf(" %s  |_> ", n.record.GetFname())
+
+	msgB.WriteString(msg)
+
+	fmt.Print("\n" + msg)
 
 	for _, childnode := range n.children {
 		msg := fmt.Sprintf(" %s", childnode.record.GetFname())
