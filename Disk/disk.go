@@ -20,23 +20,38 @@ type Disk struct {
 	Partitions []Partition
 }
 
-func InitiliazeEvidence(evidencefile string) Disk {
+func (disk *Disk) Initialize(evidencefile string, physicaldrive int, vmdkfile string) {
 	var hD img.DiskReader
-	hD = img.GetHandler(evidencefile, "ewf")
-	return Disk{Handler: hD}
+	if evidencefile != "" {
 
+		hD = img.GetHandler(evidencefile, "ewf")
+
+	} else if physicaldrive != -1 {
+
+		hD = img.GetHandler(fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", physicaldrive), "physicalDrive")
+
+	} else {
+
+		hD = img.GetHandler(vmdkfile, "vmdk")
+
+	}
+	disk.Handler = hD
 }
 
-func InitializePhysicalDisk(physicalDrive int) Disk {
-	var hD img.DiskReader
-	hD = img.GetHandler(fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", physicalDrive), "physicalDrive")
-	return Disk{Handler: hD}
-}
+func (disk *Disk) Process(partitionNum int, MFTentries []int, fromMFTEntry int, toMFTEntry int) map[int]MFT.Records {
+	defer disk.Close()
 
-func InitalizeVMDKDisk(vmdkfile string) Disk {
-	var hD img.DiskReader
-	hD = img.GetHandler(vmdkfile, "vmdk")
-	return Disk{Handler: hD}
+	disk.DiscoverPartitions()
+
+	filesystemsOffsetMap := disk.ProcessPartitions(partitionNum)
+
+	for fileSystemOffset, fs := range filesystemsOffsetMap {
+		partitionOffsetB := int64(fileSystemOffset * fs.GetBytesPerSector())
+
+		fs.Process(disk.Handler, partitionOffsetB, MFTentries, fromMFTEntry, toMFTEntry)
+	}
+
+	return disk.GetFileSystemMetadata(partitionNum)
 }
 
 func (disk Disk) Close() {
@@ -46,6 +61,8 @@ func (disk Disk) Close() {
 func (disk Disk) hasProtectiveMBR() bool {
 	return disk.MBR.IsProtective()
 }
+
+type FileSystemOffsetMap map[uint64]FS.FileSystem
 
 type Partition interface {
 	GetOffset() uint64
@@ -102,7 +119,8 @@ func (disk *Disk) DiscoverPartitions() {
 
 }
 
-func (disk *Disk) ProcessPartitions(partitionNum int, MFTSelectedEntries []int, fromMFTEntry int, toMFTEntry int) {
+func (disk *Disk) ProcessPartitions(partitionNum int) FileSystemOffsetMap {
+	filesystems := make(FileSystemOffsetMap)
 
 	for idx := range disk.Partitions {
 		if partitionNum != -1 && idx+1 != partitionNum {
@@ -110,22 +128,20 @@ func (disk *Disk) ProcessPartitions(partitionNum int, MFTSelectedEntries []int, 
 		}
 
 		disk.Partitions[idx].LocateFileSystem(disk.Handler)
+		parttionOffset := disk.Partitions[idx].GetOffset()
 		fs := disk.Partitions[idx].GetFileSystem()
 		if fs == nil {
 			msg := "No Known File System found at partition %d (Currently supported NTFS)."
 			logger.MFTExtractorlogger.Error(fmt.Sprintf(msg, idx))
 			continue //fs not found
 		}
-
-		partitionOffsetB := int64(disk.Partitions[idx].GetOffset() * fs.GetBytesPerSector())
 		msg := "Partition %d  %s at %d sector"
-		fmt.Printf(msg+"\n", idx+1, fs.GetSignature(), partitionOffsetB/512)
-		logger.MFTExtractorlogger.Error(fmt.Sprintf(msg, idx+1, fs.GetSignature(), partitionOffsetB))
+		fmt.Printf(msg+"\n", idx+1, fs.GetSignature(), parttionOffset)
+		logger.MFTExtractorlogger.Info(fmt.Sprintf(msg, idx+1, fs.GetSignature(), parttionOffset))
 
-		fs.Process(disk.Handler, partitionOffsetB, MFTSelectedEntries, fromMFTEntry, toMFTEntry)
-
+		filesystems[parttionOffset] = fs
 	}
-
+	return filesystems
 }
 
 func (disk Disk) GetFileSystemMetadata(partitionNum int) map[int]MFT.Records {
