@@ -179,13 +179,13 @@ func (disk Disk) Worker(wg *sync.WaitGroup, records MFT.Records, results chan<- 
 		}
 		fmt.Printf("pulling data file %s Id %d\n", record.GetFname(), record.Entry)
 
-		if record.LinkedRecord == nil {
+		if len(record.LinkedRecords) == 0 {
 			record.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster, bytesPerSector, results)
 		} else { // attribute runlist
-			record := record.LinkedRecord
-			for record.LinkedRecord != nil {
-				record.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster, bytesPerSector, results)
-				record = record.LinkedRecord
+
+			for _, linkedRecord := range record.LinkedRecords {
+				linkedRecord.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster, bytesPerSector, results)
+
 			}
 		}
 		// use lsize to make sure that we cannot exceed the logical size
