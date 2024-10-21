@@ -51,18 +51,22 @@ func (mfttable *MFTTable) ProcessNonResidentRecords(hD img.DiskReader, partition
 }
 
 func (mfttable *MFTTable) CreateLinkedRecords() {
+	//recreate chain  for fragmented $MFT records (attrList present)
 	for idx := range mfttable.Records {
-		previdx := idx
-		for _, linkedRecordInfo := range mfttable.Records[idx].LinkedRecordsInfo {
-			entryId := linkedRecordInfo.Entry
 
-			linkedRecord, err := mfttable.GetRecord(entryId)
-			if err != nil {
-				logger.MFTExtractorlogger.Warning(fmt.Sprintf("Record %d has linked to non existing record %d", mfttable.Records[previdx].Entry, entryId))
+		for _, linkedRecordInfo := range mfttable.Records[idx].LinkedRecordsInfo {
+			//cannot point to itself
+			if mfttable.Records[idx].Entry == linkedRecordInfo.RefEntry {
 				continue
 			}
-			mfttable.Records[previdx].LinkedRecord = linkedRecord
-			previdx = int(entryId)
+
+			linkedRecord, err := mfttable.GetRecord(linkedRecordInfo.RefEntry)
+			if err != nil {
+				logger.MFTExtractorlogger.Warning(fmt.Sprintf("Record %d has linked to non existing record %d",
+					mfttable.Records[idx].Entry, linkedRecordInfo.RefEntry))
+				continue
+			}
+			mfttable.Records[idx].LinkedRecords = append(mfttable.Records[idx].LinkedRecords, linkedRecord)
 
 		}
 	}
@@ -89,7 +93,8 @@ func (mfttable *MFTTable) FindParentRecords() {
 }
 
 func (mfttable MFTTable) GetRecord(referencedEntry uint32) (*Record, error) {
-	if int(referencedEntry) < len(mfttable.Records) && mfttable.Records[referencedEntry].Entry == referencedEntry {
+	if int(referencedEntry) < len(mfttable.Records) &&
+		mfttable.Records[referencedEntry].Entry == referencedEntry {
 		return &mfttable.Records[referencedEntry], nil
 	} else { //brute force seach
 		for idx := range mfttable.Records {
@@ -122,7 +127,7 @@ func (mfttable *MFTTable) SetI30Size(recordId int, attrType string) {
 
 	attr := mfttable.Records[recordId].FindAttribute(attrType).(IndexAttributes)
 
-	idxEntries := attr.GetIndexEntriesSortedByMFTEntryID()
+	idxEntries := attr.GetIndexEntriesSortedByMFTRecordEntry()
 
 	for _, idxEntry := range idxEntries {
 		if idxEntry.Fnattr == nil {
