@@ -52,7 +52,7 @@ type Attribute interface {
 
 // when attributes span over a record entry
 type LinkedRecordInfo struct {
-	Entry    uint32
+	RefEntry uint32
 	StartVCN uint64
 }
 
@@ -75,15 +75,15 @@ type Record struct {
 	FixUp                *FixUp
 	Attributes           []Attribute
 	Bitmap               bool
-	LinkedRecordsInfo    []LinkedRecordInfo
-	LinkedRecord         *Record // when attribute is too long to fit in one MFT record
+	LinkedRecordsInfo    []LinkedRecordInfo //holds attrs list entries
+	LinkedRecords        []*Record          // when attribute is too long to fit in one MFT record
 	I30Size              uint64
 	Parent               *Record
 	// fixupArray add the        UpdateSeqArrOffset to find is location
 
 }
 type IndexAttributes interface {
-	GetIndexEntriesSortedByMFTEntryID() MFTAttributes.IndexEntries
+	GetIndexEntriesSortedByMFTRecordEntry() MFTAttributes.IndexEntries
 }
 
 func (mfttable *MFTTable) DetermineClusterOffsetLength() {
@@ -576,7 +576,7 @@ func (record *Record) Process(bs []byte) error {
 						continue
 					}
 					linkedRecordsInfo = append(linkedRecordsInfo,
-						LinkedRecordInfo{Entry: uint32(entry.ParRef), StartVCN: entry.StartVcn})
+						LinkedRecordInfo{RefEntry: uint32(entry.ParRef), StartVCN: entry.StartVcn})
 				}
 
 			} else if attrHeader.IsBitmap() { //BITMAP
