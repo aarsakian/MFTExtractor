@@ -61,6 +61,8 @@ func (mfttable *MFTTable) CreateLinkedRecords() {
 			}
 
 			linkedRecord, err := mfttable.GetRecord(linkedRecordInfo.RefEntry)
+			linkedRecord.OriginLinkedRecord = &mfttable.Records[idx]
+
 			if err != nil {
 				logger.MFTExtractorlogger.Warning(fmt.Sprintf("Record %d has linked to non existing record %d",
 					mfttable.Records[idx].Entry, linkedRecordInfo.RefEntry))
@@ -127,7 +129,7 @@ func (mfttable *MFTTable) SetI30Size(recordId int, attrType string) {
 
 	attr := mfttable.Records[recordId].FindAttribute(attrType).(IndexAttributes)
 
-	idxEntries := attr.GetIndexEntriesSortedByMFTRecordEntry()
+	idxEntries := attr.GetIndexEntriesSortedByMFTEntry()
 
 	for _, idxEntry := range idxEntries {
 		if idxEntry.Fnattr == nil {
