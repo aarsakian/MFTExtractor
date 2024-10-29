@@ -77,13 +77,14 @@ type Record struct {
 	Bitmap               bool
 	LinkedRecordsInfo    []LinkedRecordInfo //holds attrs list entries
 	LinkedRecords        []*Record          // when attribute is too long to fit in one MFT record
+	OriginLinkedRecord   *Record            // points to the original record that contaisn the attr list
 	I30Size              uint64
 	Parent               *Record
 	// fixupArray add the        UpdateSeqArrOffset to find is location
 
 }
 type IndexAttributes interface {
-	GetIndexEntriesSortedByMFTRecordEntry() MFTAttributes.IndexEntries
+	GetIndexEntriesSortedByMFTEntry() MFTAttributes.IndexEntries
 }
 
 func (mfttable *MFTTable) DetermineClusterOffsetLength() {
@@ -153,12 +154,53 @@ func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionO
 
 }
 
+func (record Record) LocateDataAsync(hD img.DiskReader, partitionOffset int64, sectorsPerCluster int, bytesPerSector int, dataFragments chan<- []byte) {
+	writeOffset := 0
+	p := message.NewPrinter(language.Greek)
+	if record.HasResidentDataAttr() {
+		dataFragments <- record.GetResidentData()
+
+	} else {
+		var runlist MFTAttributes.RunList
+
+		runlist = record.GetRunList("DATA")
+
+		offset := partitionOffset // partition in bytes
+
+		diskSize := hD.GetDiskSize()
+
+		for (MFTAttributes.RunList{}) != runlist {
+			offset += runlist.Offset * int64(sectorsPerCluster*bytesPerSector)
+			if offset > diskSize {
+				msg := fmt.Sprintf("skipped offset %d exceeds disk size! exiting", offset)
+				logger.MFTExtractorlogger.Warning(msg)
+				break
+			}
+			res := p.Sprintf("%d", (offset-partitionOffset)/int64(sectorsPerCluster*bytesPerSector))
+
+			msg := fmt.Sprintf("offset %s cl len %d cl.", res, runlist.Length)
+			logger.MFTExtractorlogger.Warning(msg)
+			dataFragments <- hD.ReadFile(offset, int(runlist.Length)*sectorsPerCluster*bytesPerSector)
+
+			if runlist.Next == nil {
+				break
+			}
+
+			runlist = *runlist.Next
+			writeOffset += int(runlist.Length) * sectorsPerCluster * bytesPerSector
+		}
+
+	}
+
+}
+
 func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sectorsPerCluster int, bytesPerSector int, results chan<- utils.AskedFile) {
 	p := message.NewPrinter(language.Greek)
 
 	writeOffset := 0
 
 	var buf bytes.Buffer
+	var fname string
 	buf.Grow(int(record.GetLogicalFileSize()))
 
 	if record.HasResidentDataAttr() {
@@ -196,7 +238,12 @@ func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sector
 		}
 
 	}
-	results <- utils.AskedFile{Fname: record.GetFname(), Content: buf.Bytes(), Id: int(record.Entry)}
+	if record.OriginLinkedRecord != nil {
+		fname = record.OriginLinkedRecord.GetFname()
+	} else {
+		fname = record.GetFname()
+	}
+	results <- utils.AskedFile{Fname: fname, Content: buf.Bytes(), Id: int(record.Entry)}
 }
 
 func (records Records) FilterOutDeleted() []Record {
