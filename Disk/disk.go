@@ -161,6 +161,37 @@ func (disk Disk) GetFileSystemMetadata(partitionNum int) map[int]MFT.Records {
 	return recordsPerPartition
 }
 
+func (disk Disk) AsyncWorker(wg *sync.WaitGroup, record MFT.Record, dataClusters chan<- []byte, partitionNum int) {
+	defer wg.Done()
+	partition := disk.Partitions[partitionNum]
+
+	fs := partition.GetFileSystem()
+	sectorsPerCluster := int(fs.GetSectorsPerCluster())
+	bytesPerSector := int(fs.GetBytesPerSector())
+	partitionOffsetB := int64(partition.GetOffset()) * int64(bytesPerSector)
+
+	if record.IsFolder() {
+		msg := fmt.Sprintf("Record %s Id %d is folder! No data to export.", record.GetFname(), record.Entry)
+		logger.MFTExtractorlogger.Warning(msg)
+		close(dataClusters)
+		return
+	}
+	fmt.Printf("pulling data file %s Id %d\n", record.GetFname(), record.Entry)
+
+	if len(record.LinkedRecords) == 0 {
+		record.LocateDataAsync(disk.Handler, partitionOffsetB, sectorsPerCluster, bytesPerSector, dataClusters)
+	} else { // attribute runlist
+
+		for _, linkedRecord := range record.LinkedRecords {
+			linkedRecord.LocateDataAsync(disk.Handler, partitionOffsetB, sectorsPerCluster, bytesPerSector, dataClusters)
+
+		}
+	}
+	// use lsize to make sure that we cannot exceed the logical size
+
+	close(dataClusters)
+
+}
 func (disk Disk) Worker(wg *sync.WaitGroup, records MFT.Records, results chan<- utils.AskedFile, partitionNum int) {
 	defer wg.Done()
 	partition := disk.Partitions[partitionNum]
