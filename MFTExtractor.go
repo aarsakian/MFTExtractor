@@ -11,6 +11,7 @@ import (
 	"math"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	disk "github.com/aarsakian/MFTExtractor/Disk"
@@ -122,6 +123,9 @@ func main() {
 		}
 
 		for partitionId, records := range recordsPerPartition {
+			if len(records) == 0 {
+				continue
+			}
 
 			if len(fileNamesToExport) != 0 {
 				records = records.FilterOutFolders()
@@ -141,22 +145,33 @@ func main() {
 				logger.MFTExtractorlogger.Warning(msg)
 				fmt.Printf(msg + "\n")
 				continue
-			} else if len(records) == 0 {
-				continue
 			}
 
-			exp.ExportRecords(records, *physicalDisk, partitionId)
-
-			if *hashFiles != "" && location != "" {
-				exp.HashFiles(records)
-			} else if *hashFiles != "" && location == "" {
-				fmt.Printf("Please use location to set export location before hashing.")
+			if location != "" {
+				exp.ExportRecords(records, *physicalDisk, partitionId)
+				if *hashFiles != "" {
+					exp.HashFiles(records)
+				}
 			}
+
 			rp.Show(records, partitionId)
 
 			if *showFStree {
 				t.Build(records)
 				t.Show()
+
+			}
+
+			if *usnjrnl {
+
+				for _, record := range records {
+					wg := new(sync.WaitGroup)
+					wg.Add(1)
+					dataClusters := make(chan []byte, 4096)
+
+					go physicalDisk.AsyncWorker(wg, record, dataClusters, *partitionNum)
+					wg.Wait()
+				}
 
 			}
 		}
