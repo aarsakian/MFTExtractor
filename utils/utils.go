@@ -84,7 +84,7 @@ func (winTime *WindowsTime) ConvertToIsoTime() string { //receiver winTime struc
 
 func ReadEndianInt(barray []byte) int64 {
 	var buf []byte
-	if barray[len(barray)-1]&0x80 != 0 {
+	if len(barray) > 0 && barray[len(barray)-1]&0x80 != 0 {
 		buf = []byte{0xff, 0xff, 0xff, 0xff}
 	} else {
 		buf = []byte{0x00, 0x00, 0x00, 0x00}
@@ -107,33 +107,6 @@ func ReadEndianUInt(barray []byte) uint64 {
 	}
 
 	return sum
-}
-
-func DetermineClusterOffsetLength(val byte) (uint64, uint64) {
-
-	var err error
-
-	clusterOffs := uint64(0)
-	clusterLen := uint64(0)
-
-	val1 := (fmt.Sprintf("%x", val))
-
-	if len(val1) == 2 { //requires non zero hex
-
-		clusterLen, err = strconv.ParseUint(val1[1:2], 8, 8)
-		if err != nil {
-			//fmt.Printf("error finding cluster length %s", err)
-		}
-
-		clusterOffs, err = strconv.ParseUint(val1[0:1], 8, 8)
-		if err != nil {
-			//fmt.Printf("error finding cluster offset %s", err)
-		}
-
-	}
-	//  fmt.Printf("Cluster located at %s and lenght %s\n",ClusterOffs, ClusterLen)
-	return clusterOffs, clusterLen
-
 }
 
 func RemoveNulls(val []byte) NoNull {
