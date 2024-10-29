@@ -94,7 +94,7 @@ func (idxRoot IndexRoot) ShowInfo() {
 	}
 }
 
-func (idxRoot IndexRoot) GetIndexEntriesSortedByMFTEntryID() IndexEntries {
+func (idxRoot IndexRoot) GetIndexEntriesSortedByMFTEntry() IndexEntries {
 	var idxEntries IndexEntries
 	for _, entry := range idxRoot.IndexEntries {
 		if entry.Fnattr == nil {
@@ -177,7 +177,7 @@ func (idxAllocation *IndexAllocation) Parse(data []byte) {
 
 }
 
-func (idxAllocation IndexAllocation) GetIndexEntriesSortedByMFTEntryID() IndexEntries {
+func (idxAllocation IndexAllocation) GetIndexEntriesSortedByMFTEntry() IndexEntries {
 	var idxEntries IndexEntries
 	for _, entry := range idxAllocation.IndexEntries {
 		if entry.Fnattr == nil {
