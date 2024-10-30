@@ -101,6 +101,6 @@ func (partition *Partition) LocateFileSystem(hD img.DiskReader) {
 
 }
 
-func (partiton Partition) GetFileSystem() FS.FileSystem {
-	return partiton.FS
+func (partition Partition) GetFileSystem() FS.FileSystem {
+	return partition.FS
 }
