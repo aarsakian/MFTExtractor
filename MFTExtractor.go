@@ -17,6 +17,7 @@ import (
 	disk "github.com/aarsakian/MFTExtractor/Disk"
 	ntfslib "github.com/aarsakian/MFTExtractor/FS/NTFS"
 	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
+	"github.com/aarsakian/MFTExtractor/FS/NTFS/UsnJrnl"
 	"github.com/aarsakian/MFTExtractor/exporter"
 	"github.com/aarsakian/MFTExtractor/logger"
 	MFTExtractorLogger "github.com/aarsakian/MFTExtractor/logger"
@@ -163,13 +164,14 @@ func main() {
 			}
 
 			if *usnjrnl {
-
+				var usnjrnlRecords UsnJrnl.Records
 				for _, record := range records {
 					wg := new(sync.WaitGroup)
-					wg.Add(1)
-					dataClusters := make(chan []byte, 4096)
+					wg.Add(2)
+					dataClusters := make(chan []byte, record.GetLogicalFileSize())
 
-					go physicalDisk.AsyncWorker(wg, record, dataClusters, *partitionNum)
+					go physicalDisk.AsyncWorker(wg, record, dataClusters, partitionId)
+					go usnjrnlRecords.AsyncProcess(wg, dataClusters)
 					wg.Wait()
 				}
 
