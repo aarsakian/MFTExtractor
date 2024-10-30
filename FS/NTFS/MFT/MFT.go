@@ -170,6 +170,7 @@ func (record Record) LocateDataAsync(hD img.DiskReader, partitionOffset int64, s
 		diskSize := hD.GetDiskSize()
 
 		for (MFTAttributes.RunList{}) != runlist {
+
 			offset += runlist.Offset * int64(sectorsPerCluster*bytesPerSector)
 			if offset > diskSize {
 				msg := fmt.Sprintf("skipped offset %d exceeds disk size! exiting", offset)
@@ -179,8 +180,10 @@ func (record Record) LocateDataAsync(hD img.DiskReader, partitionOffset int64, s
 			res := p.Sprintf("%d", (offset-partitionOffset)/int64(sectorsPerCluster*bytesPerSector))
 
 			msg := fmt.Sprintf("offset %s cl len %d cl.", res, runlist.Length)
-			logger.MFTExtractorlogger.Warning(msg)
-			dataFragments <- hD.ReadFile(offset, int(runlist.Length)*sectorsPerCluster*bytesPerSector)
+			logger.MFTExtractorlogger.Info(msg)
+			if runlist.Offset > 0 && runlist.Length > 0 {
+				dataFragments <- hD.ReadFile(offset, int(runlist.Length)*sectorsPerCluster*bytesPerSector)
+			}
 
 			if runlist.Next == nil {
 				break
@@ -226,8 +229,9 @@ func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sector
 
 			msg := fmt.Sprintf("offset %s cl len %d cl.", res, runlist.Length)
 			logger.MFTExtractorlogger.Warning(msg)
-
-			buf.Write(hD.ReadFile(offset, int(runlist.Length)*sectorsPerCluster*bytesPerSector))
+			if runlist.Offset > 0 && runlist.Length > 0 {
+				buf.Write(hD.ReadFile(offset, int(runlist.Length)*sectorsPerCluster*bytesPerSector))
+			}
 
 			if runlist.Next == nil {
 				break
