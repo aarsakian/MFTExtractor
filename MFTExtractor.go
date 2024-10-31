@@ -114,7 +114,7 @@ func main() {
 		physicalDisk.Initialize(*evidencefile, *physicalDrive, *vmdkfile)
 
 		recordsPerPartition := physicalDisk.Process(*partitionNum, entries, *fromMFTEntry, *toMFTEntry)
-
+		defer physicalDisk.Close()
 		if *listPartitions {
 			physicalDisk.ListPartitions()
 		}
