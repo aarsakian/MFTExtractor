@@ -149,7 +149,6 @@ func (prevRunlist *RunList) Process(runlists []byte) uint64 {
 	for clusterPtr < uint64(len(runlists)) { // length of bytes of runlist
 		ClusterOffsB := uint64(runlists[clusterPtr] & 0xf0 >> 4)
 		ClusterLenB := uint64(runlists[clusterPtr] & 0x0f)
-		//	ClusterOffsB, ClusterLenB := utils.FillPrefixWithZeros(strconv.FormatUint(uint64(), 16), 2)
 
 		if ClusterLenB != 0 { //sparse or compressed attribute offset is zero
 			clustersLen := utils.ReadEndianUInt(runlists[clusterPtr+1 : clusterPtr+
