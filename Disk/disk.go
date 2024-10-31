@@ -39,7 +39,6 @@ func (disk *Disk) Initialize(evidencefile string, physicaldrive int, vmdkfile st
 }
 
 func (disk *Disk) Process(partitionNum int, MFTentries []int, fromMFTEntry int, toMFTEntry int) map[int]MFT.Records {
-	defer disk.Close()
 
 	disk.DiscoverPartitions()
 
