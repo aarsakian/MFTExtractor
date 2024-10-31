@@ -204,7 +204,6 @@ func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sector
 	writeOffset := 0
 
 	var buf bytes.Buffer
-	var fname string
 
 	buf.Grow(int(record.GetLogicalFileSize()))
 
@@ -245,12 +244,8 @@ func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sector
 		}
 
 	}
-	if record.OriginLinkedRecord != nil {
-		fname = record.OriginLinkedRecord.GetFname()
-	} else {
-		fname = record.GetFname()
-	}
-	results <- utils.AskedFile{Fname: fname, Content: buf.Bytes(), Id: int(record.Entry)}
+
+	results <- utils.AskedFile{Fname: record.GetFname(), Content: buf.Bytes(), Id: int(record.Entry)}
 }
 
 func (records Records) FilterOutDeleted() []Record {
@@ -794,6 +789,9 @@ func (record Record) GetFnames() map[string]string {
 }
 
 func (record Record) GetFname() string {
+	if record.OriginLinkedRecord != nil {
+		return record.OriginLinkedRecord.GetFname()
+	}
 	fnames := record.GetFnames()
 	for _, namescheme := range []string{"Win32", "Win32 & Dos", "POSIX", "Dos"} {
 		name, ok := fnames[namescheme]
