@@ -101,6 +101,8 @@ func (record Record) IsFolder() bool {
 
 func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionOffsetB int64, clusterSizeB int) {
 
+	diskSizeB := hD.GetDiskSize()
+
 	for _, attribute := range record.FilterOutNonResidentAttributes("DATA") { //all non resident attrs except DATA
 		atrrecordNoNResident := attribute.GetHeader().ATRrecordNoNResident
 		if atrrecordNoNResident.RunList == nil {
@@ -119,14 +121,13 @@ func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionO
 		buf.Grow(length)
 
 		offset := int64(0)
-
 		for (MFTAttributes.RunList{}) != runlist {
 			offset += int64(runlist.Offset)
 
 			clusters := int(runlist.Length)
 
 			//inefficient since allocates memory for each round
-			if offset*int64(clusterSizeB) >= hD.GetDiskSize()-partitionOffsetB {
+			if offset*int64(clusterSizeB) >= diskSizeB-partitionOffsetB {
 				msg := fmt.Sprintf("attribute runlist offset exceeds partition size %d.",
 					offset)
 				logger.MFTExtractorlogger.Warning(msg)
@@ -204,6 +205,7 @@ func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sector
 
 	var buf bytes.Buffer
 	var fname string
+
 	buf.Grow(int(record.GetLogicalFileSize()))
 
 	if record.HasResidentDataAttr() {
@@ -225,12 +227,13 @@ func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sector
 				logger.MFTExtractorlogger.Warning(msg)
 				break
 			}
-			res := p.Sprintf("%d", (offset-partitionOffset)/int64(sectorsPerCluster*bytesPerSector))
 
-			msg := fmt.Sprintf("offset %s cl len %d cl.", res, runlist.Length)
-			logger.MFTExtractorlogger.Warning(msg)
 			if runlist.Offset > 0 && runlist.Length > 0 {
 				buf.Write(hD.ReadFile(offset, int(runlist.Length)*sectorsPerCluster*bytesPerSector))
+				res := p.Sprintf("%d", (offset-partitionOffset)/int64(sectorsPerCluster*bytesPerSector))
+
+				msg := fmt.Sprintf("offset %s cl len %d cl.", res, runlist.Length)
+				logger.MFTExtractorlogger.Info(msg)
 			}
 
 			if runlist.Next == nil {
@@ -323,9 +326,13 @@ func (record Record) IsDeleted() bool {
 }
 
 func (record Record) GetRunList(attrType string) MFTAttributes.RunList {
-
-	attr := record.FindAttribute(attrType)
-	return *attr.GetHeader().ATRrecordNoNResident.RunList
+	if len(record.LinkedRecords) == 0 {
+		attr := record.FindAttribute(attrType)
+		return *attr.GetHeader().ATRrecordNoNResident.RunList
+	} else {
+		attr := record.LinkedRecords[0].FindAttribute(attrType)
+		return *attr.GetHeader().ATRrecordNoNResident.RunList
+	}
 
 }
 
@@ -337,6 +344,7 @@ func (record Record) GetRunLists() []MFTAttributes.RunList {
 			runlists = append(runlists, *attribute.GetHeader().ATRrecordNoNResident.RunList)
 		}
 	}
+
 	return runlists
 }
 
@@ -449,19 +457,32 @@ func (record Record) GetResidentData() []byte {
 
 func (record Record) ShowRunList() {
 	runlists := record.GetRunLists()
-
 	nonResidentAttributes := record.FindNonResidentAttributes()
-	for idx := range nonResidentAttributes {
 
+	for _, linkedRecord := range record.LinkedRecords {
+		runlists = append(runlists, linkedRecord.GetRunLists()...)
+		nonResidentAttributes = append(nonResidentAttributes, linkedRecord.FindNonResidentAttributes()...)
+	}
+
+	for idx, nonResidentAttr := range nonResidentAttributes {
+		fmt.Printf("%s \n", nonResidentAttr.FindType())
 		runlist := runlists[idx]
+		logicalOffset := runlist.Offset
+		nofFragments := 0
+		totalClusters := 0
 		for (MFTAttributes.RunList{}) != runlist {
 
-			fmt.Printf(" offs. %d cl len %d cl \n", runlist.Offset, runlist.Length)
+			fmt.Printf(" offs. %d cl len %d cl  logical offset %d cl clusters %d \n",
+				runlist.Offset, runlist.Length, logicalOffset, totalClusters)
 			if runlist.Next == nil {
 				break
 			}
 			runlist = *runlist.Next
+			logicalOffset += runlist.Offset
+			totalClusters += int(runlist.Length)
+			nofFragments += 1
 		}
+		fmt.Printf("Total Clusters %d Total Fragments %d\n", totalClusters, nofFragments)
 
 	}
 
@@ -680,7 +701,7 @@ func (record *Record) Process(bs []byte) error {
 			if int(ReadPtr+atrNoNRecordResident.RunOff+attrHeader.AttrLen) < len(bs) {
 				var runlist *MFTAttributes.RunList = new(MFTAttributes.RunList)
 				lengthcl := runlist.Process(bs[ReadPtr+
-					atrNoNRecordResident.RunOff : ReadPtr+atrNoNRecordResident.RunOff+attrHeader.AttrLen])
+					atrNoNRecordResident.RunOff : ReadPtr+attrHeader.AttrLen])
 				atrNoNRecordResident.RunList = runlist
 				atrNoNRecordResident.RunListTotalLenCl = lengthcl
 
@@ -742,6 +763,9 @@ func (record Record) GetPhysicalSize() int64 {
 }
 
 func (record Record) GetLogicalFileSize() int64 {
+	if record.OriginLinkedRecord != nil {
+		return record.OriginLinkedRecord.GetLogicalFileSize()
+	}
 	attr := record.FindAttribute("FileName")
 	if attr != nil {
 		fnattr := attr.(*MFTAttributes.FNAttribute)
