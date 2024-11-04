@@ -10,8 +10,17 @@ var RecordTypes = map[uint32]string{
 	1: "Read Only", 2: "Hidden", 4: "System",
 	32: "Archive", 64: "Device", 128: "Normal", 256: "Temporary", 512: "Sparse file",
 	1024: "Reparse", 2048: "Compressed", 4096: "Offline",
-	8192:  "Content  is not being indexed for faster searches",
-	16384: "Encrypted"}
+	8192:    "Content  is not being indexed for faster searches",
+	16384:   "Encrypted",
+	32768:   "FILE_ATTRIBUTE_INTEGRITY_STREAM",
+	65536:   "FILE_ATTRIBUTE_VIRTUAL",
+	131072:  "FILE_ATTRIBUTE_NO_SCRUB_DATA",
+	262144:  "FILE_ATTRIBUTE_EA",
+	524288:  "FILE_ATTRIBUTE_PINNED",
+	1048576: "FILE_ATTRIBUTE_UNPINNED",
+	2097152: "FILE_ATTRIBUTE_RECALL_ON_OPEN",
+	4194304: "FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS",
+}
 
 var NameSpaceFlags = map[uint8]string{
 	0: "POSIX", 1: "Win32", 2: "Dos", 3: "Win32 & Dos",
