@@ -40,7 +40,7 @@ func (records Records) AsyncProcess(wg *sync.WaitGroup, dataClusters <-chan []by
 	for dataCluster := range dataClusters {
 		for offset < len(dataCluster) {
 			record := new(Record)
-			record.Parse(dataCluster)
+			offset += record.Parse(dataCluster[offset:])
 			records = append(records, *record)
 		}
 	}
