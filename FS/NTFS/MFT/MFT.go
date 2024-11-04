@@ -182,7 +182,7 @@ func (record Record) LocateDataAsync(hD img.DiskReader, partitionOffset int64, s
 
 			msg := fmt.Sprintf("offset %s cl len %d cl.", res, runlist.Length)
 			logger.MFTExtractorlogger.Info(msg)
-			if runlist.Offset > 0 && runlist.Length > 0 {
+			if runlist.Offset != 0 && runlist.Length > 0 {
 				dataFragments <- hD.ReadFile(offset, int(runlist.Length)*sectorsPerCluster*bytesPerSector)
 			}
 
@@ -227,7 +227,7 @@ func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sector
 				break
 			}
 
-			if runlist.Offset > 0 && runlist.Length > 0 {
+			if runlist.Offset != 0 && runlist.Length > 0 {
 				buf.Write(hD.ReadFile(offset, int(runlist.Length)*sectorsPerCluster*bytesPerSector))
 				res := p.Sprintf("%d", (offset-partitionOffset)/int64(sectorsPerCluster*bytesPerSector))
 
