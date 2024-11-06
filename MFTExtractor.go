@@ -11,13 +11,12 @@ import (
 	"math"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
-	disk "github.com/aarsakian/MFTExtractor/Disk"
 	ntfslib "github.com/aarsakian/MFTExtractor/FS/NTFS"
 	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
-	"github.com/aarsakian/MFTExtractor/FS/NTFS/UsnJrnl"
+	UsnJrnl "github.com/aarsakian/MFTExtractor/FS/NTFS/usnjrnl"
+	"github.com/aarsakian/MFTExtractor/disk"
 	"github.com/aarsakian/MFTExtractor/exporter"
 	"github.com/aarsakian/MFTExtractor/logger"
 	MFTExtractorLogger "github.com/aarsakian/MFTExtractor/logger"
@@ -25,7 +24,7 @@ import (
 	"github.com/aarsakian/MFTExtractor/utils"
 	VMDKLogger "github.com/aarsakian/VMDK_Reader/logger"
 
-	reporter "github.com/aarsakian/MFTExtractor/Reporter"
+	"github.com/aarsakian/MFTExtractor/reporter"
 )
 
 func checkErr(err error, msg string) {
@@ -165,15 +164,7 @@ func main() {
 
 			if *usnjrnl {
 				var usnjrnlRecords UsnJrnl.Records
-				for _, record := range records {
-					wg := new(sync.WaitGroup)
-					wg.Add(2)
-					dataClusters := make(chan []byte, record.GetLogicalFileSize())
-
-					go physicalDisk.AsyncWorker(wg, record, dataClusters, partitionId)
-					go usnjrnlRecords.AsyncProcess(wg, dataClusters)
-					wg.Wait()
-				}
+				usnjrnlRecords.Process(*physicalDisk)
 
 			}
 		}
