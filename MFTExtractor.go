@@ -140,9 +140,6 @@ func main() {
 		}
 
 		for partitionId, records := range recordsPerPartition {
-			if len(records) == 0 {
-				continue
-			}
 
 			records = flm.ApplyFilters(records)
 
@@ -169,8 +166,8 @@ func main() {
 			}
 
 			if *usnjrnl {
-				var usnjrnlRecords UsnJrnl.Records
-				usnjrnlRecords.Process(*physicalDisk)
+				usnjrnlRecords := new(UsnJrnl.Records)
+				usnjrnlRecords.Process(records, *physicalDisk)
 
 			}
 		}

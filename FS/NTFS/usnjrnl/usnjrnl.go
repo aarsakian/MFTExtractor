@@ -81,14 +81,14 @@ type Record struct {
 
 }
 
-func (records *Records) Process(disk disk.Disk) {
-	for _, record := range records {
+func (usnrecords *Records) Process(mftrecords MFT.Records, disk disk.Disk) {
+	for _, record := range mftrecords {
 		wg := new(sync.WaitGroup)
 		wg.Add(2)
 		dataClusters := make(chan []byte, record.GetLogicalFileSize())
 
 		go disk.AsyncWorker(wg, record, dataClusters, partitionId)
-		go usnjrnlRecords.AsyncProcess(wg, dataClusters)
+		go usnrecords.AsyncProcess(wg, dataClusters)
 		wg.Wait()
 	}
 
