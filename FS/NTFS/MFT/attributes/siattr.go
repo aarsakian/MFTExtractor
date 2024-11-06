@@ -18,7 +18,7 @@ type SIAttribute struct {
 	OwnID    uint32
 	SecID    uint32
 	Quota    uint64
-	USN      uint64
+	USN      uint64 //most recent UsnJrnl record
 	Header   *AttributeHeader
 }
 

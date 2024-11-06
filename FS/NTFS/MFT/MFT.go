@@ -61,7 +61,7 @@ type Record struct {
 	Signature            string //0-3
 	UpdateFixUpArrOffset uint16 //4-5      offset values are relative to the start of the entry.
 	UpdateFixUpArrSize   uint16 //6-7
-	Lsn                  uint64 //8-15       logical File Sequence Number
+	Lsn                  uint64 //8-15    logfile sequence number, points to the most recent LogFile entry for this MFT entry
 	Seq                  uint16 //16-17   is incremented when the entry is either allocated or unallocated, determined by the OS.
 	Linkcount            uint16 //18-19        how many directories have entries for this MFTentry
 	AttrOff              uint16 //20-21       //first attr location
