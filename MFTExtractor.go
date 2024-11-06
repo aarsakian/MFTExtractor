@@ -6,10 +6,8 @@ import (
 	//"database/sql"
 
 	"flag"
-	"fmt"
 	"log"
 	"math"
-	"os"
 	"strings"
 	"time"
 
@@ -20,7 +18,6 @@ import (
 	"github.com/aarsakian/MFTExtractor/exporter"
 	"github.com/aarsakian/MFTExtractor/filtermanager"
 	"github.com/aarsakian/MFTExtractor/filters"
-	"github.com/aarsakian/MFTExtractor/logger"
 	MFTExtractorLogger "github.com/aarsakian/MFTExtractor/logger"
 	"github.com/aarsakian/MFTExtractor/tree"
 	"github.com/aarsakian/MFTExtractor/utils"
@@ -143,13 +140,6 @@ func main() {
 
 			records = flm.ApplyFilters(records)
 
-			if len(fileNamesToExport) > 0 && len(records) == 0 {
-				msg := fmt.Sprintf("filenames not found %s in Partition %d", *exportFiles, partitionId+1)
-				logger.MFTExtractorlogger.Warning(msg)
-				fmt.Printf(msg + "\n")
-				continue
-			}
-
 			if location != "" {
 				exp.ExportRecords(records, *physicalDisk, partitionId)
 				if *hashFiles != "" {
@@ -174,47 +164,24 @@ func main() {
 
 	} else if *inputfile != "Disk MFT" {
 
-		file, err := os.Open(*inputfile)
+		data, fsize, err := utils.ReadFile(*inputfile)
 		if err != nil {
-			// handle the error here
-			fmt.Printf("err %s for reading the MFT ", err)
-			return
-		}
-		defer file.Close()
-
-		finfo, err := file.Stat() //file descriptor
-		if err != nil {
-			fmt.Printf("error getting the file size\n")
-			return
-		}
-		data := make([]byte, finfo.Size())
-
-		file.Read(data)
-		if err != nil {
-			fmt.Printf("error reading $MFT file.\n")
 			return
 		}
 		var ntfs ntfslib.NTFS
 
-		ntfs.MFTTable = &MFT.MFTTable{Size: int(finfo.Size())}
+		ntfs.MFTTable = &MFT.MFTTable{Size: fsize}
 		ntfs.ProcessMFT(data, entries, *fromMFTEntry, *toMFTEntry)
 
-		records = ntfs.MFTTable.Records
+		records = flm.ApplyFilters(ntfs.MFTTable.Records)
 
-		if *exportFiles != "" {
-			records = records.FilterByNames(fileNamesToExport)
+		if len(records) == 0 {
+			return
 		}
 
-		if *fileExtensions != "" {
-			records = records.FilterByExtensions(strings.Split(*fileExtensions, ","))
-		}
+		rp.Show(records, 0)
 
 	}
-	if len(records) == 0 {
-		return
-	}
-
-	rp.Show(records, 0)
 
 	if *showFStree {
 		t.Build(records)
