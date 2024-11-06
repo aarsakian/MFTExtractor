@@ -6,8 +6,8 @@ import (
 
 	"github.com/aarsakian/MFTExtractor/FS"
 	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
-	gptLib "github.com/aarsakian/MFTExtractor/Partition/GPT"
-	mbrLib "github.com/aarsakian/MFTExtractor/Partition/MBR"
+	gptLib "github.com/aarsakian/MFTExtractor/disk/partition/GPT"
+	mbrLib "github.com/aarsakian/MFTExtractor/disk/partition/MBR"
 	"github.com/aarsakian/MFTExtractor/img"
 	"github.com/aarsakian/MFTExtractor/logger"
 	"github.com/aarsakian/MFTExtractor/utils"
