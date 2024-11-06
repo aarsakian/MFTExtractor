@@ -1,9 +1,13 @@
 package UsnJrnl
 
+/*USN record describes, on a higher level than
+the Logfile does, what happened to a file (or directory, all the same)*/
+
 import (
 	"sync"
 
 	"github.com/aarsakian/MFTExtractor/utils"
+	 "github.com/aarsakian/MFTExtractor/disk"
 )
 
 var reasons = map[uint32]string{
@@ -74,6 +78,19 @@ type Record struct {
 	FnameLen    uint16 //length of name
 	FnameOffset uint16 //format of name 58-60
 	Fname       string //special string type without nulls
+
+}
+
+func (records *Records) Process(disk disk.Disk) {
+	for _, record := range records {
+		wg := new(sync.WaitGroup)
+		wg.Add(2)
+		dataClusters := make(chan []byte, record.GetLogicalFileSize())
+
+		go disk.AsyncWorker(wg, record, dataClusters, partitionId)
+		go usnjrnlRecords.AsyncProcess(wg, dataClusters)
+		wg.Wait()
+	}
 
 }
 
