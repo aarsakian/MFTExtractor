@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"sync"
 
-	disk "github.com/aarsakian/MFTExtractor/Disk"
 	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
+	"github.com/aarsakian/MFTExtractor/disk"
 	"github.com/aarsakian/MFTExtractor/utils"
 )
 
