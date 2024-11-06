@@ -18,6 +18,8 @@ import (
 	UsnJrnl "github.com/aarsakian/MFTExtractor/FS/NTFS/usnjrnl"
 	"github.com/aarsakian/MFTExtractor/disk"
 	"github.com/aarsakian/MFTExtractor/exporter"
+	"github.com/aarsakian/MFTExtractor/filtermanager"
+	"github.com/aarsakian/MFTExtractor/filters"
 	"github.com/aarsakian/MFTExtractor/logger"
 	MFTExtractorLogger "github.com/aarsakian/MFTExtractor/logger"
 	"github.com/aarsakian/MFTExtractor/tree"
@@ -108,6 +110,21 @@ func main() {
 
 	exp := exporter.Exporter{Location: location, Hash: *hashFiles, Strategy: *strategy}
 
+	flm := filtermanager.FilterManager{}
+
+	if len(fileNamesToExport) != 0 {
+		flm.Register(filters.FoldersFilter{Include: false})
+		flm.Register(filters.NameFilter{Filenames: fileNamesToExport})
+	}
+
+	if *fileExtensions != "" {
+		flm.Register(filters.ExtensionsFilter{Extensions: strings.Split(*fileExtensions, ",")})
+	}
+
+	if *exportFilesPath != "" {
+		flm.Register(filters.PathFilter{NamePath: *exportFilesPath})
+	}
+
 	if *evidencefile != "" || *physicalDrive != -1 || *vmdkfile != "" {
 		physicalDisk := new(disk.Disk)
 		physicalDisk.Initialize(*evidencefile, *physicalDrive, *vmdkfile)
@@ -127,18 +144,7 @@ func main() {
 				continue
 			}
 
-			if len(fileNamesToExport) != 0 {
-				records = records.FilterOutFolders()
-				records = records.FilterByNames(fileNamesToExport)
-			}
-
-			if *fileExtensions != "" {
-				records = records.FilterByExtensions(strings.Split(*fileExtensions, ","))
-			}
-
-			if *exportFilesPath != "" {
-				records = records.FilterByPath(*exportFilesPath)
-			}
+			records = flm.ApplyFilters(records)
 
 			if len(fileNamesToExport) > 0 && len(records) == 0 {
 				msg := fmt.Sprintf("filenames not found %s in Partition %d", *exportFiles, partitionId+1)
