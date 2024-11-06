@@ -35,6 +35,30 @@ type AskedFile struct {
 	Content []byte
 }
 
+func ReadFile(inputfile string) ([]byte, int, error) {
+	file, err := os.Open(inputfile)
+	if err != nil {
+		// handle the error here
+		fmt.Printf("err %s in getting handle of file ", err)
+		return nil, -1, err
+	}
+	defer file.Close()
+
+	finfo, err := file.Stat() //file descriptor
+	if err != nil {
+		fmt.Printf("error getting the file size\n")
+		return nil, -1, err
+	}
+	data := make([]byte, finfo.Size())
+
+	_, err = file.Read(data)
+	if err != nil {
+		fmt.Printf("error reading  file.\n")
+		return nil, -1, err
+	}
+	return data, int(finfo.Size()), nil
+}
+
 func GetEntries(input string) []string {
 
 	return strings.Split(input, ",")
