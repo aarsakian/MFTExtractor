@@ -60,8 +60,11 @@ func main() {
 
 	physicalDrive := flag.Int("physicaldrive", -1, "select disk drive number for extraction of non resident files")
 	partitionNum := flag.Int("partition", -1, "select partition number")
+
 	showFStree := flag.Bool("tree", false, "reconstrut entries tree")
 	showParent := flag.Bool("parent", false, "show information about parent record")
+	showUsnjrnl := flag.Bool("showusn", false, "show information about usnjrnl records")
+
 	listPartitions := flag.Bool("listpartitions", false, "list partitions")
 	fileExtensions := flag.String("extensions", "", "search MFT records by extensions use , for each extension")
 	collectUnallocated := flag.Bool("unallocated", false, "collect unallocated area of a file system")
@@ -74,6 +77,7 @@ func main() {
 	flag.Parse() //ready to parse
 
 	var records MFT.Records
+	var usnjrnlRecords UsnJrnl.Records
 
 	entries := utils.GetEntriesInt(*MFTSelectedEntries)
 	fileNamesToExport := utils.GetEntries(*exportFiles)
@@ -95,6 +99,7 @@ func main() {
 		ShowIndex:      *showIndex,
 		ShowParent:     *showParent,
 		ShowPath:       *showPath,
+		ShowUSNJRNL:    *showUsnjrnl,
 	}
 
 	if *logactive {
@@ -147,17 +152,15 @@ func main() {
 				}
 			}
 
-			rp.Show(records, partitionId)
+			if *usnjrnl {
+				usnjrnlRecords = UsnJrnl.Process(records, *physicalDisk, partitionId)
+			}
+
+			rp.Show(records, usnjrnlRecords, partitionId)
 
 			if *showFStree {
 				t.Build(records)
 				t.Show()
-
-			}
-
-			if *usnjrnl {
-				usnjrnlRecords := new(UsnJrnl.Records)
-				usnjrnlRecords.Process(records, *physicalDisk)
 
 			}
 		}
@@ -179,7 +182,7 @@ func main() {
 			return
 		}
 
-		rp.Show(records, 0)
+		rp.Show(records, usnjrnlRecords, 0)
 
 	}
 
