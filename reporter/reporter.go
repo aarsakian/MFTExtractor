@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
+	UsnJrnl "github.com/aarsakian/MFTExtractor/FS/NTFS/usnjrnl"
 )
 
 type Reporter struct {
@@ -17,9 +18,10 @@ type Reporter struct {
 	ShowIndex      bool
 	ShowParent     bool
 	ShowPath       bool
+	ShowUSNJRNL    bool
 }
 
-func (rp Reporter) Show(records []MFT.Record, partitionId int) {
+func (rp Reporter) Show(records []MFT.Record, usnjrnlRecords UsnJrnl.Records, partitionId int) {
 	for _, record := range records {
 		askedToShow := false
 		if record.Signature == "" { //empty record
@@ -78,6 +80,11 @@ func (rp Reporter) Show(records []MFT.Record, partitionId int) {
 			fmt.Printf("\n")
 		}
 
+	}
+	for _, record := range usnjrnlRecords {
+		if rp.ShowUSNJRNL {
+			record.ShowInfo()
+		}
 	}
 
 }
