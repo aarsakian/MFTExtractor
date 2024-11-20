@@ -66,7 +66,7 @@ func (ntfs *NTFS) Process(hD img.DiskReader, partitionOffsetB int64, MFTSelected
 	MFTAreaBuf := ntfs.CollectMFTArea(hD, partitionOffsetB)
 	ntfs.ProcessMFT(MFTAreaBuf, MFTSelectedEntries, fromMFTEntry, toMFTEntry)
 	ntfs.MFTTable.ProcessNonResidentRecords(hD, partitionOffsetB, int(ntfs.SectorsPerCluster)*int(ntfs.BytesPerSector))
-	if len(MFTSelectedEntries) == 0 { // additional processing only when user has not selected entries
+	if len(MFTSelectedEntries) == 0 && fromMFTEntry == -1 && toMFTEntry == math.MaxUint32 { // additional processing only when user has not selected entries
 		msg := "Linking $MFT record non resident $MFT entries"
 		fmt.Printf(msg + "\n")
 		logger.MFTExtractorlogger.Info(msg)
