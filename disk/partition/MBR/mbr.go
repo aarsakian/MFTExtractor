@@ -1,7 +1,7 @@
 package MBR
 
 import (
-	"fmt"
+	"errors"
 
 	FS "github.com/aarsakian/MFTExtractor/FS"
 	ntfsLib "github.com/aarsakian/MFTExtractor/FS/NTFS"
@@ -9,12 +9,22 @@ import (
 	"github.com/aarsakian/MFTExtractor/utils"
 )
 
+var PartitionTypes = map[uint8]string{0x07: "HPFS/NTFS/exFAT",
+	0x0c: "W95 FAT32 (LBA)",
+	0x0f: "Extended",
+	0x27: "Hidden NTFS Win"}
+
 type MBR struct {
-	BootCode   [446]byte //0-445
-	Partitions []Partition
-	Signature  [2]byte //510-511
+	BootCode           [446]byte //0-445
+	Partitions         []Partition
+	ExtendedPartitions []ExtendedPartition
+	Signature          [2]byte //510-511
 }
 
+type ExtendedPartition struct {
+	Partition   *Partition
+	TableOffset int
+}
 type Partition struct {
 	Flag     uint8
 	StartCHS [3]byte
@@ -30,7 +40,7 @@ func (partition Partition) GetOffset() uint64 {
 }
 
 func (partition Partition) GetPartitionType() string {
-	return fmt.Sprintf("%x", partition.Type)
+	return PartitionTypes[partition.Type]
 }
 
 func (partition *Partition) LocateFileSystem(hD img.DiskReader) {
@@ -46,6 +56,14 @@ func (partition *Partition) LocateFileSystem(hD img.DiskReader) {
 		}
 	}
 
+}
+
+func (extPartition ExtendedPartition) GetOffset() uint64 {
+	return uint64(extPartition.Partition.StartLBA) + uint64(extPartition.TableOffset)
+}
+
+func (extPartition *ExtendedPartition) LocateFileSystem(hD img.DiskReader) {
+	extPartition.Partition.LocateFileSystem(hD)
 }
 
 func (mbr MBR) IsProtective() bool {
@@ -65,7 +83,17 @@ func LocatePartitions(data []byte) []Partition {
 		partitions = append(partitions, *partition)
 		pos += 16
 	}
+
 	return partitions
+}
+
+func (mbr *MBR) DiscoverExtendedPartitions(buffer []byte, offset int) {
+	var extPartitions []ExtendedPartition
+	partitions := LocatePartitions(buffer[446:510])
+	for idx := range partitions {
+		extPartitions = append(extPartitions, ExtendedPartition{Partition: &partitions[idx], TableOffset: offset})
+	}
+	mbr.ExtendedPartitions = extPartitions
 }
 
 func (mbr *MBR) Parse(buffer []byte) {
@@ -75,6 +103,28 @@ func (mbr *MBR) Parse(buffer []byte) {
 
 }
 
+func (mbr MBR) GetExtendedPartitionOffset() (int, error) {
+	for _, partition := range mbr.Partitions {
+		if partition.Type == 0x0f {
+			return int(partition.GetOffset()), nil
+		}
+	}
+	return -1, errors.New("extended partition not found")
+}
+
+func (mbr *MBR) UpdateExtendedPartitionsOffsets(extendedTableSectorOffset uint32) {
+	for idx := range mbr.Partitions {
+		if mbr.Partitions[idx].Type != 0x0f {
+			continue
+		}
+		mbr.Partitions[idx].StartLBA += extendedTableSectorOffset
+	}
+}
+
 func (partiton Partition) GetFileSystem() FS.FileSystem {
 	return partiton.FS
+}
+
+func (extPartition ExtendedPartition) GetFileSystem() FS.FileSystem {
+	return extPartition.Partition.FS
 }

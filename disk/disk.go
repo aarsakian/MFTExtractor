@@ -77,7 +77,12 @@ func (disk *Disk) populateMBR() {
 	data := disk.Handler.ReadFile(physicalOffset, length) // read 1st sector
 
 	mbr.Parse(data)
+	offset, err := mbr.GetExtendedPartitionOffset()
+	if err == nil {
+		data := disk.Handler.ReadFile(physicalOffset+int64(offset)*512, length)
+		mbr.DiscoverExtendedPartitions(data, offset)
 
+	}
 	disk.MBR = &mbr
 
 }
@@ -114,6 +119,9 @@ func (disk *Disk) DiscoverPartitions() {
 		for idx := range disk.MBR.Partitions {
 			disk.Partitions = append(disk.Partitions, &disk.MBR.Partitions[idx])
 		}
+		for idx := range disk.MBR.ExtendedPartitions {
+			disk.Partitions = append(disk.Partitions, &disk.MBR.ExtendedPartitions[idx])
+		}
 	}
 
 }
@@ -140,6 +148,7 @@ func (disk *Disk) ProcessPartitions(partitionNum int) FileSystemOffsetMap {
 
 		filesystems[parttionOffset] = fs
 	}
+
 	return filesystems
 }
 
@@ -228,15 +237,19 @@ func (disk Disk) Worker(wg *sync.WaitGroup, records MFT.Records, results chan<- 
 func (disk Disk) ListPartitions() {
 
 	if disk.hasProtectiveMBR() {
+		fmt.Printf("GPT:\n")
 
-		partitions := disk.GPT.Partitions
-		for _, partition := range partitions {
-			fmt.Printf("%s\n", partition.GetPartitionType())
+		for idx, partition := range disk.GPT.Partitions {
+			fmt.Printf("%d %s\n", idx, partition.GetPartitionType())
 		}
 	} else {
-		partitions := disk.MBR.Partitions
-		for _, partition := range partitions {
-			fmt.Printf("%s\n", partition.GetPartitionType())
+		fmt.Printf("MBR:\n")
+
+		for idx, partition := range disk.MBR.Partitions {
+			fmt.Printf("%d  %s at %d\n", idx, partition.GetPartitionType(), partition.GetOffset())
+		}
+		for idx, extPartition := range disk.MBR.ExtendedPartitions {
+			fmt.Printf("extended %d  %s at %d\n", idx, extPartition.Partition.GetPartitionType(), extPartition.Partition.GetOffset())
 		}
 
 	}
