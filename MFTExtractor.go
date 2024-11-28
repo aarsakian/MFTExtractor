@@ -114,7 +114,7 @@ func main() {
 
 	flm := filtermanager.FilterManager{}
 
-	if len(fileNamesToExport) != 0 {
+	if len(fileNamesToExport) > 1 {
 		flm.Register(filters.FoldersFilter{Include: false})
 		flm.Register(filters.NameFilter{Filenames: fileNamesToExport})
 	}
