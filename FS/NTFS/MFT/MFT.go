@@ -360,7 +360,7 @@ func (record Record) GetFullPath() string {
 func (record Record) ShowVCNs() {
 	startVCN, lastVCN := record.getVCNs()
 	if startVCN != 0 || lastVCN != 0 {
-		fmt.Printf(" startVCN %d endVCN %d", startVCN, lastVCN)
+		fmt.Printf(" startVCN %d endVCN %d ", startVCN, lastVCN)
 	}
 
 }
@@ -376,7 +376,7 @@ func (record Record) ShowParentRecordInfo() {
 
 func (record Record) ShowPath(partitionId int) {
 	fullpath := record.GetFullPath()
-	fmt.Printf("\\Partition%d\\%s\\%s \n", partitionId, fullpath, record.GetFname())
+	fmt.Printf("\\Partition%d\\%s\\%s ", partitionId, fullpath, record.GetFname())
 }
 
 func (record Record) ShowIndex() {
@@ -848,16 +848,6 @@ func (records Records) FilterByPath(filespath string) []Record {
 func (records Records) FilterByName(filename string) []Record {
 	return utils.Filter(records, func(record Record) bool {
 		return record.HasFilename(filename)
-	})
-
-}
-
-func (records Records) FilterByPrefixesSuffixes(prefix1 string, suffix1 string,
-	prefix2 string, suffix2 string) []Record {
-
-	return utils.Filter(records, func(record Record) bool {
-		return record.HasPrefix(prefix1) && record.HasSuffix(suffix1) ||
-			record.HasPrefix(prefix2) && record.HasSuffix(suffix2)
 	})
 
 }
