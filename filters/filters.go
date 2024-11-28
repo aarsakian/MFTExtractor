@@ -40,3 +40,17 @@ func (foldersFilter FoldersFilter) Execute(records MFT.Records) MFT.Records {
 	}
 	return records
 }
+
+type PrefixesSuffixesFilter struct {
+	prefixes []string
+	suffixes []string
+}
+
+func (prefSufFilter PrefixesSuffixesFilter) Execute(records MFT.Records) MFT.Records {
+	for idx, prefix := range prefSufFilter.prefixes {
+		records = records.FilterByPrefixSuffix(prefix, prefSufFilter.suffixes[idx])
+	}
+
+	return records
+
+}
