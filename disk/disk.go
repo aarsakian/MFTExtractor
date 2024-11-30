@@ -1,6 +1,7 @@
 package disk
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 
@@ -12,6 +13,8 @@ import (
 	"github.com/aarsakian/MFTExtractor/logger"
 	"github.com/aarsakian/MFTExtractor/utils"
 )
+
+var ErrNTFSVol = errors.New("NTFS volume discovered instead of MBR")
 
 type Disk struct {
 	MBR        *mbrLib.MBR
@@ -40,8 +43,14 @@ func (disk *Disk) Initialize(evidencefile string, physicaldrive int, vmdkfile st
 
 func (disk *Disk) Process(partitionNum int, MFTentries []int, fromMFTEntry int, toMFTEntry int) map[int]MFT.Records {
 
-	disk.DiscoverPartitions()
+	err := disk.DiscoverPartitions()
+	if errors.Is(err, ErrNTFSVol) {
+		msg := "No MBR discovered, instead NTFS volume found at 1st sector"
+		fmt.Printf("%s\n", msg)
+		logger.MFTExtractorlogger.Warning(msg)
 
+		disk.CreatePseudoMBR("NTFS")
+	}
 	filesystemsOffsetMap := disk.ProcessPartitions(partitionNum)
 
 	for fileSystemOffset, fs := range filesystemsOffsetMap {
@@ -69,12 +78,16 @@ type Partition interface {
 	GetFileSystem() FS.FileSystem
 }
 
-func (disk *Disk) populateMBR() {
+func (disk *Disk) populateMBR() error {
 	var mbr mbrLib.MBR
 	physicalOffset := int64(0)
 	length := int(512) // MBR always at first sector
 
 	data := disk.Handler.ReadFile(physicalOffset, length) // read 1st sector
+
+	if string(data[3:7]) == "NTFS" {
+		return ErrNTFSVol
+	}
 
 	mbr.Parse(data)
 	offset, err := mbr.GetExtendedPartitionOffset()
@@ -84,7 +97,7 @@ func (disk *Disk) populateMBR() {
 
 	}
 	disk.MBR = &mbr
-
+	return nil
 }
 
 func (disk *Disk) populateGPT() {
@@ -104,9 +117,23 @@ func (disk *Disk) populateGPT() {
 	disk.GPT = &gpt
 }
 
-func (disk *Disk) DiscoverPartitions() {
+func (disk *Disk) CreatePseudoMBR(voltype string) {
+	var mbr mbrLib.MBR
 
-	disk.populateMBR()
+	mbr.PopulatePseudoMBR(voltype)
+	disk.MBR = &mbr
+	for _, partition := range disk.MBR.Partitions {
+		disk.Partitions = append(disk.Partitions, &partition)
+	}
+
+}
+
+func (disk *Disk) DiscoverPartitions() error {
+
+	err := disk.populateMBR()
+	if err != nil {
+		return err
+	}
 	if disk.hasProtectiveMBR() {
 		disk.populateGPT()
 		for idx := range disk.GPT.Partitions {
@@ -123,7 +150,7 @@ func (disk *Disk) DiscoverPartitions() {
 			disk.Partitions = append(disk.Partitions, &disk.MBR.ExtendedPartitions[idx])
 		}
 	}
-
+	return nil
 }
 
 func (disk *Disk) ProcessPartitions(partitionNum int) FileSystemOffsetMap {

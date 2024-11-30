@@ -87,6 +87,16 @@ func LocatePartitions(data []byte) []Partition {
 	return partitions
 }
 
+func (mbr *MBR) PopulatePseudoMBR(voltype string) {
+	partition := new(Partition)
+
+	utils.Unmarshal(make([]byte, 16), partition)
+	if voltype == "NTFS" {
+		partition.Type = 0x07
+	}
+	mbr.Partitions = []Partition{*partition}
+}
+
 func (mbr *MBR) DiscoverExtendedPartitions(buffer []byte, offset int) {
 	var extPartitions []ExtendedPartition
 	partitions := LocatePartitions(buffer[446:510])
