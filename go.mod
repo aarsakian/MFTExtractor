@@ -9,4 +9,4 @@ require (
 	golang.org/x/text v0.13.0
 )
 
-require github.com/aarsakian/EWF_Reader v0.0.0-20241128200706-581ca2276b13 // indirect
+require github.com/aarsakian/EWF_Reader v0.0.0-20241201184717-8d7353bee37f // indirect
