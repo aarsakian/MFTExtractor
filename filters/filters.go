@@ -30,6 +30,28 @@ func (extensionsFilter ExtensionsFilter) Execute(records MFT.Records) MFT.Record
 	return records.FilterByExtensions(extensionsFilter.Extensions)
 }
 
+type OrphansFilter struct {
+	Include bool
+}
+
+func (orphansFilter OrphansFilter) Execute(records MFT.Records) MFT.Records {
+	if orphansFilter.Include {
+		return records.FilterOrphans()
+	}
+	return records
+}
+
+type DeletedFilter struct {
+	Include bool
+}
+
+func (deletedFilter DeletedFilter) Execute(records MFT.Records) MFT.Records {
+	if deletedFilter.Include {
+		return records.FilterDeleted(deletedFilter.Include)
+	}
+	return records
+}
+
 type FoldersFilter struct {
 	Include bool
 }
