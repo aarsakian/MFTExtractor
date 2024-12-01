@@ -64,6 +64,10 @@ func main() {
 	showFStree := flag.Bool("tree", false, "reconstrut entries tree")
 	showParent := flag.Bool("parent", false, "show information about parent record")
 	showUsnjrnl := flag.Bool("showusn", false, "show information about usnjrnl records")
+	showFull := flag.Bool("showfull", false, "show full information about record")
+
+	orphans := flag.Bool("orphans", false, "show information only for orphan records")
+	deleted := flag.Bool("deleted", false, "show deleted records")
 
 	listPartitions := flag.Bool("listpartitions", false, "list partitions")
 	fileExtensions := flag.String("extensions", "", "search MFT records by extensions use , for each extension")
@@ -78,9 +82,9 @@ func main() {
 
 	var records MFT.Records
 	var usnjrnlRecords UsnJrnl.Records
+	var fileNamesToExport []string
 
 	entries := utils.GetEntriesInt(*MFTSelectedEntries)
-	fileNamesToExport := utils.GetEntries(*exportFiles)
 
 	if *usnjrnl {
 		fileNamesToExport = append(fileNamesToExport, "$UsnJrnl")
@@ -93,6 +97,7 @@ func main() {
 		ShowAttributes: *showAttributes,
 		ShowTimestamps: *showTimestamps,
 		IsResident:     *isResident,
+		ShowFull:       *showFull,
 		ShowRunList:    *showRunList,
 		ShowFileSize:   *showFileSize,
 		ShowVCNs:       *showVCNs,
@@ -115,7 +120,8 @@ func main() {
 
 	flm := filtermanager.FilterManager{}
 
-	if len(fileNamesToExport) > 1 {
+	if *exportFiles != "" {
+		fileNamesToExport = append(fileNamesToExport, utils.GetEntries(*exportFiles)...)
 		flm.Register(filters.FoldersFilter{Include: false})
 		flm.Register(filters.NameFilter{Filenames: fileNamesToExport})
 	}
@@ -126,6 +132,14 @@ func main() {
 
 	if *exportFilesPath != "" {
 		flm.Register(filters.PathFilter{NamePath: *exportFilesPath})
+	}
+
+	if *orphans {
+		flm.Register(filters.OrphansFilter{Include: *orphans})
+	}
+
+	if *deleted {
+		flm.Register(filters.DeletedFilter{Include: *deleted})
 	}
 
 	if *evidencefile != "" || *physicalDrive != -1 || *vmdkfile != "" {
@@ -179,17 +193,13 @@ func main() {
 
 		records = flm.ApplyFilters(ntfs.MFTTable.Records)
 
-		if len(records) == 0 {
-			return
-		}
-
 		rp.Show(records, usnjrnlRecords, 0)
 
-	}
+		if *showFStree {
+			t.Build(records)
+			t.Show()
+		}
 
-	if *showFStree {
-		t.Build(records)
-		t.Show()
 	}
 
 } //ends for
