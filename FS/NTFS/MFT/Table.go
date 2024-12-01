@@ -10,6 +10,14 @@ import (
 	"github.com/aarsakian/MFTExtractor/utils"
 )
 
+type ParentReallocatedError struct {
+	input string
+}
+
+func (e *ParentReallocatedError) Error() string {
+	return e.input
+}
+
 // $MFT table points either to its file path or the buffer containing $MFT
 type MFTTable struct {
 	Records Records
@@ -35,9 +43,10 @@ func (mfttable *MFTTable) ProcessRecords(data []byte) {
 			continue
 		}
 
-		mfttable.Records[i/RecordSize] = record
+		mfttable.Records[record.Entry] = record
 
 		logger.MFTExtractorlogger.Info(fmt.Sprintf("Processed record %d at pos %d", record.Entry, i/RecordSize))
+
 	}
 
 }
@@ -60,14 +69,14 @@ func (mfttable *MFTTable) CreateLinkedRecords() {
 				continue
 			}
 
-			linkedRecord, err := mfttable.GetRecord(linkedRecordInfo.RefEntry)
-			linkedRecord.OriginLinkedRecord = &mfttable.Records[idx]
+			linkedRecord, err := mfttable.GetRecord(linkedRecordInfo.RefEntry, linkedRecordInfo.RefSeq)
 
 			if err != nil {
-				logger.MFTExtractorlogger.Warning(fmt.Sprintf("Record %d has linked to non existing record %d",
-					mfttable.Records[idx].Entry, linkedRecordInfo.RefEntry))
 				continue
 			}
+			logger.MFTExtractorlogger.Info(fmt.Sprintf("updated linked record %d", linkedRecord.Entry))
+
+			linkedRecord.OriginLinkedRecord = &mfttable.Records[idx]
 			mfttable.Records[idx].LinkedRecords = append(mfttable.Records[idx].LinkedRecords, linkedRecord)
 
 		}
@@ -84,28 +93,42 @@ func (mfttable *MFTTable) FindParentRecords() {
 
 		}
 		fnattr := attr.(*MFTAttributes.FNAttribute)
-		parentRecord, err := mfttable.GetRecord(uint32(fnattr.ParRef))
-		if err == nil {
-			mfttable.Records[idx].Parent = parentRecord
-		} else {
-			logger.MFTExtractorlogger.Warning(fmt.Sprintf("No Parent %d Record found for record %d", fnattr.ParRef, mfttable.Records[idx].Entry))
+		parentRecord, err := mfttable.GetRecord(uint32(fnattr.ParRef), fnattr.ParSeq)
+
+		if err != nil {
+			continue
 		}
+
+		logger.MFTExtractorlogger.Info(fmt.Sprintf("update record %d with parent %d", mfttable.Records[idx].Entry, parentRecord.Entry))
+		mfttable.Records[idx].Parent = parentRecord
 
 	}
 }
 
-func (mfttable MFTTable) GetRecord(referencedEntry uint32) (*Record, error) {
-	if int(referencedEntry) < len(mfttable.Records) &&
-		mfttable.Records[referencedEntry].Entry == referencedEntry {
-		return &mfttable.Records[referencedEntry], nil
+func (mfttable MFTTable) GetRecord(referencedEntry uint32, referencedSeq uint16) (*Record, error) {
+	if int(referencedEntry) < len(mfttable.Records) {
+		if mfttable.Records[referencedEntry].Entry == referencedEntry {
+
+			if mfttable.Records[referencedEntry].Seq-referencedSeq > 1 { //allow for deleted records
+				msg := fmt.Sprintf("entry %d has been reallocated with seq %d ref seq %d", mfttable.Records[referencedEntry].Entry,
+					mfttable.Records[referencedEntry].Seq, referencedSeq)
+				logger.MFTExtractorlogger.Warning(msg)
+				return nil, fmt.Errorf("%s", ParentReallocatedError{msg})
+			} else {
+				return &mfttable.Records[referencedEntry], nil
+			}
+		}
 	} else { //brute force seach
 		for idx := range mfttable.Records {
-			if mfttable.Records[idx].Entry == referencedEntry {
+			if mfttable.Records[idx].Entry == referencedEntry &&
+				mfttable.Records[referencedEntry].Seq == referencedSeq {
 				return &mfttable.Records[idx], nil
 			}
 		}
 	}
-	return nil, errors.New("no record found")
+	msg := fmt.Sprintf("cannot find entry record for ref %d", referencedEntry)
+	logger.MFTExtractorlogger.Warning(msg)
+	return nil, errors.New(msg)
 }
 
 func (mfttable *MFTTable) CalculateFileSizes() {
@@ -137,12 +160,9 @@ func (mfttable *MFTTable) SetI30Size(recordId int, attrType string) {
 		}
 
 		//issue with realsize in 8.3 fnattr
-		referencedEntry, err := mfttable.GetRecord(uint32(idxEntry.ParRef))
+		referencedEntry, err := mfttable.GetRecord(uint32(idxEntry.ParRef), idxEntry.ParSeq)
 
 		if err != nil {
-			msg := fmt.Sprintf("Record %d has attribute %s which references non existent $MFT record entry %d.",
-				recordId, attrType, idxEntry.Fnattr.ParRef)
-			logger.MFTExtractorlogger.Warning(msg)
 			continue
 		}
 
@@ -150,6 +170,8 @@ func (mfttable *MFTTable) SetI30Size(recordId int, attrType string) {
 		if referencedEntry.IsFolder() {
 			continue
 		}
+
+		logger.MFTExtractorlogger.Info(fmt.Sprintf("updated I30 size of ref Entry %d", referencedEntry.Entry))
 
 		if idxEntry.Fnattr.RealFsize > idxEntry.Fnattr.AllocFsize {
 
