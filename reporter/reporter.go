@@ -12,6 +12,7 @@ type Reporter struct {
 	ShowAttributes string
 	ShowTimestamps bool
 	IsResident     bool
+	ShowFull       bool
 	ShowRunList    bool
 	ShowFileSize   bool
 	ShowVCNs       bool
@@ -24,55 +25,53 @@ type Reporter struct {
 func (rp Reporter) Show(records []MFT.Record, usnjrnlRecords UsnJrnl.Records, partitionId int) {
 	for _, record := range records {
 		askedToShow := false
-		if record.Signature == "" { //empty record
-			continue
-		}
-		if rp.ShowFileName != "" {
+
+		if rp.ShowFileName != "" || rp.ShowFull {
 			record.ShowFileName(rp.ShowFileName)
 			askedToShow = true
 		}
 
-		if rp.ShowAttributes != "" {
+		if rp.ShowAttributes != "" || rp.ShowFull {
 			record.ShowAttributes(rp.ShowAttributes)
 			askedToShow = true
 		}
 
-		if rp.ShowTimestamps {
+		if rp.ShowTimestamps || rp.ShowFull {
 			record.ShowTimestamps()
 			askedToShow = true
 		}
 
-		if rp.IsResident {
+		if rp.IsResident || rp.ShowFull {
 			record.ShowIsResident()
 			askedToShow = true
 		}
 
-		if rp.ShowRunList {
+		if rp.ShowRunList || rp.ShowFull {
 			record.ShowRunList()
 			askedToShow = true
 		}
 
-		if rp.ShowFileSize {
+		if rp.ShowFileSize || rp.ShowFull {
 			record.ShowFileSize()
 			askedToShow = true
 		}
 
-		if rp.ShowVCNs {
+		if rp.ShowVCNs || rp.ShowFull {
 			record.ShowVCNs()
 			askedToShow = true
 		}
 
-		if rp.ShowIndex {
+		if rp.ShowIndex || rp.ShowFull {
 
 			record.ShowIndex()
 			askedToShow = true
 		}
 
-		if rp.ShowParent {
+		if rp.ShowParent || rp.ShowFull {
 			record.ShowParentRecordInfo()
 		}
 
-		if rp.ShowPath {
+		if rp.ShowPath || rp.ShowFull {
 			record.ShowPath(partitionId)
 		}
 
