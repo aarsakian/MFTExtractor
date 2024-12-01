@@ -53,6 +53,7 @@ type Attribute interface {
 // when attributes span over a record entry
 type LinkedRecordInfo struct {
 	RefEntry uint32
+	RefSeq   uint16
 	StartVCN uint64
 }
 
@@ -248,9 +249,14 @@ func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sector
 	results <- utils.AskedFile{Fname: record.GetFname(), Content: buf.Bytes(), Id: int(record.Entry)}
 }
 
-func (records Records) FilterOutDeleted() []Record {
+func (records Records) FilterDeleted(includeDeleted bool) []Record {
 	return utils.Filter(records, func(record Record) bool {
-		return !record.IsDeleted()
+		if includeDeleted {
+			return record.IsDeleted()
+		} else {
+			return !record.IsDeleted()
+		}
+
 	})
 }
 
@@ -366,12 +372,15 @@ func (record Record) ShowVCNs() {
 }
 
 func (record Record) ShowParentRecordInfo() {
-	fmt.Printf("\nRecord Info ")
-	record.showInfo()
-	record.ShowFileName("win32")
-	fmt.Printf(" has parent ")
-	record.Parent.showInfo()
-	record.Parent.ShowFileName("win32")
+	if record.Parent == nil {
+		fmt.Printf("\n Record has no parent ")
+	} else {
+		fmt.Printf("\n Record has parent ")
+		record.Parent.showInfo()
+		record.Parent.ShowFileName("win32")
+
+	}
+
 }
 
 func (record Record) ShowPath(partitionId int) {
@@ -643,7 +652,7 @@ func (record *Record) Process(bs []byte) error {
 						continue
 					}
 					linkedRecordsInfo = append(linkedRecordsInfo,
-						LinkedRecordInfo{RefEntry: uint32(entry.ParRef), StartVCN: entry.StartVcn})
+						LinkedRecordInfo{RefEntry: uint32(entry.ParRef), StartVCN: entry.StartVcn, RefSeq: entry.ParSeq})
 				}
 
 			} else if attrHeader.IsBitmap() { //BITMAP
@@ -852,11 +861,32 @@ func (records Records) FilterByName(filename string) []Record {
 
 }
 
+func (records Records) FilterOrphans() []Record {
+	return utils.Filter(records, func(record Record) bool {
+		return record.IsDeleted() && record.Parent == nil
+	})
+}
+
 func (records Records) FilterByPrefixSuffix(prefix string, suffix string) []Record {
 
 	return utils.Filter(records, func(record Record) bool {
 		return record.HasPrefix(prefix) && record.HasSuffix(suffix)
 	})
+
+}
+
+func (records Records) GetParent(record Record) (Record, error) {
+	fnattr := record.FindAttribute("FileName").(*MFTAttributes.FNAttribute)
+	if fnattr == nil {
+		return Record{}, errors.New("no filename attribute located")
+	} else {
+		if records[fnattr.ParRef].Seq-fnattr.ParSeq < 2 { //record is children
+			return records[fnattr.ParRef], nil
+		} else {
+			return Record{}, errors.New("parent has been reallocated")
+		}
+
+	}
 
 }
 
