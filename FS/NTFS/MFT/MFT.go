@@ -739,7 +739,7 @@ func (record *Record) Process(bs []byte) error {
 				reparse.SetHeader(&attrHeader)
 				attributes = append(attributes, reparse)
 			} else {
-				msg := fmt.Sprintf("unknown non resident attr %s\n", attrHeader.GetType())
+				msg := fmt.Sprintf("unknown non resident attr %s", attrHeader.GetType())
 				logger.MFTExtractorlogger.Warning(msg)
 			}
 
