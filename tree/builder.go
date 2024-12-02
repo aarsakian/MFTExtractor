@@ -49,6 +49,7 @@ func (t *Tree) AddRecord(record *MFT.Record) {
 	} else {
 
 		t.root.insert(record)
+
 	}
 
 }
@@ -60,21 +61,27 @@ func (node *Node) insert(record *MFT.Record) {
 
 	attr := record.FindAttribute("FileName")
 	if attr != nil {
+		logger.MFTExtractorlogger.Info(fmt.Sprintf("checking %s %d min %d max %d",
+			node.record.GetFname(), node.record.Entry, node.MinChildEntry, node.MaxChildEntry))
+
 		fnattr := attr.(*MFTAttributes.FNAttribute)
 		if uint64(node.record.Entry) == fnattr.ParRef && node.record.Seq-fnattr.ParSeq < 2 { //record is children
-			childNode := Node{record, node, nil, 0, 0}
-			node.children = append(node.children, &childNode)
+			childNode := Node{record, node, nil, record.Entry, record.Entry}
 			node.updateEntryRange(record.Entry)
+			node.children = append(node.children, &childNode)
 
-			childNode.parent = &childNode
+			childNode.parent = node
 
-			logger.MFTExtractorlogger.Info(fmt.Sprintf("added child %s Id %d  to %s Id %d", record.GetFname(), record.Entry, node.record.GetFname(), node.record.Entry))
+			logger.MFTExtractorlogger.Info(fmt.Sprintf("added %s Id %d  to %s Id %d", childNode.record.GetFname(),
+				childNode.record.Entry, childNode.parent.record.GetFname(), childNode.parent.record.Entry))
 
 		} else {
-			logger.MFTExtractorlogger.Info(fmt.Sprintf("checking children of %s with Id %d for %s %d ",
-				node.record.GetFname(), node.record.Entry, record.GetFname(), fnattr.ParRef))
+
 			for idx := range node.children { //test its children
-				if !node.contains(uint32(fnattr.ParRef)) {
+				/*	logger.MFTExtractorlogger.Info(fmt.Sprintf("children %s %d min %d max %d", node.children[idx].record.GetFname(), node.children[idx].record.Entry,
+					node.children[idx].MinChildEntry, node.children[idx].MaxChildEntry))*/
+				if !node.children[idx].contains(uint32(fnattr.ParRef)) {
+
 					continue
 				}
 				node.children[idx].insert(record)
@@ -85,7 +92,7 @@ func (node *Node) insert(record *MFT.Record) {
 
 }
 
-func (node *Node) contains(entry uint32) bool {
+func (node Node) contains(entry uint32) bool {
 
 	if node.MinChildEntry <= entry && entry <= node.MaxChildEntry {
 		return true
@@ -97,14 +104,16 @@ func (node *Node) contains(entry uint32) bool {
 
 func (node *Node) updateEntryRange(entry uint32) {
 	for node != nil {
+		//logger.MFTExtractorlogger.Info(fmt.Sprintf("updating %d for %d", node.record.Entry, entry))
 		if node.MinChildEntry > entry {
 			node.MinChildEntry = entry
+
 		}
 		if node.MaxChildEntry < entry {
 			node.MaxChildEntry = entry
+
 		}
 		node = node.parent
-
 	}
 
 }
@@ -123,14 +132,14 @@ func (node Node) Show() {
 	msgB := strings.Builder{}
 	msgB.Grow(len(node.children) + 1) // for root
 
-	msg := fmt.Sprintf(" %s  |_> ", node.record.GetFname())
+	msg := fmt.Sprintf(" %s  %d |_> ", node.record.GetFname(), node.record.Entry)
 
 	msgB.WriteString(msg)
 
 	fmt.Print("\n" + msg)
 
 	for _, childnode := range node.children {
-		msg := fmt.Sprintf(" %s", childnode.record.GetFname())
+		msg := fmt.Sprintf(" %s %d", childnode.record.GetFname(), childnode.record.Entry)
 
 		fmt.Print(msg)
 		msgB.WriteString(msg)
