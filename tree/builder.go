@@ -120,15 +120,24 @@ func (node *Node) updateEntryRange(entry uint32) {
 
 func (t Tree) Show() {
 
-	t.root.Show()
+	t.root.descend()
 
 }
 
-func (node Node) Show() {
+func (node Node) descend() {
 	if node.children == nil {
 		return
 
 	}
+	node.showChildrenInfo()
+	for _, node := range node.children {
+
+		node.descend()
+
+	}
+}
+
+func (node Node) showChildrenInfo() {
 	msgB := strings.Builder{}
 	msgB.Grow(len(node.children) + 1) // for root
 
@@ -148,9 +157,4 @@ func (node Node) Show() {
 
 	logger.MFTExtractorlogger.Info(msgB.String())
 
-	for _, node := range node.children {
-
-		node.Show()
-
-	}
 }
