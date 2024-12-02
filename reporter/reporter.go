@@ -5,6 +5,7 @@ import (
 
 	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
 	UsnJrnl "github.com/aarsakian/MFTExtractor/FS/NTFS/usnjrnl"
+	"github.com/aarsakian/MFTExtractor/tree"
 )
 
 type Reporter struct {
@@ -20,9 +21,10 @@ type Reporter struct {
 	ShowParent     bool
 	ShowPath       bool
 	ShowUSNJRNL    bool
+	ShowTree       bool
 }
 
-func (rp Reporter) Show(records []MFT.Record, usnjrnlRecords UsnJrnl.Records, partitionId int) {
+func (rp Reporter) Show(records []MFT.Record, usnjrnlRecords UsnJrnl.Records, partitionId int, tree tree.Tree) {
 	for _, record := range records {
 		askedToShow := false
 
@@ -80,10 +82,15 @@ func (rp Reporter) Show(records []MFT.Record, usnjrnlRecords UsnJrnl.Records, pa
 		}
 
 	}
+
 	for _, record := range usnjrnlRecords {
 		if rp.ShowUSNJRNL {
 			record.ShowInfo()
 		}
+	}
+
+	if rp.ShowTree {
+		tree.Show()
 	}
 
 }
