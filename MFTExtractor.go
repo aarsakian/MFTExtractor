@@ -61,7 +61,9 @@ func main() {
 	physicalDrive := flag.Int("physicaldrive", -1, "select disk drive number for extraction of non resident files")
 	partitionNum := flag.Int("partition", -1, "select partition number")
 
-	showFStree := flag.Bool("tree", false, "reconstrut entries tree")
+	buildtree := flag.Bool("tree", false, "reconstrut entries tree")
+
+	showtree := flag.Bool("showtree", false, "show tree")
 	showParent := flag.Bool("parent", false, "show information about parent record")
 	showUsnjrnl := flag.Bool("showusn", false, "show information about usnjrnl records")
 	showFull := flag.Bool("showfull", false, "show full information about record")
@@ -90,7 +92,7 @@ func main() {
 		fileNamesToExport = append(fileNamesToExport, "$UsnJrnl")
 	}
 
-	t := tree.Tree{}
+	recordsTree := tree.Tree{}
 
 	rp := reporter.Reporter{
 		ShowFileName:   *showFileName,
@@ -105,6 +107,7 @@ func main() {
 		ShowParent:     *showParent,
 		ShowPath:       *showPath,
 		ShowUSNJRNL:    *showUsnjrnl,
+		ShowTree:       *showtree,
 	}
 
 	if *logactive {
@@ -171,13 +174,13 @@ func main() {
 				usnjrnlRecords = UsnJrnl.Process(records, *physicalDisk, partitionId)
 			}
 
-			rp.Show(records, usnjrnlRecords, partitionId)
-
-			if *showFStree {
-				t.Build(records)
-				t.Show()
+			if *buildtree {
+				recordsTree.Build(records)
 
 			}
+
+			rp.Show(records, usnjrnlRecords, partitionId, recordsTree)
+
 		}
 
 	} else if *inputfile != "Disk MFT" {
@@ -193,12 +196,12 @@ func main() {
 
 		records = flm.ApplyFilters(ntfs.MFTTable.Records)
 
-		rp.Show(records, usnjrnlRecords, 0)
+		if *buildtree {
+			recordsTree.Build(records)
 
-		if *showFStree {
-			t.Build(records)
-			t.Show()
 		}
+
+		rp.Show(records, usnjrnlRecords, 0, recordsTree)
 
 	}
 
