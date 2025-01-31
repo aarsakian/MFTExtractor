@@ -18,6 +18,8 @@ or by using as input an expert witness format image
 e.g. *-evidence path_to_evidence -partition 1*.
 
 Usage information  type: MFTExtractor  -h
+
+
   -MFT string
         absolute path to the MFT file
         
