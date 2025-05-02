@@ -13,6 +13,11 @@ import (
 )
 
 type NTFS struct {
+	VBR *VBR
+	MFT *MFT.MFTTable
+}
+
+type VBR struct { //Volume Boot Record
 	JumpInstruction   [3]byte //0-3
 	Signature         string  //4 bytes NTFS 3-7
 	NotUsed1          [4]byte
@@ -22,26 +27,26 @@ type NTFS struct {
 	TotalSectors      uint64   //39-47
 	MFTOffset         uint64   //48-56
 	MFTMirrOffset     uint64   //56-64
-	MFTTable          *MFT.MFTTable
+	MFT               *MFT.MFTTable
 }
 
 func (ntfs NTFS) HasValidSignature() bool {
-	return ntfs.Signature == "NTFS"
+	return ntfs.VBR.Signature == "NTFS"
 }
 func (ntfs NTFS) GetSectorsPerCluster() int {
-	return int(ntfs.SectorsPerCluster)
+	return int(ntfs.VBR.SectorsPerCluster)
 }
 
 func (ntfs NTFS) GetBytesPerSector() uint64 {
-	return uint64(ntfs.BytesPerSector)
+	return uint64(ntfs.VBR.BytesPerSector)
 }
 
 func (ntfs NTFS) GetSignature() string {
-	return ntfs.Signature
+	return ntfs.VBR.Signature
 }
 
 func (ntfs NTFS) GetMetadata() []MFT.Record {
-	return ntfs.MFTTable.Records
+	return ntfs.MFT.Records
 }
 
 func (ntfs *NTFS) Process(hD img.DiskReader, partitionOffsetB int64, MFTSelectedEntries []int,
@@ -49,7 +54,7 @@ func (ntfs *NTFS) Process(hD img.DiskReader, partitionOffsetB int64, MFTSelected
 
 	length := int(1024) // len of MFT record
 
-	physicalOffset := partitionOffsetB + int64(ntfs.MFTOffset)*int64(ntfs.SectorsPerCluster)*int64(ntfs.BytesPerSector)
+	physicalOffset := partitionOffsetB + int64(ntfs.VBR.MFTOffset)*int64(ntfs.VBR.SectorsPerCluster)*int64(ntfs.VBR.BytesPerSector)
 
 	msg := "Reading first record entry to determine the size of $MFT Table at offset %d"
 	fmt.Printf(msg+"\n", physicalOffset)
@@ -57,30 +62,30 @@ func (ntfs *NTFS) Process(hD img.DiskReader, partitionOffsetB int64, MFTSelected
 
 	data := hD.ReadFile(physicalOffset, length)
 
-	var mfttable *MFT.MFTTable = new(MFT.MFTTable)
-	mfttable.ProcessRecords(data)
-	mfttable.DetermineClusterOffsetLength()
-	ntfs.MFTTable = mfttable
+	ntfs.MFT = new(MFT.MFTTable)
+	ntfs.MFT.ProcessRecords(data)
+	ntfs.MFT.DetermineClusterOffsetLength()
+
 	// fill buffer before parsing the record
 
 	MFTAreaBuf := ntfs.CollectMFTArea(hD, partitionOffsetB)
 	ntfs.ProcessMFT(MFTAreaBuf, MFTSelectedEntries, fromMFTEntry, toMFTEntry)
-	ntfs.MFTTable.ProcessNonResidentRecords(hD, partitionOffsetB, int(ntfs.SectorsPerCluster)*int(ntfs.BytesPerSector))
+	ntfs.MFT.ProcessNonResidentRecords(hD, partitionOffsetB, int(ntfs.VBR.SectorsPerCluster)*int(ntfs.VBR.BytesPerSector))
 	if len(MFTSelectedEntries) == 0 && fromMFTEntry == -1 && toMFTEntry == math.MaxUint32 { // additional processing only when user has not selected entries
 		msg := "Linking $MFT record non resident $MFT entries"
-		fmt.Printf(msg + "\n")
+		fmt.Printf("%s\n", msg)
 		logger.MFTExtractorlogger.Info(msg)
-		ntfs.MFTTable.CreateLinkedRecords()
+		ntfs.MFT.CreateLinkedRecords()
 
 		msg = "Locating parent $MFT records from Filename attributes"
-		fmt.Printf(msg + "\n")
+		fmt.Printf("%s\n", msg)
 		logger.MFTExtractorlogger.Info(msg)
-		ntfs.MFTTable.FindParentRecords()
+		ntfs.MFT.FindParentRecords()
 
 		msg = "Calculating files sizes from $I30"
-		fmt.Printf(msg + "\n")
+		fmt.Printf("%s\n", msg)
 		logger.MFTExtractorlogger.Info(msg)
-		ntfs.MFTTable.CalculateFileSizes()
+		ntfs.MFT.CalculateFileSizes()
 
 	}
 
@@ -88,7 +93,7 @@ func (ntfs *NTFS) Process(hD img.DiskReader, partitionOffsetB int64, MFTSelected
 
 func (ntfs NTFS) CollectUnallocated(hD img.DiskReader, partitionOffsetB int64, blocks chan<- []byte) {
 
-	record := ntfs.MFTTable.Records[0]
+	record := ntfs.MFT.Records[0]
 	bitmap := record.FindAttribute("BitMap").(*MFTAttributes.BitMap)
 	unallocatedClusters := bitmap.GetUnallocatedClusters()
 	var buf bytes.Buffer
@@ -103,10 +108,10 @@ func (ntfs NTFS) CollectUnallocated(hD img.DiskReader, partitionOffsetB int64, b
 		if unallocatedCluster-prevClusterOffset <= 1 {
 			blockSize += 1
 		} else {
-			buf.Grow(blockSize * int(ntfs.BytesPerSector))
+			buf.Grow(blockSize * int(ntfs.VBR.BytesPerSector))
 			firstBlockCluster := unallocatedClusters[idx-blockSize]
-			offset := partitionOffsetB + int64(firstBlockCluster)*int64(ntfs.SectorsPerCluster*uint8(ntfs.BytesPerSector))
-			buf.Write(hD.ReadFile(offset, int(uint16(blockSize)*(uint16(ntfs.SectorsPerCluster)*ntfs.BytesPerSector))))
+			offset := partitionOffsetB + int64(firstBlockCluster)*int64(ntfs.VBR.SectorsPerCluster*uint8(ntfs.VBR.BytesPerSector))
+			buf.Write(hD.ReadFile(offset, int(uint16(blockSize)*(uint16(ntfs.VBR.SectorsPerCluster)*ntfs.VBR.BytesPerSector))))
 			blockSize = 1
 			blocks <- buf.Bytes()
 
@@ -121,10 +126,10 @@ func (ntfs NTFS) CollectUnallocated(hD img.DiskReader, partitionOffsetB int64, b
 func (ntfs NTFS) CollectMFTArea(hD img.DiskReader, partitionOffsetB int64) []byte {
 	var buf bytes.Buffer
 
-	length := int(ntfs.MFTTable.Size) * int(ntfs.BytesPerSector) * int(ntfs.SectorsPerCluster) // allow for MFT size
+	length := int(ntfs.MFT.Size) * int(ntfs.VBR.BytesPerSector) * int(ntfs.VBR.SectorsPerCluster) // allow for MFT size
 	buf.Grow(length)
 
-	runlist := ntfs.MFTTable.Records[0].GetRunList("DATA") // first record $MFT
+	runlist := ntfs.MFT.Records[0].GetRunList("DATA") // first record $MFT
 	offset := 0
 
 	for (MFTAttributes.RunList{}) != runlist {
@@ -132,7 +137,7 @@ func (ntfs NTFS) CollectMFTArea(hD img.DiskReader, partitionOffsetB int64) []byt
 
 		clusters := int(runlist.Length)
 
-		data := hD.ReadFile(partitionOffsetB+int64(offset)*int64(ntfs.SectorsPerCluster)*int64(ntfs.BytesPerSector), clusters*int(ntfs.BytesPerSector)*int(ntfs.SectorsPerCluster))
+		data := hD.ReadFile(partitionOffsetB+int64(offset)*int64(ntfs.VBR.SectorsPerCluster)*int64(ntfs.VBR.BytesPerSector), clusters*int(ntfs.VBR.BytesPerSector)*int(ntfs.VBR.SectorsPerCluster))
 		buf.Write(data)
 
 		if runlist.Next == nil {
@@ -194,11 +199,13 @@ func (ntfs *NTFS) ProcessMFT(data []byte, MFTSelectedEntries []int,
 		}
 
 	}
-	ntfs.MFTTable.ProcessRecords(buf.Bytes())
+	ntfs.MFT.ProcessRecords(buf.Bytes())
 
 }
 
 func (ntfs *NTFS) Parse(buffer []byte) {
-	utils.Unmarshal(buffer, ntfs)
+	vbr := new(VBR)
+	utils.Unmarshal(buffer, vbr)
+	ntfs.VBR = vbr
 
 }
