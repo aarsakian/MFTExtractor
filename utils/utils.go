@@ -35,6 +35,56 @@ type AskedFile struct {
 	Content []byte
 }
 
+type TimeSpec struct {
+	Sec  int64
+	Nsec int32
+}
+
+func (timeSpec TimeSpec) ToTime() time.Time {
+	return time.Unix(timeSpec.Sec, int64(timeSpec.Nsec))
+
+}
+
+func GetStructSize(v interface{}, size int) int {
+	val := reflect.ValueOf(v)
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem() // get the value pointed to
+	}
+
+	if val.Kind() == reflect.Struct {
+		for i := 0; i < val.NumField(); i++ {
+			field := val.Field(i) //StructField type
+
+			switch field.Kind() {
+
+			case reflect.Pointer:
+				size += GetStructSize(field.Elem().Interface(), size)
+			case reflect.Uint8:
+				size += 1
+			case reflect.Uint16:
+				size += 2
+			case reflect.Int32:
+				size += 4
+			case reflect.Uint32:
+				size += 4
+			case reflect.Uint64:
+				size += 8
+			case reflect.Int64:
+				size += 8
+			}
+		}
+	}
+
+	return size
+
+}
+
+func ToUint32(data []byte) uint32 {
+	var temp uint32
+	binary.Read(bytes.NewBuffer(data), binary.LittleEndian, &temp)
+	return temp
+}
+
 func ReadFile(inputfile string) ([]byte, int, error) {
 	file, err := os.Open(inputfile)
 	if err != nil {
@@ -156,18 +206,22 @@ func stringifyGuIDs(barray []byte) string {
 	return strings.Join(s, "-")
 }
 
-func Unmarshal(data []byte, v interface{}) error {
+func Unmarshal(data []byte, v interface{}) (int, error) {
 	idx := 0
-	structValPtr := reflect.ValueOf(v)
-	structType := reflect.TypeOf(v)
-	if structType.Elem().Kind() != reflect.Struct {
-		return errors.New("must be a struct")
+	val := reflect.ValueOf(v)
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem() // get the value pointed to
 	}
-	for i := 0; i < structValPtr.Elem().NumField(); i++ {
-		field := structValPtr.Elem().Field(i) //StructField type
+	if val.Kind() != reflect.Struct {
+		return idx, errors.New("requires struct")
+	}
+
+	for i := 0; i < val.NumField(); i++ {
+		field := val.Field(i) //StructField type
+		name := val.Type().Field(i).Name
 		switch field.Kind() {
 		case reflect.String:
-			name := structType.Elem().Field(i).Name
+
 			if name == "Signature" || name == "CollationSortingRule" {
 				field.SetString(string(data[idx : idx+4]))
 				idx += 4
@@ -184,12 +238,25 @@ func Unmarshal(data []byte, v interface{}) error {
 			} else if name == "MajVer" || name == "MinVer" {
 				field.SetString(Hexify(Bytereverse(data[idx : idx+1])))
 				idx += 1
+			} else if name == "Signature" {
+				field.SetString(string(data[idx : idx+8]))
+				idx += 8
 			}
 		case reflect.Struct:
-			var windowsTime WindowsTime
-			Unmarshal(data[idx:idx+8], &windowsTime)
-			field.Set(reflect.ValueOf(windowsTime))
-			idx += 8
+			typeName := field.Type().Name()
+			if typeName == "TimeSpec" {
+				var timeSpec TimeSpec
+				Unmarshal(data[idx:idx+12], &timeSpec)
+				field.Set(reflect.ValueOf(timeSpec))
+				idx += 12
+
+			} else if typeName == "WindowsTime" {
+				var windowsTime WindowsTime
+				Unmarshal(data[idx:idx+8], &windowsTime)
+				field.Set(reflect.ValueOf(windowsTime))
+				idx += 8
+			}
+
 		case reflect.Uint8:
 			var temp uint8
 			binary.Read(bytes.NewBuffer(data[idx:idx+1]), binary.LittleEndian, &temp)
@@ -207,14 +274,14 @@ func Unmarshal(data []byte, v interface{}) error {
 			idx += 4
 		case reflect.Uint64:
 			var temp uint64
-			name := structType.Elem().Field(i).Name
+
 			if name == "ParRef" {
 				buf := make([]byte, 8)
 				copy(buf, data[idx:idx+6])
 				binary.Read(bytes.NewBuffer(buf), binary.LittleEndian, &temp)
 				idx += 6
 			} else if name == "ChildVCN" {
-				len := structValPtr.Elem().FieldByName("Len").Uint()
+				len := val.Elem().FieldByName("Len").Uint()
 				binary.Read(bytes.NewBuffer(data[len-8:len]), binary.LittleEndian, &temp)
 
 			} else {
@@ -245,7 +312,7 @@ func Unmarshal(data []byte, v interface{}) error {
 		}
 
 	}
-	return nil
+	return idx, nil
 }
 
 func Bytereverse(barray []byte) []byte { //work with indexes
@@ -404,4 +471,9 @@ func SetProgress(progressStat int, msg string) {
 	str := fmt.Sprintf("%4d%% %s", progressStat, msg)
 
 	io.WriteString(os.Stdout, str)
+}
+
+func StringifyGUID(barray []byte) string {
+	s := []string{Hexify(barray[0:4]), Hexify(barray[4:6]), Hexify(barray[6:8]), Hexify(barray[8:10]), Hexify(barray[10:16])}
+	return strings.Join(s, "-")
 }
