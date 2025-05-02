@@ -19,7 +19,7 @@ import (
 	"github.com/aarsakian/MFTExtractor/exporter"
 	"github.com/aarsakian/MFTExtractor/filtermanager"
 	"github.com/aarsakian/MFTExtractor/filters"
-	MFTExtractorLogger "github.com/aarsakian/MFTExtractor/logger"
+	FSLogger "github.com/aarsakian/MFTExtractor/logger"
 	"github.com/aarsakian/MFTExtractor/reporter"
 	"github.com/aarsakian/MFTExtractor/tree"
 	"github.com/aarsakian/MFTExtractor/utils"
@@ -113,7 +113,7 @@ func main() {
 	if *logactive {
 		now := time.Now()
 		logfilename := "logs" + now.Format("2006-01-02T15_04_05") + ".txt"
-		MFTExtractorLogger.InitializeLogger(*logactive, logfilename)
+		FSLogger.InitializeLogger(*logactive, logfilename)
 		VMDKLogger.InitializeLogger(*logactive, logfilename)
 		EWFLogger.InitializeLogger(*logactive, logfilename)
 
@@ -191,10 +191,10 @@ func main() {
 		}
 		var ntfs ntfslib.NTFS
 
-		ntfs.MFTTable = &MFT.MFTTable{Size: fsize}
+		ntfs.MFT = &MFT.MFTTable{Size: fsize}
 		ntfs.ProcessMFT(data, entries, *fromMFTEntry, *toMFTEntry)
 
-		records = flm.ApplyFilters(ntfs.MFTTable.Records)
+		records = flm.ApplyFilters(ntfs.MFT.Records)
 
 		if *buildtree {
 			recordsTree.Build(records)
