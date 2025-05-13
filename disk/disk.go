@@ -76,6 +76,7 @@ type Partition interface {
 	GetOffset() uint64
 	LocateFileSystem(img.DiskReader)
 	GetFileSystem() FS.FileSystem
+	GetInfo() string
 }
 
 func (disk *Disk) populateMBR() error {
@@ -262,23 +263,19 @@ func (disk Disk) Worker(wg *sync.WaitGroup, records MFT.Records, results chan<- 
 }
 
 func (disk Disk) ListPartitions() {
-
 	if disk.hasProtectiveMBR() {
 		fmt.Printf("GPT:\n")
-
-		for idx, partition := range disk.GPT.Partitions {
-			fmt.Printf("%d %s\n", idx, partition.GetPartitionType())
-		}
 	} else {
 		fmt.Printf("MBR:\n")
+	}
 
-		for idx, partition := range disk.MBR.Partitions {
-			fmt.Printf("%d  %s at %d\n", idx, partition.GetPartitionType(), partition.GetOffset())
+	for _, partition := range disk.Partitions {
+		offset := partition.GetOffset()
+		//show only non zero partition entries
+		if offset == 0 {
+			continue
 		}
-		for idx, extPartition := range disk.MBR.ExtendedPartitions {
-			fmt.Printf("extended %d  %s at %d\n", idx, extPartition.Partition.GetPartitionType(), extPartition.Partition.GetOffset())
-		}
-
+		fmt.Printf("%s\n", partition.GetInfo())
 	}
 
 }
