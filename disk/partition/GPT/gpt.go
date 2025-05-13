@@ -5,12 +5,15 @@ import (
 
 	"github.com/aarsakian/MFTExtractor/FS"
 	ntfsLib "github.com/aarsakian/MFTExtractor/FS/NTFS"
+	lvmlib "github.com/aarsakian/MFTExtractor/disk/lvm2"
+	mdraid "github.com/aarsakian/MFTExtractor/disk/raid"
 	"github.com/aarsakian/MFTExtractor/img"
 	"github.com/aarsakian/MFTExtractor/utils"
 )
 
 var PartitionTypeGuids = map[string]string{
-	"Basic Data": "",
+	"ebd0a0a2-b9e5-4433-87c0-68b6b72699c7": "Windows",
+	"a19d880f-05fc-4d3b-a006-743f0f84911e": "Linux RAID",
 }
 
 type GPT struct {
@@ -47,9 +50,17 @@ type Partition struct {
 }
 
 func (partition Partition) GetPartitionType() string {
-	return fmt.Sprintf("%x-%x-%x-%x-%x", utils.Bytereverse(partition.PartitionTypeGUID[0:4]),
-		utils.Bytereverse(partition.PartitionTypeGUID[4:6]), utils.Bytereverse(partition.PartitionTypeGUID[6:8]),
-		partition.PartitionTypeGUID[8:10], partition.PartitionTypeGUID[10:])
+	guid := utils.StringifyGUID(partition.PartitionTypeGUID[:])
+	partitionType, ok := PartitionTypeGuids[guid]
+	if ok {
+		return partitionType
+	} else {
+		return guid
+	}
+}
+
+func (partition Partition) GetUniquePartitionType() string {
+	return utils.StringifyGUID(partition.PartitionGUID[:])
 }
 
 func (partition Partition) IdentifyType() string {
@@ -90,11 +101,23 @@ func (partition Partition) GetOffset() uint64 {
 
 func (partition *Partition) LocateFileSystem(hD img.DiskReader) {
 	partitionOffetB := uint64(partition.GetOffset() * 512)
-	data := hD.ReadFile(int64(partitionOffetB), 512)
-	var ntfs *ntfsLib.NTFS = new(ntfsLib.NTFS)
-	ntfs.Parse(data)
-	if ntfs.HasValidSignature() {
+
+	if partition.GetPartitionType() == "Windows" {
+		ntfs := new(ntfsLib.NTFS)
+		data := hD.ReadFile(int64(partitionOffetB), 512)
+		ntfs.Parse(data)
 		partition.FS = ntfs
+	} else if partition.GetPartitionType() == "Linux RAID" {
+		data := hD.ReadFile(int64(partitionOffetB+8*512), 512)       //8 sectors after superblock
+		if utils.Hexify(utils.Bytereverse(data[:4])) == "a92b4efc" { //valid ?
+			superblock := new(mdraid.Superblock)
+			utils.Unmarshal(data, superblock)
+
+			lvm2 := new(lvmlib.LVM2)
+			data := hD.ReadFile(int64(partitionOffetB+superblock.DataOffset*512), 4096)
+			lvm2.Parse(data)
+		}
+
 	} else {
 		partition.FS = nil
 	}
@@ -103,4 +126,9 @@ func (partition *Partition) LocateFileSystem(hD img.DiskReader) {
 
 func (partition Partition) GetFileSystem() FS.FileSystem {
 	return partition.FS
+}
+
+func (partition Partition) GetInfo() string {
+	return fmt.Sprintf("%s  %s at %d", partition.GetUniquePartitionType(),
+		partition.GetPartitionType(), partition.GetOffset())
 }
