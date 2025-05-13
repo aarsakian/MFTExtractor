@@ -225,7 +225,7 @@ func Unmarshal(data []byte, v interface{}) (int, error) {
 			if name == "Signature" || name == "CollationSortingRule" {
 				field.SetString(string(data[idx : idx+4]))
 				idx += 4
-			} else if name == "Type" {
+			} else if name == "Type" || name == "Magic" {
 				field.SetString(Hexify(Bytereverse(data[idx : idx+4])))
 				idx += 4
 			} else if name == "Res" || name == "Len" {
@@ -238,9 +238,12 @@ func Unmarshal(data []byte, v interface{}) (int, error) {
 			} else if name == "MajVer" || name == "MinVer" {
 				field.SetString(Hexify(Bytereverse(data[idx : idx+1])))
 				idx += 1
-			} else if name == "Signature" {
+			} else if name == "LVMSignature" || name == "IndicatorType" {
 				field.SetString(string(data[idx : idx+8]))
 				idx += 8
+			} else if name == "RaidName" {
+				field.SetString(string(data[idx : idx+32]))
+				idx += 32
 			}
 		case reflect.Struct:
 			typeName := field.Type().Name()
@@ -272,6 +275,11 @@ func Unmarshal(data []byte, v interface{}) (int, error) {
 			binary.Read(bytes.NewBuffer(data[idx:idx+4]), binary.LittleEndian, &temp)
 			field.SetUint(uint64(temp))
 			idx += 4
+		case reflect.Int64:
+			var temp int64
+			binary.Read(bytes.NewBuffer(data[idx:idx+8]), binary.LittleEndian, &temp)
+			idx += 8
+			field.SetInt(temp)
 		case reflect.Uint64:
 			var temp uint64
 
@@ -474,6 +482,7 @@ func SetProgress(progressStat int, msg string) {
 }
 
 func StringifyGUID(barray []byte) string {
-	s := []string{Hexify(barray[0:4]), Hexify(barray[4:6]), Hexify(barray[6:8]), Hexify(barray[8:10]), Hexify(barray[10:16])}
-	return strings.Join(s, "-")
+	return fmt.Sprintf("%x-%x-%x-%x-%x", Bytereverse(barray[0:4]),
+		Bytereverse(barray[4:6]), Bytereverse(barray[6:8]),
+		barray[8:10], barray[10:])
 }
