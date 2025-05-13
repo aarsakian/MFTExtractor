@@ -2,6 +2,7 @@ package MBR
 
 import (
 	"errors"
+	"fmt"
 
 	FS "github.com/aarsakian/MFTExtractor/FS"
 	ntfsLib "github.com/aarsakian/MFTExtractor/FS/NTFS"
@@ -137,4 +138,14 @@ func (partiton Partition) GetFileSystem() FS.FileSystem {
 
 func (extPartition ExtendedPartition) GetFileSystem() FS.FileSystem {
 	return extPartition.Partition.FS
+}
+
+func (partition Partition) GetInfo() string {
+	return fmt.Sprintf(" %s at %d", partition.GetPartitionType(), partition.GetOffset())
+
+}
+
+func (extPartition ExtendedPartition) GetInfo() string {
+
+	return fmt.Sprintf("extended  %s at %d", extPartition.Partition.GetPartitionType(), extPartition.Partition.GetOffset())
 }
