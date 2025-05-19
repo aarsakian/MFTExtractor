@@ -28,7 +28,7 @@ func (mfttable *MFTTable) ProcessRecords(data []byte) {
 
 	mfttable.Records = make([]Record, len(data)/RecordSize)
 	msg := fmt.Sprintf("Processing %d $MFT entries", len(mfttable.Records))
-	fmt.Printf(msg + "\n")
+	fmt.Printf(" %s \n", msg)
 	logger.MFTExtractorlogger.Info(msg)
 
 	var record Record
