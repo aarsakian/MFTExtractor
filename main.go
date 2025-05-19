@@ -12,10 +12,11 @@ import (
 	"time"
 
 	EWFLogger "github.com/aarsakian/EWF_Reader/logger"
-	ntfslib "github.com/aarsakian/MFTExtractor/FS/NTFS"
+
 	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
 	UsnJrnl "github.com/aarsakian/MFTExtractor/FS/NTFS/usnjrnl"
 	"github.com/aarsakian/MFTExtractor/disk"
+	"github.com/aarsakian/MFTExtractor/disk/volume"
 	"github.com/aarsakian/MFTExtractor/exporter"
 	"github.com/aarsakian/MFTExtractor/filtermanager"
 	"github.com/aarsakian/MFTExtractor/filters"
@@ -75,6 +76,7 @@ func main() {
 	fileExtensions := flag.String("extensions", "", "search MFT records by extensions use , for each extension")
 	collectUnallocated := flag.Bool("unallocated", false, "collect unallocated area of a file system")
 	hashFiles := flag.String("hash", "", "select hash md5 or sha1 for exported files.")
+	volinfo := flag.Bool("volinfo", false, "show volume information")
 	logactive := flag.Bool("log", false, "enable logging")
 	showPath := flag.Bool("showpath", false, "show the full path of the selected files.")
 	strategy := flag.String("strategy", "overwrite", "what strategy will use for files sharing the same file name supported is use Id default is ovewrite.")
@@ -155,6 +157,10 @@ func main() {
 			physicalDisk.ListPartitions()
 		}
 
+		if *volinfo {
+			physicalDisk.ShowVolumeInfo()
+		}
+
 		if *collectUnallocated {
 			exp.ExportUnallocated(*physicalDisk)
 		}
@@ -189,7 +195,7 @@ func main() {
 		if err != nil {
 			return
 		}
-		var ntfs ntfslib.NTFS
+		var ntfs volume.NTFS
 
 		ntfs.MFT = &MFT.MFTTable{Size: fsize}
 		ntfs.ProcessMFT(data, entries, *fromMFTEntry, *toMFTEntry)
