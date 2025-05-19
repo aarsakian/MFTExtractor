@@ -23,10 +23,10 @@ type IndexEntry struct {
 }
 
 type IndexRoot struct {
-	Type                 string //0-3 similar to FNA type
-	CollationSortingRule string //4-7
-	Sizebytes            uint32 //8-11
-	Sizeclusters         uint8  //12-12
+	Type                 [4]byte //0-3 similar to FNA type  (Hexify(Bytereverse
+	CollationSortingRule [4]byte //4-7
+	Sizebytes            uint32  //8-11
+	Sizeclusters         uint8   //12-12
 	Nodeheader           *NodeHeader
 	Header               *AttributeHeader
 	IndexEntries         IndexEntries

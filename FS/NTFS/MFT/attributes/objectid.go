@@ -7,11 +7,11 @@ import (
 )
 
 type ObjectID struct { //unique guID
-	ObjID     string //object ID
-	OrigVolID string //volume ID
-	OrigObjID string //original objID
-	OrigDomID string // domain ID
-	Header    *AttributeHeader
+	ObjGUID     [16]byte //object ID
+	OrigVolGUID [16]byte //volume ID
+	OrigObjGUID [16]byte //original objID
+	OrigDomGUID [16]byte // domain ID
+	Header      *AttributeHeader
 }
 
 func (objectId *ObjectID) SetHeader(header *AttributeHeader) {

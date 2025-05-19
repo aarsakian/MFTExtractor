@@ -20,8 +20,8 @@ var AttrTypes = map[string]string{
 }
 
 type AttributeHeader struct {
-	Type                 string //        0-3                              type of attribute e.g. $DATA
-	AttrLen              uint16 //4-8             length of attribute??? practice shown 4-6
+	Type                 [4]byte //        0-3                              type of attribute e.g. $DATA
+	AttrLen              uint16  //4-8             length of attribute??? practice shown 4-6
 	Uknown               [2]byte
 	NoNResident          uint8  //8
 	Nlen                 uint8  //9
@@ -63,7 +63,7 @@ func (atrRecordResident *ATRrecordResident) Parse(data []byte) {
 }
 
 func (attrHeader AttributeHeader) GetType() string {
-	attrType, ok := AttrTypes[attrHeader.Type]
+	attrType, ok := AttrTypes[utils.Hexify(utils.Bytereverse(attrHeader.Type[:]))]
 	if ok {
 		return attrType
 	} else {

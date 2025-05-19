@@ -9,13 +9,12 @@ type VolumeName struct {
 
 type VolumeInfo struct {
 	F1     uint64 //unused
-	MajVer string // 8-8
-	MinVer string // 9-9
+	MajVer uint8  // 8-8
+	MinVer uint8  // 9-9
 	Flags  uint16 //see table 13.22
 	F2     uint32
 	Header *AttributeHeader
 }
-
 
 func (volInfo *VolumeInfo) SetHeader(header *AttributeHeader) {
 	volInfo.Header = header
