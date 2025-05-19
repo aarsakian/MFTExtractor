@@ -3,10 +3,9 @@ package gpt
 import (
 	"fmt"
 
-	"github.com/aarsakian/MFTExtractor/FS"
-	ntfsLib "github.com/aarsakian/MFTExtractor/FS/NTFS"
-	lvmlib "github.com/aarsakian/MFTExtractor/disk/lvm2"
 	mdraid "github.com/aarsakian/MFTExtractor/disk/raid"
+	"github.com/aarsakian/MFTExtractor/disk/volume"
+	lvmlib "github.com/aarsakian/MFTExtractor/disk/volume"
 	"github.com/aarsakian/MFTExtractor/img"
 	"github.com/aarsakian/MFTExtractor/utils"
 )
@@ -46,7 +45,7 @@ type Partition struct {
 	EndLBA            uint64
 	Atttributes       [8]byte
 	Name              string
-	FS                FS.FileSystem
+	Volume            volume.Volume
 }
 
 func (partition Partition) GetPartitionType() string {
@@ -99,14 +98,25 @@ func (partition Partition) GetOffset() uint64 {
 	return partition.StartLBA
 }
 
-func (partition *Partition) LocateFileSystem(hD img.DiskReader) {
+func (partition Partition) GetVolInfo() string {
+	if partition.Volume != nil {
+		return partition.Volume.GetInfo()
+	} else {
+		return ""
+	}
+
+}
+
+func (partition *Partition) LocateVolume(hD img.DiskReader) {
 	partitionOffetB := uint64(partition.GetOffset() * 512)
 
 	if partition.GetPartitionType() == "Windows" {
-		ntfs := new(ntfsLib.NTFS)
+
 		data := hD.ReadFile(int64(partitionOffetB), 512)
-		ntfs.Parse(data)
-		partition.FS = ntfs
+
+		ntfs := new(volume.NTFS)
+		ntfs.AddVolume(data)
+		partition.Volume = ntfs
 	} else if partition.GetPartitionType() == "Linux RAID" {
 		data := hD.ReadFile(int64(partitionOffetB+8*512), 512)       //8 sectors after superblock
 		if utils.Hexify(utils.Bytereverse(data[:4])) == "a92b4efc" { //valid ?
@@ -114,18 +124,18 @@ func (partition *Partition) LocateFileSystem(hD img.DiskReader) {
 			utils.Unmarshal(data, superblock)
 
 			lvm2 := new(lvmlib.LVM2)
-			data := hD.ReadFile(int64(partitionOffetB+superblock.DataOffset*512), 4096)
-			lvm2.Parse(data)
+			lvm2.ProcessHeader(hD, int64(partitionOffetB+superblock.DataOffset*512))
+			partition.Volume = lvm2
 		}
 
 	} else {
-		partition.FS = nil
+		partition.Volume = nil
 	}
 
 }
 
-func (partition Partition) GetFileSystem() FS.FileSystem {
-	return partition.FS
+func (partition Partition) GetVolume() volume.Volume {
+	return partition.Volume
 }
 
 func (partition Partition) GetInfo() string {
