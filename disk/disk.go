@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/aarsakian/MFTExtractor/FS"
 	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
 	gptLib "github.com/aarsakian/MFTExtractor/disk/partition/GPT"
 	mbrLib "github.com/aarsakian/MFTExtractor/disk/partition/MBR"
+	"github.com/aarsakian/MFTExtractor/disk/volume"
 	"github.com/aarsakian/MFTExtractor/img"
 	"github.com/aarsakian/MFTExtractor/logger"
 	"github.com/aarsakian/MFTExtractor/utils"
@@ -43,7 +43,7 @@ func (disk *Disk) Initialize(evidencefile string, physicaldrive int, vmdkfile st
 
 func (disk *Disk) Process(partitionNum int, MFTentries []int, fromMFTEntry int, toMFTEntry int) map[int]MFT.Records {
 
-	err := disk.DiscoverPartitions()
+	err := disk.DiscoverPartitions(partitionNum)
 	if errors.Is(err, ErrNTFSVol) {
 		msg := "No MBR discovered, instead NTFS volume found at 1st sector"
 		fmt.Printf("%s\n", msg)
@@ -51,13 +51,9 @@ func (disk *Disk) Process(partitionNum int, MFTentries []int, fromMFTEntry int, 
 
 		disk.CreatePseudoMBR("NTFS")
 	}
-	filesystemsOffsetMap := disk.ProcessPartitions(partitionNum)
+	disk.ProcessPartitions(partitionNum)
 
-	for fileSystemOffset, fs := range filesystemsOffsetMap {
-		partitionOffsetB := int64(fileSystemOffset * fs.GetBytesPerSector())
-
-		fs.Process(disk.Handler, partitionOffsetB, MFTentries, fromMFTEntry, toMFTEntry)
-	}
+	disk.DiscoverFileSystems(MFTentries, fromMFTEntry, toMFTEntry)
 
 	return disk.GetFileSystemMetadata(partitionNum)
 }
@@ -70,13 +66,28 @@ func (disk Disk) hasProtectiveMBR() bool {
 	return disk.MBR.IsProtective()
 }
 
-type FileSystemOffsetMap map[uint64]FS.FileSystem
-
 type Partition interface {
 	GetOffset() uint64
-	LocateFileSystem(img.DiskReader)
-	GetFileSystem() FS.FileSystem
+	LocateVolume(img.DiskReader)
+	GetVolume() volume.Volume
 	GetInfo() string
+	GetVolInfo() string
+}
+
+func (disk *Disk) DiscoverFileSystems(MFTentries []int, fromMFTEntry int, toMFTEntry int) {
+	for idx := range disk.Partitions {
+
+		disk.Partitions[idx].GetOffset()
+		vol := disk.Partitions[idx].GetVolume()
+		if vol == nil {
+			continue
+		}
+		partitionOffsetB := int64(disk.Partitions[idx].GetOffset() *
+			vol.GetBytesPerSector())
+
+		vol.Process(disk.Handler, partitionOffsetB, MFTentries, fromMFTEntry, toMFTEntry)
+
+	}
 }
 
 func (disk *Disk) populateMBR() error {
@@ -129,7 +140,7 @@ func (disk *Disk) CreatePseudoMBR(voltype string) {
 
 }
 
-func (disk *Disk) DiscoverPartitions() error {
+func (disk *Disk) DiscoverPartitions(partitionNum int) error {
 
 	err := disk.populateMBR()
 	if err != nil {
@@ -138,7 +149,9 @@ func (disk *Disk) DiscoverPartitions() error {
 	if disk.hasProtectiveMBR() {
 		disk.populateGPT()
 		for idx := range disk.GPT.Partitions {
-
+			if partitionNum != -1 && partitionNum != idx {
+				continue
+			}
 			disk.Partitions = append(disk.Partitions, &disk.GPT.Partitions[idx])
 
 		}
@@ -154,30 +167,27 @@ func (disk *Disk) DiscoverPartitions() error {
 	return nil
 }
 
-func (disk *Disk) ProcessPartitions(partitionNum int) FileSystemOffsetMap {
-	filesystems := make(FileSystemOffsetMap)
+func (disk *Disk) ProcessPartitions(partitionNum int) {
 
 	for idx := range disk.Partitions {
 		if partitionNum != -1 && idx+1 != partitionNum {
 			continue
 		}
 
-		disk.Partitions[idx].LocateFileSystem(disk.Handler)
+		disk.Partitions[idx].LocateVolume(disk.Handler)
 		parttionOffset := disk.Partitions[idx].GetOffset()
-		fs := disk.Partitions[idx].GetFileSystem()
-		if fs == nil {
-			msg := "No Known File System found at partition %d (Currently supported NTFS)."
+		vol := disk.Partitions[idx].GetVolume()
+		if vol == nil {
+			msg := "No Known Volume at partition %d (Currently supported NTFS)."
 			logger.MFTExtractorlogger.Error(fmt.Sprintf(msg, idx))
 			continue //fs not found
 		}
 		msg := "Partition %d  %s at %d sector"
-		fmt.Printf(msg+"\n", idx+1, fs.GetSignature(), parttionOffset)
-		logger.MFTExtractorlogger.Info(fmt.Sprintf(msg, idx+1, fs.GetSignature(), parttionOffset))
+		fmt.Printf(msg+"\n", idx+1, vol.GetSignature(), parttionOffset)
+		logger.MFTExtractorlogger.Info(fmt.Sprintf(msg, idx+1, vol.GetSignature(), parttionOffset))
 
-		filesystems[parttionOffset] = fs
 	}
 
-	return filesystems
 }
 
 func (disk Disk) GetFileSystemMetadata(partitionNum int) map[int]MFT.Records {
@@ -187,11 +197,11 @@ func (disk Disk) GetFileSystemMetadata(partitionNum int) map[int]MFT.Records {
 		if partitionNum != -1 && idx+1 != partitionNum {
 			continue
 		}
-		fs := partition.GetFileSystem()
-		if fs == nil {
+		vol := partition.GetVolume()
+		if vol == nil {
 			continue
 		}
-		recordsPerPartition[idx] = fs.GetMetadata()
+		//	recordsPerPartition[idx] = fs.GetMetadata()
 
 	}
 	return recordsPerPartition
@@ -201,9 +211,9 @@ func (disk Disk) AsyncWorker(wg *sync.WaitGroup, record MFT.Record, dataClusters
 	defer wg.Done()
 	partition := disk.Partitions[partitionNum]
 
-	fs := partition.GetFileSystem()
-	sectorsPerCluster := int(fs.GetSectorsPerCluster())
-	bytesPerSector := int(fs.GetBytesPerSector())
+	vol := partition.GetVolume()
+	sectorsPerCluster := int(vol.GetSectorsPerCluster())
+	bytesPerSector := int(vol.GetBytesPerSector())
 	partitionOffsetB := int64(partition.GetOffset()) * int64(bytesPerSector)
 
 	if record.IsFolder() {
@@ -232,9 +242,9 @@ func (disk Disk) Worker(wg *sync.WaitGroup, records MFT.Records, results chan<- 
 	defer wg.Done()
 	partition := disk.Partitions[partitionNum]
 
-	fs := partition.GetFileSystem()
-	sectorsPerCluster := int(fs.GetSectorsPerCluster())
-	bytesPerSector := int(fs.GetBytesPerSector())
+	vol := partition.GetVolume()
+	sectorsPerCluster := int(vol.GetSectorsPerCluster())
+	bytesPerSector := int(vol.GetBytesPerSector())
 	partitionOffsetB := int64(partition.GetOffset()) * int64(bytesPerSector)
 
 	for _, record := range records {
@@ -262,6 +272,17 @@ func (disk Disk) Worker(wg *sync.WaitGroup, records MFT.Records, results chan<- 
 
 }
 
+func (disk Disk) ShowVolumeInfo() {
+	for _, partition := range disk.Partitions {
+		offset := partition.GetOffset()
+		//show only non zero partition entries
+		if offset == 0 {
+			continue
+		}
+		fmt.Printf("%s \n", partition.GetVolInfo())
+	}
+}
+
 func (disk Disk) ListPartitions() {
 	if disk.hasProtectiveMBR() {
 		fmt.Printf("GPT:\n")
@@ -283,13 +304,13 @@ func (disk Disk) ListPartitions() {
 func (disk Disk) CollectedUnallocated(blocks chan<- []byte) {
 	for _, partition := range disk.Partitions {
 
-		fs := partition.GetFileSystem()
-		if fs == nil {
+		vol := partition.GetVolume()
+		if vol == nil {
 			continue
 		}
-		bytesPerSector := int(fs.GetBytesPerSector())
+		bytesPerSector := int(vol.GetBytesPerSector())
 		partitionOffsetB := int64(partition.GetOffset()) * int64(bytesPerSector)
 
-		fs.CollectUnallocated(disk.Handler, partitionOffsetB, blocks)
+		vol.CollectUnallocated(disk.Handler, partitionOffsetB, blocks)
 	}
 }
