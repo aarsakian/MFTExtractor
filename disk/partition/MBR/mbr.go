@@ -4,8 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	FS "github.com/aarsakian/MFTExtractor/FS"
-	ntfsLib "github.com/aarsakian/MFTExtractor/FS/NTFS"
+	volume "github.com/aarsakian/MFTExtractor/disk/volume"
 	"github.com/aarsakian/MFTExtractor/img"
 	"github.com/aarsakian/MFTExtractor/utils"
 )
@@ -33,7 +32,7 @@ type Partition struct {
 	EndCHS   [3]byte
 	StartLBA uint32
 	Size     uint32 //sectors
-	FS       FS.FileSystem
+	Volume   volume.Volume
 }
 
 func (partition Partition) GetOffset() uint64 {
@@ -44,16 +43,18 @@ func (partition Partition) GetPartitionType() string {
 	return PartitionTypes[partition.Type]
 }
 
-func (partition *Partition) LocateFileSystem(hD img.DiskReader) {
+func (partition *Partition) LocateVolume(hD img.DiskReader) {
 	partitionOffetB := uint64(partition.GetOffset() * 512)
 	data := hD.ReadFile(int64(partitionOffetB), 512)
 	if partition.Type == 0x07 || partition.Type == 0x17 {
-		var ntfs *ntfsLib.NTFS = new(ntfsLib.NTFS)
-		ntfs.Parse(data)
+
+		ntfs := new(volume.NTFS)
+		ntfs.AddVolume(data)
+
 		if ntfs.HasValidSignature() {
-			partition.FS = ntfs
+			partition.Volume = ntfs
 		} else {
-			partition.FS = nil
+			partition.Volume = nil
 		}
 	}
 
@@ -63,8 +64,8 @@ func (extPartition ExtendedPartition) GetOffset() uint64 {
 	return uint64(extPartition.Partition.StartLBA) + uint64(extPartition.TableOffset)
 }
 
-func (extPartition *ExtendedPartition) LocateFileSystem(hD img.DiskReader) {
-	extPartition.Partition.LocateFileSystem(hD)
+func (extPartition *ExtendedPartition) LocateVolume(hD img.DiskReader) {
+	extPartition.Partition.LocateVolume(hD)
 }
 
 func (mbr MBR) IsProtective() bool {
@@ -132,12 +133,16 @@ func (mbr *MBR) UpdateExtendedPartitionsOffsets(extendedTableSectorOffset uint32
 	}
 }
 
-func (partiton Partition) GetFileSystem() FS.FileSystem {
-	return partiton.FS
+func (partition Partition) GetVolInfo() string {
+	return ""
 }
 
-func (extPartition ExtendedPartition) GetFileSystem() FS.FileSystem {
-	return extPartition.Partition.FS
+func (partiton Partition) GetVolume() volume.Volume {
+	return partiton.Volume
+}
+
+func (extPartition ExtendedPartition) GetVolume() volume.Volume {
+	return extPartition.Partition.Volume
 }
 
 func (partition Partition) GetInfo() string {
@@ -148,4 +153,8 @@ func (partition Partition) GetInfo() string {
 func (extPartition ExtendedPartition) GetInfo() string {
 
 	return fmt.Sprintf("extended  %s at %d", extPartition.Partition.GetPartitionType(), extPartition.Partition.GetOffset())
+}
+
+func (extpartition ExtendedPartition) GetVolInfo() string {
+	return ""
 }
