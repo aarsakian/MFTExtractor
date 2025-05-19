@@ -59,20 +59,20 @@ type LinkedRecordInfo struct {
 
 // MFT Record
 type Record struct {
-	Signature            string //0-3
-	UpdateFixUpArrOffset uint16 //4-5      offset values are relative to the start of the entry.
-	UpdateFixUpArrSize   uint16 //6-7
-	Lsn                  uint64 //8-15    logfile sequence number, points to the most recent LogFile entry for this MFT entry
-	Seq                  uint16 //16-17   is incremented when the entry is either allocated or unallocated, determined by the OS.
-	Linkcount            uint16 //18-19        how many directories have entries for this MFTentry
-	AttrOff              uint16 //20-21       //first attr location
-	Flags                uint16 //22-23  //tells whether entry is used or not
-	Size                 uint32 //24-27
-	AllocSize            uint32 //28-31
-	BaseRef              uint64 //32-39
-	NextAttrID           uint16 //40-41 e.g. if it is 6 then there are attributes with 1 to 5
-	F1                   uint16 //42-43
-	Entry                uint32 //44-48                  ??
+	Signature            [4]byte //0-3
+	UpdateFixUpArrOffset uint16  //4-5      offset values are relative to the start of the entry.
+	UpdateFixUpArrSize   uint16  //6-7
+	Lsn                  uint64  //8-15    logfile sequence number, points to the most recent LogFile entry for this MFT entry
+	Seq                  uint16  //16-17   is incremented when the entry is either allocated or unallocated, determined by the OS.
+	Linkcount            uint16  //18-19        how many directories have entries for this MFTentry
+	AttrOff              uint16  //20-21       //first attr location
+	Flags                uint16  //22-23  //tells whether entry is used or not
+	Size                 uint32  //24-27
+	AllocSize            uint32  //28-31
+	BaseRef              uint64  //32-39
+	NextAttrID           uint16  //40-41 e.g. if it is 6 then there are attributes with 1 to 5
+	F1                   uint16  //42-43
+	Entry                uint32  //44-48                  ??
 	FixUp                *FixUp
 	Attributes           []Attribute
 	Bitmap               bool
@@ -561,6 +561,10 @@ func (record Record) ShowFNAMFTAccessTime() {
 	fmt.Printf("%s ", fnattr.Atime.ConvertToIsoTime())
 }
 
+func (record Record) GetSignature() string {
+	return string(record.Signature[:])
+}
+
 func (record *Record) ProcessFixUpArrays(data []byte) {
 	if len(data) < int(2*record.UpdateFixUpArrSize) {
 		msg := fmt.Sprintf("Data not enough to parse fixup array by %d", int(2*record.UpdateFixUpArrSize)-len(data))
@@ -583,10 +587,10 @@ func (record *Record) Process(bs []byte) error {
 
 	utils.Unmarshal(bs, record)
 
-	if record.Signature == "BAAD" { //skip bad entry
+	if record.GetSignature() == "BAAD" { //skip bad entry
 		return errors.New("Record is corrupt")
-	} else if record.Signature != "FILE" {
-		return fmt.Errorf("Record has non valid signature %x", record.Signature)
+	} else if record.GetSignature() != "FILE" {
+		return fmt.Errorf("Record has non valid signature %x", record.GetSignature())
 	}
 	record.ProcessFixUpArrays(bs)
 	record.I30Size = 0 //default value
