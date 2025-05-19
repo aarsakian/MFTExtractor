@@ -220,31 +220,7 @@ func Unmarshal(data []byte, v interface{}) (int, error) {
 		field := val.Field(i) //StructField type
 		name := val.Type().Field(i).Name
 		switch field.Kind() {
-		case reflect.String:
 
-			if name == "Signature" || name == "CollationSortingRule" {
-				field.SetString(string(data[idx : idx+4]))
-				idx += 4
-			} else if name == "Type" || name == "Magic" {
-				field.SetString(Hexify(Bytereverse(data[idx : idx+4])))
-				idx += 4
-			} else if name == "Res" || name == "Len" {
-				field.SetString(Hexify(Bytereverse(data[idx : idx+2])))
-				idx += 2
-			} else if name == "ObjID" || name == "OrigVolID" ||
-				name == "OrigObjID" || name == "OrigDomID" {
-				field.SetString(stringifyGuIDs(data[idx : idx+16]))
-				idx += 16
-			} else if name == "MajVer" || name == "MinVer" {
-				field.SetString(Hexify(Bytereverse(data[idx : idx+1])))
-				idx += 1
-			} else if name == "LVMSignature" || name == "IndicatorType" {
-				field.SetString(string(data[idx : idx+8]))
-				idx += 8
-			} else if name == "RaidName" {
-				field.SetString(string(data[idx : idx+32]))
-				idx += 32
-			}
 		case reflect.Struct:
 			typeName := field.Type().Name()
 			if typeName == "TimeSpec" {
@@ -308,6 +284,9 @@ func Unmarshal(data []byte, v interface{}) (int, error) {
 				end = len(data)
 			} else {
 				end = idx + field.Len()
+			}
+			if idx > end {
+				return idx, errors.New("exceede available buffer")
 			}
 			for idx, val := range data[idx:end] {
 
