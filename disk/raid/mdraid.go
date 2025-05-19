@@ -1,13 +1,13 @@
 package mdraid
 
 type Superblock struct {
-	Magic             string //4bytes 0xa92b4efc
+	Magic             [4]byte //4bytes 0xa92b4efc (Hexify(Bytereverse
 	MajorVersion      uint32
 	FeatureMap        uint32
 	Pad0              [4]byte //zeros
 	UUID              [16]byte
-	RaidName          string //32bytes
-	CTime             uint64 //C time
+	RaidName          [32]byte //32bytes
+	CTime             uint64   //C time
 	RaidLevel         uint32
 	RaidLayout        uint32
 	Size              uint64 //sectors
