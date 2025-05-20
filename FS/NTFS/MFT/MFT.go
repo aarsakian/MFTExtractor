@@ -7,13 +7,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	MFTAttributes "github.com/aarsakian/MFTExtractor/FS/NTFS/MFT/attributes"
-	"github.com/aarsakian/MFTExtractor/img"
-	"github.com/aarsakian/MFTExtractor/logger"
+	MFTAttributes "github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT/attributes"
+	"github.com/aarsakian/FileSystemForensics/img"
+	"github.com/aarsakian/FileSystemForensics/logger"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 
-	"github.com/aarsakian/MFTExtractor/utils"
+	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
 var RecordSize = 1024

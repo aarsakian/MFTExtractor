@@ -1,6 +1,6 @@
 package attributes
 
-import "github.com/aarsakian/MFTExtractor/utils"
+import "github.com/aarsakian/FileSystemForensics/utils"
 
 type LoggedUtilityStream struct {
 	Kind    string

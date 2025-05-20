@@ -6,7 +6,7 @@ import (
 
 	ewfLib "github.com/aarsakian/EWF_Reader/ewf"
 
-	"github.com/aarsakian/MFTExtractor/utils"
+	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
 type ImageReader struct {

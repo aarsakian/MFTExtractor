@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 
-	MFTAttributes "github.com/aarsakian/MFTExtractor/FS/NTFS/MFT/attributes"
-	"github.com/aarsakian/MFTExtractor/img"
-	"github.com/aarsakian/MFTExtractor/logger"
-	"github.com/aarsakian/MFTExtractor/utils"
+	MFTAttributes "github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT/attributes"
+	"github.com/aarsakian/FileSystemForensics/img"
+	"github.com/aarsakian/FileSystemForensics/logger"
+	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
 type ParentReallocatedError struct {

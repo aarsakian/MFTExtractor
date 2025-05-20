@@ -1,4 +1,4 @@
-module github.com/aarsakian/MFTExtractor
+module github.com/aarsakian/FileSystemForensics
 
 go 1.18
 

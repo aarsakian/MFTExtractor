@@ -1,10 +1,10 @@
 package BTRFS
 
 import (
-	"github.com/aarsakian/MFTExtractor/FS/BTRFS/leafnode"
-	"github.com/aarsakian/MFTExtractor/img"
-	"github.com/aarsakian/MFTExtractor/logger"
-	"github.com/aarsakian/MFTExtractor/utils"
+	"github.com/aarsakian/FileSystemForensics/FS/BTRFS/leafnode"
+	"github.com/aarsakian/FileSystemForensics/img"
+	"github.com/aarsakian/FileSystemForensics/logger"
+	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
 const SYSTEMCHUNKARRSIZE = 2048

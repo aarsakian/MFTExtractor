@@ -3,8 +3,8 @@ package attributes
 import (
 	"fmt"
 
-	"github.com/aarsakian/MFTExtractor/logger"
-	"github.com/aarsakian/MFTExtractor/utils"
+	"github.com/aarsakian/FileSystemForensics/logger"
+	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
 type Reparse struct {

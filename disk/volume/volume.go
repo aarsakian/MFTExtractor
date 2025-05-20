@@ -1,6 +1,6 @@
 package volume
 
-import "github.com/aarsakian/MFTExtractor/img"
+import "github.com/aarsakian/FileSystemForensics/img"
 
 type Volume interface {
 	Process(img.DiskReader, int64, []int, int, int)

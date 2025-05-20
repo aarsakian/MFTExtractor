@@ -4,9 +4,9 @@ import (
 	"errors"
 	"fmt"
 
-	volume "github.com/aarsakian/MFTExtractor/disk/volume"
-	"github.com/aarsakian/MFTExtractor/img"
-	"github.com/aarsakian/MFTExtractor/utils"
+	volume "github.com/aarsakian/FileSystemForensics/disk/volume"
+	"github.com/aarsakian/FileSystemForensics/img"
+	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
 var PartitionTypes = map[uint8]string{0x07: "HPFS/NTFS/exFAT",

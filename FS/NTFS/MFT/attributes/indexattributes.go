@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/aarsakian/MFTExtractor/utils"
+	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
 var IndexFlags = map[uint32]string{0x000001: "Has VCN", 0x000002: "Last"}

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/aarsakian/MFTExtractor/utils"
+	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
 type AttributeListEntries struct {

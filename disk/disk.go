@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
-	gptLib "github.com/aarsakian/MFTExtractor/disk/partition/GPT"
-	mbrLib "github.com/aarsakian/MFTExtractor/disk/partition/MBR"
-	"github.com/aarsakian/MFTExtractor/disk/volume"
-	"github.com/aarsakian/MFTExtractor/img"
-	"github.com/aarsakian/MFTExtractor/logger"
-	"github.com/aarsakian/MFTExtractor/utils"
+	"github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
+	gptLib "github.com/aarsakian/FileSystemForensics/disk/partition/GPT"
+	mbrLib "github.com/aarsakian/FileSystemForensics/disk/partition/MBR"
+	"github.com/aarsakian/FileSystemForensics/disk/volume"
+	"github.com/aarsakian/FileSystemForensics/img"
+	"github.com/aarsakian/FileSystemForensics/logger"
+	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
 var ErrNTFSVol = errors.New("NTFS volume discovered instead of MBR")

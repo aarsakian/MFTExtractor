@@ -1,6 +1,6 @@
 package filters
 
-import "github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
+import "github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
 
 type Filter interface {
 	Execute(records MFT.Records) MFT.Records

@@ -1,8 +1,8 @@
 package filtermanager
 
 import (
-	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
-	"github.com/aarsakian/MFTExtractor/filters"
+	"github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
+	"github.com/aarsakian/FileSystemForensics/filters"
 )
 
 type FilterManager struct {

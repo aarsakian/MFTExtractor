@@ -3,9 +3,9 @@ package reporter
 import (
 	"fmt"
 
-	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
-	UsnJrnl "github.com/aarsakian/MFTExtractor/FS/NTFS/usnjrnl"
-	"github.com/aarsakian/MFTExtractor/tree"
+	"github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
+	UsnJrnl "github.com/aarsakian/FileSystemForensics/FS/NTFS/usnjrnl"
+	"github.com/aarsakian/FileSystemForensics/tree"
 )
 
 type Reporter struct {

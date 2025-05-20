@@ -3,7 +3,7 @@ package internalnode
 import (
 	"reflect"
 
-	"github.com/aarsakian/MFTExtractor/utils"
+	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
 type Key struct {

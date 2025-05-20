@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"strconv"
 
-	exporter "github.com/aarsakian/MFTExtractor/Exporter"
-	"github.com/aarsakian/MFTExtractor/FS/BTRFS/internalnode"
-	"github.com/aarsakian/MFTExtractor/FS/BTRFS/leafnode"
-	"github.com/aarsakian/MFTExtractor/logger"
-	"github.com/aarsakian/MFTExtractor/utils"
+	exporter "github.com/aarsakian/FileSystemForensics/Exporter"
+	"github.com/aarsakian/FileSystemForensics/FS/BTRFS/internalnode"
+	"github.com/aarsakian/FileSystemForensics/FS/BTRFS/leafnode"
+	"github.com/aarsakian/FileSystemForensics/logger"
+	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
 type Key struct {

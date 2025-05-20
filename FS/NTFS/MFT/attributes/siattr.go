@@ -3,7 +3,7 @@ package attributes
 import (
 	"fmt"
 
-	"github.com/aarsakian/MFTExtractor/utils"
+	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
 type SIAttribute struct {

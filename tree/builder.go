@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
-	MFTAttributes "github.com/aarsakian/MFTExtractor/FS/NTFS/MFT/attributes"
-	"github.com/aarsakian/MFTExtractor/logger"
+	"github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
+	MFTAttributes "github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT/attributes"
+	"github.com/aarsakian/FileSystemForensics/logger"
 )
 
 /*Thus, a B-tree node is equivalent to a disk block, and a “pointer” value stored

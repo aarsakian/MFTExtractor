@@ -3,11 +3,11 @@ package gpt
 import (
 	"fmt"
 
-	mdraid "github.com/aarsakian/MFTExtractor/disk/raid"
-	"github.com/aarsakian/MFTExtractor/disk/volume"
-	lvmlib "github.com/aarsakian/MFTExtractor/disk/volume"
-	"github.com/aarsakian/MFTExtractor/img"
-	"github.com/aarsakian/MFTExtractor/utils"
+	mdraid "github.com/aarsakian/FileSystemForensics/disk/raid"
+	"github.com/aarsakian/FileSystemForensics/disk/volume"
+	lvmlib "github.com/aarsakian/FileSystemForensics/disk/volume"
+	"github.com/aarsakian/FileSystemForensics/img"
+	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
 var PartitionTypeGuids = map[string]string{

@@ -1,6 +1,6 @@
 package lvmlib
 
-import "github.com/aarsakian/MFTExtractor/utils"
+import "github.com/aarsakian/FileSystemForensics/utils"
 
 type LVM2 struct {
 	Header *PhysicalVolLabel

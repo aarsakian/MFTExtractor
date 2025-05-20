@@ -4,7 +4,7 @@ import (
 	"log"
 	"unsafe"
 
-	"github.com/aarsakian/MFTExtractor/utils"
+	"github.com/aarsakian/FileSystemForensics/utils"
 	"golang.org/x/sys/windows"
 )
 

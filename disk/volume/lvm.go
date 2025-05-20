@@ -3,8 +3,8 @@ package volume
 import (
 	"encoding/json"
 
-	"github.com/aarsakian/MFTExtractor/img"
-	"github.com/aarsakian/MFTExtractor/utils"
+	"github.com/aarsakian/FileSystemForensics/img"
+	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
 type LVM2 struct {

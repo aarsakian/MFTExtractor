@@ -18,7 +18,7 @@ import (
 	"unicode/utf16"
 	"unicode/utf8"
 
-	"github.com/aarsakian/MFTExtractor/logger"
+	"github.com/aarsakian/FileSystemForensics/logger"
 )
 
 type NoNull string

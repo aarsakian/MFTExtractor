@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
-	"github.com/aarsakian/MFTExtractor/disk"
-	"github.com/aarsakian/MFTExtractor/logger"
-	"github.com/aarsakian/MFTExtractor/utils"
+	"github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
+	"github.com/aarsakian/FileSystemForensics/disk"
+	"github.com/aarsakian/FileSystemForensics/logger"
+	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
 type Exporter struct {

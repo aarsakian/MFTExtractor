@@ -13,17 +13,17 @@ import (
 
 	EWFLogger "github.com/aarsakian/EWF_Reader/logger"
 
-	"github.com/aarsakian/MFTExtractor/FS/NTFS/MFT"
-	UsnJrnl "github.com/aarsakian/MFTExtractor/FS/NTFS/usnjrnl"
-	"github.com/aarsakian/MFTExtractor/disk"
-	"github.com/aarsakian/MFTExtractor/disk/volume"
-	"github.com/aarsakian/MFTExtractor/exporter"
-	"github.com/aarsakian/MFTExtractor/filtermanager"
-	"github.com/aarsakian/MFTExtractor/filters"
-	FSLogger "github.com/aarsakian/MFTExtractor/logger"
-	"github.com/aarsakian/MFTExtractor/reporter"
-	"github.com/aarsakian/MFTExtractor/tree"
-	"github.com/aarsakian/MFTExtractor/utils"
+	"github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
+	UsnJrnl "github.com/aarsakian/FileSystemForensics/FS/NTFS/usnjrnl"
+	"github.com/aarsakian/FileSystemForensics/disk"
+	"github.com/aarsakian/FileSystemForensics/disk/volume"
+	"github.com/aarsakian/FileSystemForensics/exporter"
+	"github.com/aarsakian/FileSystemForensics/filtermanager"
+	"github.com/aarsakian/FileSystemForensics/filters"
+	FSLogger "github.com/aarsakian/FileSystemForensics/logger"
+	"github.com/aarsakian/FileSystemForensics/reporter"
+	"github.com/aarsakian/FileSystemForensics/tree"
+	"github.com/aarsakian/FileSystemForensics/utils"
 	VMDKLogger "github.com/aarsakian/VMDK_Reader/logger"
 )
 

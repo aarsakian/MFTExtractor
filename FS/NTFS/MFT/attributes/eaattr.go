@@ -1,6 +1,6 @@
 package attributes
 
-import "github.com/aarsakian/MFTExtractor/utils"
+import "github.com/aarsakian/FileSystemForensics/utils"
 
 type EA_INFORMATION struct {
 	SizeOfEntry uint16
