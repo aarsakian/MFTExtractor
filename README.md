@@ -1,23 +1,23 @@
-MFTExtractor
+FileSystemForensics
 ============
 
-### A Parser  of ~~Master File Table~~  NTFS file system.
+### a tool to inspect, extract, files and file system metadata. It currently supports NTFS, gradually BTRFS support will be added. 
 
 
 
-Using this tool you can explore ~~$MFT~~ NTFS and its file system attributes. You can selectively extract filesystem information of record  or for a range of records. In addition, you can export the contents of files. 
+Using this tool you can explor NTFS and its file system attributes. You can selectively extract filesystem information of record  or for a range of records. In addition, you can export the contents of files. 
 
-Exporting files can be achieved either by mounting the evidence and providing its physical drive order and partition number or by using the acquired forensic image (Expert Witness Format), or virtual machine disk format. 
+Exporting files can be achieved either by mounting the evidence and providing its physical drive order and partition number or by using the acquired forensic image (Expert Witness Format), or a virtual machine disk format (VMDK). 
 
 #### Examples #####
-you can now explore NTFS by providing physical drive number and partition number 
+you can explore NTFS by providing physical drive number and partition number 
 e.g. *-physicaldrive 0 -partition 1* translates to \\\\.\\PHYSICALDRIVE0 D drive respectively,
 
 
 or by using as input an expert witness format image 
 e.g. *-evidence path_to_evidence -partition 1*.
 
-Usage information  type: MFTExtractor  -h
+Usage information  type: FileSystemForensics.exe -h
 
 
   -MFT string
