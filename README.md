@@ -5,50 +5,51 @@ FileSystemForensics
 
 
 
-Using this tool you can explor NTFS and its file system attributes. You can selectively extract filesystem information of record  or for a range of records. In addition, you can export the contents of files. 
+By using this tool, you can explore NTFS and its file system attributes. You can selectively extract filesystem information of a record, or for a range of records. In addition, you can export the contents of files. 
 
 Exporting files can be achieved either by mounting the evidence and providing its physical drive order and partition number or by using the acquired forensic image (Expert Witness Format), or a virtual machine disk format (VMDK). 
 
 #### Examples #####
 you can explore NTFS by providing physical drive number and partition number 
+
 e.g. *-physicaldrive 0 -partition 1* translates to \\\\.\\PHYSICALDRIVE0 D drive respectively,
 
 
 or by using as input an expert witness format image 
+
 e.g. *-evidence path_to_evidence -partition 1*.
 
-Usage information  type: FileSystemForensics.exe -h
-
+##### Usage information  type: FileSystemForensics.exe -h #####
 
   -MFT string
         absolute path to the MFT file
         
   -attributes string
-        show attributes (write any for all attributes)
+        show file system attributes (write any for all attributes)
         
   -deleted
         show deleted records
         
   -entries string
-        select particular MFT entries, use comma as a seperator.
+        select file system records by entering its id, use comma as a seperator
         
   -evidence string
         path to image file (EWF formats are supported)
         
   -extensions string
-        search MFT records by extensions use , for each extension
+        search file system records by extensions use comma as a seperator
         
   -filenames string
-        files to export use comma for each file
+        files to export use comma as a seperator
         
   -filesize
-        show file size of a record holding a file
+        show file size
         
   -fromEntry int
-        select entry to start parsing (default -1)
+        select file system record id to start processing (default -1)
         
   -hash string
-        select hash md5 or sha1 for exported files.
+        hash exported files, enter md5 or sha1
         
   -index
         show index structures
@@ -57,7 +58,7 @@ Usage information  type: FileSystemForensics.exe -h
         list partitions
         
   -location string
-        the path to export  files
+        the path to export files
         
   -log
         enable logging
@@ -75,50 +76,53 @@ Usage information  type: FileSystemForensics.exe -h
         base path of files to exported must be absolute e.g. C:\MYFILES\ABC translates to MYFILES\ABC
         
   -physicaldrive int
-        select disk drive number for extraction of non resident files (default -1)
+        select disk drive number (default -1)
         
   -resident
         check whether entry is resident
         
   -runlist
-        show runlist of MFT record attributes
+        show runlist of file system records
         
   -showfilename string
-        show the name of the filename attribute of each MFT record choices: Any, Win32, Dos
+        show the name of the filename attribute of MFT records: enter (Any, Win32, Dos)
         
   -showfull
         show full information about record
         
   -showpath
-        show the full path of the selected files.
+        show the full path of the selected files
         
   -showtree
-        show tree
+        show file system tree
         
   -showusn
-        show information about usnjrnl records
+        show information about NTFS usnjrnl records
         
   -strategy string
-        what strategy will use for files sharing the same file name supported is use Id default is ovewrite. (default "overwrite")
+        what strategy will be used for files sharing the same name, default is ovewrite, or use Id (default "overwrite")
         
   -timestamps
-        show all timestamps
+        show all file system timestamps
         
   -toEntry int
-        select entry to end parsing (default 4294967295)
+        select file system record id to end processing (default 4294967295)
         
   -tree
-        reconstrut entries tree
+        reconstrut file system tree
         
   -unallocated
-        collect unallocated area of a file system
+        collect unallocated area of a volume
         
   -usnjrnl
-        show information about changes to files and folders.
+        show usnjrnl information about changes to files and folders
         
   -vcns
-        show the vncs of non resident attributes
+        show the vcns of non resident file system attributes
         
   -vmdk string
         path to vmdk file (Sparse formats are supported)
+        
+  -volinfo
+        show volume informatio
 
