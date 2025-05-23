@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
-	exporter "github.com/aarsakian/FileSystemForensics/Exporter"
+	//exporter "github.com/aarsakian/FileSystemForensics/Exporter"
 	"github.com/aarsakian/FileSystemForensics/FS/BTRFS/internalnode"
 	"github.com/aarsakian/FileSystemForensics/FS/BTRFS/leafnode"
 	"github.com/aarsakian/FileSystemForensics/logger"
@@ -69,9 +69,9 @@ func (nodesPtr GenericNodesPtr) FilterItemsByIds(ids []string) ([]leafnode.Item,
 	return items, dataItems
 }
 
-func (nodesPtr GenericNodesPtr) WriteFilesDirsInfo(exp exporter.Exporter) {
+/*func (nodesPtr GenericNodesPtr) WriteFilesDirsInfo(exp exporter.Exporter) {
 
-	/*	for _, node := range nodesPtr {
+		for _, node := range nodesPtr {
 		for idx, item := range node.LeafNode.Items {
 			if item.IsDirItem() {
 				dirItem := node.LeafNode.DataItems[idx].(*leafnode.DirItem)
@@ -96,9 +96,9 @@ func (nodesPtr GenericNodesPtr) WriteFilesDirsInfo(exp exporter.Exporter) {
 
 		}
 
-	}*/
+	}
 
-}
+}*/
 
 func (nodesPtr GenericNodesPtr) ShowFilesDirsInfo() {
 
