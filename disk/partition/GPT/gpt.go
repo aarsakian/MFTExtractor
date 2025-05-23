@@ -46,6 +46,7 @@ type Partition struct {
 	Atttributes       [8]byte
 	Name              string
 	Volume            volume.Volume
+	Raid              *mdraid.Superblock
 }
 
 func (partition Partition) GetPartitionType() string {
@@ -95,7 +96,12 @@ func (gpt GPT) GetPartition(partitionNum int) Partition {
 }
 
 func (partition Partition) GetOffset() uint64 {
-	return partition.StartLBA
+	offset := uint64(0)
+	if partition.Raid != nil {
+		offset = partition.Raid.DataOffset
+	}
+
+	return partition.StartLBA + offset
 }
 
 func (partition Partition) GetVolInfo() string {
@@ -122,6 +128,7 @@ func (partition *Partition) LocateVolume(hD img.DiskReader) {
 		if utils.Hexify(utils.Bytereverse(data[:4])) == "a92b4efc" { //valid ?
 			superblock := new(mdraid.Superblock)
 			utils.Unmarshal(data, superblock)
+			partition.Raid = superblock
 
 			lvm2 := new(lvmlib.LVM2)
 			lvm2.ProcessHeader(hD, int64(partitionOffetB+superblock.DataOffset*512))
