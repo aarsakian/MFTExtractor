@@ -1,6 +1,8 @@
 package BTRFS
 
 import (
+	"fmt"
+
 	"github.com/aarsakian/FileSystemForensics/FS/BTRFS/leafnode"
 	"github.com/aarsakian/FileSystemForensics/img"
 	"github.com/aarsakian/FileSystemForensics/logger"
@@ -64,15 +66,14 @@ type Superblock struct { //4096B
 func (btrfs *BTRFS) Process(hD img.DiskReader, partitionOffsetB int64, selectedEntries []int,
 	fromEntry int, toEntry int) {
 
-	/*length := int(1024) // len of MFT record
+	length := int(1024) // len of MFT record
 
-	physicalOffset := partitionOffsetB + int64(ntfs.VBR.MFTOffset)*int64(ntfs.VBR.SectorsPerCluster)*int64(ntfs.VBR.BytesPerSector)
+	msg := "Reading superblock at offset %d"
+	fmt.Printf(msg+"\n", partitionOffsetB)
+	logger.MFTExtractorlogger.Info(fmt.Sprintf(msg, partitionOffsetB))
 
-	msg := "Reading first record entry to determine the size of $MFT Table at offset %d"
-	fmt.Printf(msg+"\n", physicalOffset)
-	logger.MFTExtractorlogger.Info(fmt.Sprintf(msg, physicalOffset))
-
-	data := hD.ReadFile(physicalOffset, length)*/
+	data := hD.ReadFile(partitionOffsetB, length)
+	btrfs.Parse(data)
 
 }
 
