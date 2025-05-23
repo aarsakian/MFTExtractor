@@ -77,7 +77,6 @@ type Partition interface {
 func (disk *Disk) DiscoverFileSystems(MFTentries []int, fromMFTEntry int, toMFTEntry int) {
 	for idx := range disk.Partitions {
 
-		disk.Partitions[idx].GetOffset()
 		vol := disk.Partitions[idx].GetVolume()
 		if vol == nil {
 			continue
