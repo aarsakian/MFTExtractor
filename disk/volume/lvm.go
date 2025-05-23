@@ -3,6 +3,7 @@ package volume
 import (
 	"encoding/json"
 
+	"github.com/aarsakian/FileSystemForensics/FS/BTRFS"
 	"github.com/aarsakian/FileSystemForensics/img"
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
@@ -66,6 +67,9 @@ func (lvm2 *LVM2) ProcessHeader(hD img.DiskReader, physicalOffsetB int64) {
 
 func (lvm2 *LVM2) Process(hD img.DiskReader, physicalOffsetB int64, SelectedEntries []int,
 	fromEntry int, toEntry int) {
+	btrfs := new(BTRFS.BTRFS)
+	btrfs.Process(hD, physicalOffsetB+lvm2.Header.PhysicalVolHeader.DataAreaDescriptors[0].OffsetB+128*512,
+		SelectedEntries, fromEntry, toEntry)
 
 }
 
@@ -96,14 +100,14 @@ func (lvm2 *LVM2) ParseMetaHeader(data []byte) {
 
 func (physicalVolHeader *PhysicalVolHeader) Parse(data []byte) {
 
-	offset, _ := utils.Unmarshal(data[32:], physicalVolHeader)
+	offset, _ := utils.Unmarshal(data, physicalVolHeader)
 
 	dataDescriptor := new(DataAreaDescriptor)
-	currOffset, _ := utils.Unmarshal(data[32+offset:], dataDescriptor)
+	currOffset, _ := utils.Unmarshal(data[offset:], dataDescriptor)
 
-	for dataDescriptor.LenB != 0 && dataDescriptor.OffsetB != 0 {
+	for dataDescriptor.OffsetB != 0 {
 		physicalVolHeader.DataAreaDescriptors = append(physicalVolHeader.DataAreaDescriptors, *dataDescriptor)
-		offset, _ := utils.Unmarshal(data[32+currOffset:], dataDescriptor)
+		offset, _ := utils.Unmarshal(data[offset+currOffset:], dataDescriptor)
 
 		currOffset += offset
 
